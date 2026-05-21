@@ -21,7 +21,7 @@ env:
 
 defaults:
   run:
-    shell: pwsh
+    shell: powershell
 
 jobs:
   # ── Build & Test ────────────────────────────────────────────────────────────
