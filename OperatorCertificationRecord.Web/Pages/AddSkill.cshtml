@@ -1,0 +1,879 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AddSkillModel
+@{
+    ViewData["Title"] = "Add Skill";
+    ViewData["ActivePage"] = "AddSkill";
+}
+
+<div class="ask-layout">
+
+    <!-- =====================================================
+         LEFT SIDEBAR
+    ===================================================== -->
+    <aside class="ask-sidebar">
+
+        <div class="ask-card ask-photo-card">
+            <div class="ask-avatar-ring">
+                <img class="ask-avatar-img" src="@(Model.PhotoUrl ?? "/images/placeholder-employee.svg")" alt="Employee Photo" />
+            </div>
+            <div class="ask-avatar-name">
+                @(Model.Employee != null && !string.IsNullOrWhiteSpace(Model.Employee.FirstNameEng) ?
+                    (Model.Employee.PrefixEng + " " + Model.Employee.FirstNameEng + " " + Model.Employee.LastNameEng).Trim() :
+                    (HttpContext.Session.GetString("UserName") ?? HttpContext.Session.GetString("UserCode")))
+                @if (Model.IsPromoted)
+                {
+                    <span class="ask-status-badge ask-promoted"><i class="bi bi-award-fill"></i> Promoted</span>
+                }
+            </div>
+            <div class="ask-avatar-hint"><i class="bi bi-award"></i> Add Skill Certification</div>
+        </div>
+
+        <div class="ask-card ask-info-card">
+            <div class="ask-info-row" style="border-left-color:#f97316;">
+                <div class="ask-info-icon" style="background:#fff7ed;color:#ea580c;"><i class="bi bi-fingerprint"></i></div>
+                <div style="min-width:0">
+                    <div class="ask-info-val">@(Model.EmpCode ?? HttpContext.Session.GetString("UserCode") ?? "\u2014")</div>
+                    <div class="ask-info-lbl">Employee No.</div>
+                </div>
+            </div>
+            <div class="ask-info-row" style="border-left-color:#3b82f6;">
+                <div class="ask-info-icon" style="background:#eff6ff;color:#2563eb;"><i class="bi bi-building"></i></div>
+                <div style="min-width:0">
+                    <div class="ask-info-val">@(Model.DepartmentName ?? HttpContext.Session.GetString("DepartmentName") ?? "\u2014")</div>
+                    <div class="ask-info-lbl">Department</div>
+                </div>
+            </div>
+            <div class="ask-info-row" style="border-left-color:#8b5cf6;border-bottom:0;">
+                <div class="ask-info-icon" style="background:#faf5ff;color:#7c3aed;"><i class="bi bi-diagram-3"></i></div>
+                <div style="min-width:0">
+                    <div class="ask-info-val">@(Model.SectionName ?? "\u2014")</div>
+                    <div class="ask-info-lbl">Section</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ask-card ask-nav-card">
+            <a href="/ViewUser?empCode=@Model.EmpCode" class="ask-nav-link">
+                <i class="bi bi-arrow-left"></i> Back to Employee
+            </a>
+        </div>
+
+    </aside>
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ===================================================== -->
+    <main class="ask-main">
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                if (window.Toast) {
+                    @if (Model.MessageType == "success")
+                    {
+                        <text>window.Toast.success('Success', '@Html.Raw(Model.Message.Replace("'", "\\'"))'); </text>
+                    }
+                    else
+                    {
+                        <text>window.Toast.error('Error', '@Html.Raw(Model.Message.Replace("'", "\\'"))'); </text>
+                    }
+                }
+            });
+        </script>
+    }
+
+    <div class="ask-form-card">
+        <form method="post" enctype="multipart/form-data" id="skillForm" data-validate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmpCode" value="@Model.EmpCode" />
+            <input type="hidden" name="Skill_TestResult" id="Skill_TestResult" value="" />
+            
+            <!-- Process & Workshop -->
+            <div class="ask-section-label">Process &amp; Workshop</div>
+            <div class="ask-fields-grid cols-2 mb-4">
+                <div class="ask-field">
+                    <label class="ask-field-label">Workshop</label>
+                    <select class="ask-input" id="Skill_WorkshopID" name="Skill_WorkshopID" onchange="loadProcessesForSkill();" aria-label="Workshop" data-current="@Model.WorkshopID" required>
+                        <option value="">Select Workshop</option>
+                        @foreach(var w in Model.Workshops)
+                        {
+                            <option value="@w.WorkshopID">@w.WorkshopName</option>
+                        }
+                    </select>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Process <span class="ask-required">*</span></label>
+                    <select class="ask-input" name="Skill_ProcessName" id="Skill_ProcessName" data-current="@Model.ProcessName" required>
+                        <option value="">Select Process</option>
+                        @foreach(var p in Model.Processes)
+                        {
+                            <option value="@p.ProcessName">@p.ProcessName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <!-- Certification -->
+            <div class="ask-section-label">Certification</div>
+            <div class="ask-fields-grid cols-2 mb-4">
+                <div class="ask-field">
+                    <label class="ask-field-label">Certification Type</label>
+                    <select class="ask-input" name="Skill_OperatorTraining" id="Skill_OperatorTraining" data-current="@Model.OperatorTraining" required>
+                        <option value="">Select</option>
+                        @foreach(var ot in Model.OperatorTrainings)
+                        {
+                            <option value="@ot.OperatorTrainingName">@ot.OperatorTrainingName</option>
+                        }
+                    </select>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Verifier</label>
+                    <div class="ask-input-static">@(HttpContext.Session.GetString("UserName") ?? HttpContext.Session.GetString("UserCode"))</div>
+                </div>
+            </div>
+
+            <!-- Training -->
+            <div class="ask-section-label">Training</div>
+            <div class="ask-fields-grid cols-2 mb-4">
+                <div class="ask-field">
+                    <label class="ask-field-label">Theory Training</label>
+                    <input type="date" class="ask-input" name="Skill_TheoryTraining" value="@Model.TheoryTraining?.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">OJT Training</label>
+                    <input type="date" class="ask-input" name="Skill_OJTTraining" value="@Model.OJTTraining?.ToString("yyyy-MM-dd")">
+                </div>
+            </div>
+
+            <!-- Scores & Results -->
+            <div class="ask-section-label">Scores &amp; Results</div>
+            <div class="ask-score-card">
+            <div class="ask-fields-grid mb-3">
+                <div class="ask-field">
+                    <label class="ask-field-label">Full Score</label>
+                    <div class="input-with-icon">
+                        <input type="number" id="Skill_FullScore" class="ask-input input-medium" name="Skill_FullScore" placeholder="125" value="@Model.FullScore" min="0" max="125" step="1" required />
+                        <span class="validation-icon neutral" id="fullScoreIcon">—</span>
+                    </div>
+                    <div class="form-text text-danger small d-none" id="fullScoreError">Full Score must be a number between 0 and 125.</div>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Actual Score</label>
+                    <div class="input-with-icon">
+                        <input type="number" id="Skill_ActualScore" class="ask-input input-medium" name="Skill_ActualScore" placeholder="125" value="@Model.ActualScore" min="0" max="125" step="1" required />
+                        <span class="validation-icon neutral" id="actualScoreIcon">—</span>
+                    </div>
+                    <div class="form-text text-danger small d-none" id="actualScoreError">Actual Score must be a number between 0 and 125.</div>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Test Result</label>
+                    <div class="input-with-icon">
+                        <input type="text" readonly id="TestResultDisplay" class="ask-input input-narrow" value="—" />
+                        <span class="validation-icon neutral" id="testResultIcon">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Knowledge & Skill -->
+            <div class="ask-fields-grid">
+                <div class="ask-field">
+                    <label class="ask-field-label">Knowledge Score</label>
+                    <div class="input-with-icon">
+                        <input type="number" id="Skill_KnowledgeScore" class="ask-input input-narrow" name="Skill_KnowledgeScore" placeholder="80" value="@Model.KnowledgeScore" min="0" max="125" step="1" required />
+                        <span class="validation-icon neutral" id="knowledgeValidIcon">—</span>
+                        <span id="Skill_KnowledgeLevel_display" class="badge badge-secondary" style="margin-left:8px;">—</span>
+                    </div>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Skill Score</label>
+                    <div class="input-with-icon">
+                        <input type="number" id="Skill_SkillScore" class="ask-input input-narrow" name="Skill_SkillScore" placeholder="90" value="@Model.SkillScore" min="0" max="125" step="1" required />
+                        <span class="validation-icon neutral" id="skillValidIcon">—</span>
+                        <span id="Skill_SkillLevel_display" class="badge badge-secondary" style="margin-left:8px;">—</span>
+                    </div>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Judgment</label>
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                        <span id="JudgmentText" class="judgment-badge neutral">—</span>
+                        <input type="hidden" name="Skill_JudgmentPractice" id="Skill_JudgmentPractice" value="" />
+                    </div>
+                </div>
+            </div>
+            </div><!-- /ask-score-card -->
+
+            <!-- Dates & Remarks -->
+            <div class="ask-section-label">Dates &amp; Remarks</div>
+            <div class="ask-fields-grid mb-4">
+                <div class="ask-field">
+                    <label class="ask-field-label">Certified Date</label>
+                    <input type="date" id="Skill_CertifiedDate" class="ask-input" name="Skill_CertifiedDate" onchange="autoCalculateExpiryDate()" value="@Model.CertifiedDate?.ToString("yyyy-MM-dd")" required>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Expiry Date</label>
+                    <input type="date" id="Skill_ExpiryDate" class="ask-input" name="Skill_ExpiryDate" value="@Model.ExpiryDate?.ToString("yyyy-MM-dd")" required>
+                </div>
+                <div class="ask-field">
+                    <label class="ask-field-label">Remarks</label>
+                    <input type="text" class="ask-input" name="Skill_Remark" placeholder="Optional notes..." value="@Model.Remark" />
+                </div>
+            </div>
+
+            <!-- Document Upload -->
+            <div class="ask-section-label">Document Upload <span class="ask-required">*</span></div>
+            <div class="mb-4">
+                <div class="ask-upload-zone" id="uploadZone" onclick="document.getElementById('skillFileInput').click()">
+                    <i class="bi bi-cloud-upload ask-upload-icon"></i>
+                    <span class="ask-upload-label">Click or drag a PDF to upload</span>
+                    <span class="ask-upload-hint" id="uploadHint">PDF files only &middot; For ILUO process verification</span>
+                    <span class="ask-upload-filename" id="uploadFilename"></span>
+                </div>
+                <div class="form-text text-danger d-none" id="skillFileError" style="margin-top:0.4rem;">Please upload a PDF certificate.</div>
+                <input type="file" name="SkillFile" accept="application/pdf" id="skillFileInput" style="display:none;" required>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="ask-actions">
+                @if (Model.IsPromoted)
+                {
+                    <button type="button" class="ask-btn ask-btn-success disabled" aria-disabled="true" title="Employee promoted — cannot add skills">
+                        <i class="bi bi-check-lg"></i> Confirm &amp; Save
+                    </button>
+                }
+                else
+                {
+                    <button type="submit" id="saveSkillBtn" name="action" value="addskill" class="ask-btn ask-btn-success">
+                        <i class="bi bi-check-lg"></i> Confirm &amp; Save
+                    </button>
+                }
+                <button type="reset" class="ask-btn ask-btn-outline">
+                    <i class="bi bi-arrow-counterclockwise"></i> Clear
+                </button>
+                <a href="/ViewUser?empCode=@Model.EmpCode" class="ask-btn ask-btn-ghost">
+                    <i class="bi bi-x-lg"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    </main>
+</div>
+
+@section Styles {
+<style>
+    /* ===== Layout ===== */
+    .ask-layout {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 1rem;
+        align-items: start;
+        padding: 0.5rem 0 2rem;
+    }
+    @@media (max-width: 900px) { .ask-layout { grid-template-columns: 1fr; } }
+
+    /* Sidebar */
+    .ask-sidebar { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 1rem; }
+
+    .ask-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+
+    /* Photo card */
+    .ask-photo-card {
+        padding: 1.1rem 0.9rem 0.9rem;
+        display: flex; flex-direction: column;
+        align-items: center; text-align: center; gap: 0.4rem;
+        background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
+    }
+    .ask-avatar-ring {
+        position: relative; width: 80px; height: 80px;
+        border-radius: 50%; padding: 3px; margin-bottom: 0.2rem;
+        background: linear-gradient(135deg,#f97316,#fb923c);
+    }
+    .ask-avatar-img {
+        width: 100%; height: 100%; border-radius: 50%;
+        object-fit: cover; border: 3px solid #fff; display: block; background: #f1f5f9;
+    }
+    .ask-avatar-name { font-weight: 700; font-size: 0.76rem; color: #0f172a; line-height: 1.3; }
+    .ask-avatar-hint { font-size: 0.6rem; color: #94a3b8; margin-top: 0.1rem; }
+
+    /* Info card */
+    .ask-info-card { padding: 0.2rem 0; }
+    .ask-info-row {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.45rem 0.75rem; border-bottom: 1px solid #f1f5f9;
+        border-left: 3px solid transparent;
+    }
+    .ask-info-row:last-child { border-bottom: 0; }
+    .ask-info-icon {
+        width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
+    }
+    .ask-info-val { font-weight: 700; font-size: 0.7rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ask-info-lbl { font-size: 0.56rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* Nav card */
+    .ask-nav-card { overflow: hidden; }
+    .ask-nav-link {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.55rem 0.85rem; font-size: 0.72rem; font-weight: 600; color: #475569;
+        border-bottom: 1px solid #f1f5f9;
+        text-decoration: none; background: none;
+        border-left: 0; border-right: 0; border-top: 0;
+        width: 100%; cursor: pointer;
+        transition: background 0.14s, color 0.14s;
+    }
+    .ask-nav-link:last-child { border-bottom: 0; }
+    .ask-nav-link:hover { background: #fff7ed; color: #ea580c; }
+
+    /* Main */
+    .ask-main { display: flex; flex-direction: column; gap: 0; }
+
+    /* Form card */
+    .ask-form-card {
+        background: #fff; border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        padding: 1rem 1.1rem 1.1rem;
+    }
+
+    /* Status badge */
+    .ask-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.62rem;
+        font-weight: 700;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        letter-spacing: 0.04em;
+        vertical-align: middle;
+    }
+    .ask-promoted { background: #059669; color: #fff; }
+
+    /* Section label */
+    .ask-section-label { display: none; }
+
+    /* Field grid */
+    .ask-fields-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.1rem 1.4rem;
+        margin-bottom: 0;
+    }
+    .ask-fields-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    @@media (max-width: 768px) {
+        .ask-fields-grid, .ask-fields-grid.cols-2 { grid-template-columns: 1fr; }
+        .ask-avatar-wrap { display: none; }
+    }
+
+    /* Field */
+    .ask-field { display: flex; flex-direction: column; gap: 0.3rem; }
+    .ask-field-label {
+        font-size: 0.56rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+    }
+    .ask-required { color: #dc2626; }
+
+    /* Input */
+    .ask-input {
+        width: 100%;
+        padding: 0.42rem 0.55rem;
+        font-size: 0.76rem;
+        border: 1.5px solid #e2e8f0;
+        border-left: 3px solid #f97316;
+        border-radius: 7px;
+        background: #f8fafc;
+        color: #1e293b;
+        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+        outline: none;
+        font-family: inherit;
+    }
+    .ask-input:focus {
+        border-color: #f97316;
+        border-left-color: #ea580c;
+        box-shadow: 0 0 0 3px rgba(249,115,22,0.15);
+        background: #fff;
+    }
+    select.ask-input { padding: 0.42rem 2rem 0.42rem 0.55rem; appearance: none; -webkit-appearance: none; background-color: #fff7ed; border-left-color: #f97316; }
+    select.ask-input:focus { background-color: #fff; }
+    input[type="date"].ask-input { min-height: 0; border-left-color: #f59e0b; }
+    input[type="date"].ask-input:focus { border-left-color: #d97706; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); }
+
+    /* Static display */
+    .ask-input-static {
+        padding: 0.42rem 0.55rem;
+        font-size: 0.76rem;
+        background: #f1f5f9;
+        border: 1.5px solid #e2e8f0;
+        border-left: 3px solid #cbd5e1;
+        border-radius: 7px;
+        color: #475569;
+    }
+    .ask-muted { font-size: 0.82rem; color: #94a3b8; display: flex; align-items: center; gap: 0.35rem; padding-top: 0.4rem; }
+
+    /* Input with icon layout */
+    .input-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: nowrap;
+    }
+    .input-with-icon .ask-input { flex: 1; min-width: 0; }
+    .input-with-icon .ask-input.input-medium { max-width: 110px; flex: none; }
+    .input-with-icon .ask-input.input-narrow { max-width: 90px; flex: none; }
+
+    /* Validation icon */
+    .validation-icon {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.68rem;
+        font-weight: 800;
+        flex-shrink: 0;
+        line-height: 1;
+    }
+    .validation-icon.neutral { background: #f1f5f9; color: #94a3b8; }
+    .validation-icon.valid   { background: #dcfce7; color: #15803d; }
+    .validation-icon.invalid { background: #fee2e2; color: #dc2626; }
+
+    /* Badge.badge-secondary */
+    .badge.badge-secondary {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px; height: 22px;
+        border-radius: 6px;
+        font-size: 0.68rem !important;
+        font-weight: 800 !important;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1.5px solid #e2e8f0;
+        flex-shrink: 0;
+        padding: 0 4px;
+        vertical-align: middle;
+    }
+
+    /* Judgment badge */
+    .judgment-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.22rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        border: 1.5px solid transparent;
+    }
+    .judgment-badge.neutral { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+    .judgment-badge.pass    { background: #dcfce7; color: #166534; border-color: #bbf7d0; box-shadow: 0 1px 6px rgba(22,163,74,0.18); }
+    .judgment-badge.fail    { background: #fee2e2; color: #991b1b; border-color: #fecaca; box-shadow: 0 1px 6px rgba(239,68,68,0.18); }
+
+    /* Score card wrapper */
+    .ask-score-card {
+        background: linear-gradient(135deg, #fff7ed 0%, #f8fafc 100%);
+        border: 1.5px solid #fed7aa;
+        border-radius: 11px;
+        padding: 0.9rem 1rem 1rem;
+        margin-bottom: 0.95rem;
+    }
+
+    /* Upload zone */
+    .ask-upload-zone {
+        border: 2px dashed #fed7aa;
+        border-radius: 11px;
+        background: #fafafa;
+        padding: 1.3rem 1.2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        cursor: pointer;
+        transition: all 0.18s;
+        text-align: center;
+        user-select: none;
+    }
+    .ask-upload-zone:hover { border-color: #f97316; background: #fff7ed; }
+    .ask-upload-zone.has-file { border-color: #22c55e; background: #f0fdf4; border-style: solid; }
+    .ask-upload-icon { font-size: 1.6rem; color: #fb923c; transition: color 0.18s; }
+    .ask-upload-zone:hover .ask-upload-icon { color: #ea580c; }
+    .ask-upload-zone.has-file .ask-upload-icon { color: #16a34a; }
+    .ask-upload-label { font-size: 0.75rem; font-weight: 600; color: #374151; }
+    .ask-upload-hint { font-size: 0.64rem; color: #9ca3af; }
+        .ask-upload-filename { font-size: 0.7rem; color: #16a34a; font-weight: 600; display: none; }
+
+    /* Action buttons */
+    .ask-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding-top: 1.5rem;
+        border-top: 1.5px solid #f1f5f9;
+        margin-top: 0.5rem;
+    }
+    .ask-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.42rem 1.2rem;
+        border-radius: 7px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        border: 1.5px solid transparent;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s;
+        line-height: 1.4;
+    }
+    .ask-btn:hover:not(.disabled) { transform: translateY(-1px); opacity: 0.93; }
+    .ask-btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+    .ask-btn-success {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        color: #fff;
+        border-color: #059669;
+        box-shadow: 0 2px 8px rgba(5,150,105,0.25);
+    }
+    .ask-btn-success:hover:not(.disabled) { box-shadow: 0 4px 14px rgba(5,150,105,0.35); }
+    .ask-btn-outline { background: transparent; color: #c2410c; border-color: #fed7aa; }
+    .ask-btn-outline:hover:not(.disabled) { background: #fff7ed; border-color: #f97316; }
+    .ask-btn-ghost { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+    .ask-btn-ghost:hover:not(.disabled) { background: #e2e8f0; }
+</style>
+}
+
+@section Scripts {
+<script>
+    function autoCalculateExpiryDate() {
+        try {
+            const certifiedEl = document.getElementById('Skill_CertifiedDate');
+            const expiryEl = document.getElementById('Skill_ExpiryDate');
+            if (!certifiedEl || !expiryEl) return;
+            if (!certifiedEl.value) {
+                expiryEl.value = '';
+                return;
+            }
+            const certifiedDate = new Date(certifiedEl.value);
+            const expiryDate = new Date(certifiedDate);
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+            const year = expiryDate.getFullYear();
+            const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
+            const day = String(expiryDate.getDate()).padStart(2, '0');
+            expiryEl.value = `${year}-${month}-${day}`;
+        } catch (e) {
+            console.error('autoCalculateExpiryDate error', e);
+        }
+    }
+
+    function computeLevel(score) {
+        if (score >= 101) return "O";
+        if (score >= 76) return "U";
+        if (score >= 51) return "L";
+        if (score >= 26) return "I";
+        return "X";
+    }
+
+    function updateDerivedFields() {
+        const fullScoreEl = document.getElementById('Skill_FullScore') || document.querySelector('[name="Skill_FullScore"]');
+        const actualScoreEl = document.getElementById('Skill_ActualScore') || document.querySelector('[name="Skill_ActualScore"]');
+        const knowledgeScoreEl = document.getElementById('Skill_KnowledgeScore') || document.querySelector('[name="Skill_KnowledgeScore"]');
+        const skillScoreEl = document.getElementById('Skill_SkillScore') || document.querySelector('[name="Skill_SkillScore"]');
+        const knowledgeLevelDisplayEl = document.getElementById('Skill_KnowledgeLevel_display');
+        const skillLevelDisplayEl = document.getElementById('Skill_SkillLevel_display');
+        const testResultEl = document.querySelector('[name="Skill_TestResult"]');
+        const judgmentTextEl = document.getElementById('JudgmentText');
+        const judgmentHiddenEl = document.getElementById('Skill_JudgmentPractice');
+
+        const fullIcon = document.getElementById('fullScoreIcon');
+        const actualIcon = document.getElementById('actualScoreIcon');
+        const knowledgeIcon = document.getElementById('knowledgeValidIcon');
+        const skillIcon = document.getElementById('skillValidIcon');
+        const testResultDisplay = document.getElementById('TestResultDisplay');
+        const testIcon = document.getElementById('testResultIcon');
+        const judgmentBadge = document.getElementById('JudgmentBadge');
+        const fullError = document.getElementById('fullScoreError');
+        const actualError = document.getElementById('actualScoreError');
+        const saveBtn = document.getElementById('saveSkillBtn');
+
+        if (!fullScoreEl || !actualScoreEl || !knowledgeScoreEl || !skillScoreEl) return;
+
+        const fullScoreRaw = fullScoreEl.value;
+        const actualScoreRaw = actualScoreEl.value;
+        const knowledgeScoreRaw = knowledgeScoreEl.value;
+        const skillScoreRaw = skillScoreEl.value;
+
+        const fullScore = fullScoreRaw === '' ? null : parseInt(fullScoreRaw);
+        const actualScore = actualScoreRaw === '' ? null : parseInt(actualScoreRaw);
+        const knowledgeScore = knowledgeScoreRaw === '' ? null : parseInt(knowledgeScoreRaw);
+        const skillScore = skillScoreRaw === '' ? null : parseInt(skillScoreRaw);
+
+        // Accepts optional max (default 100). Knowledge/Skill may be up to 125 per updated rules.
+        function validScore(n, max = 100) { return typeof n === 'number' && !isNaN(n) && n >= 0 && n <= max; }
+
+        let hasError = false;
+
+        function setIcon(el, ok) {
+            if (!el) return;
+            el.classList.remove('valid','invalid','neutral');
+            if (ok === true) el.classList.add('valid');
+            else if (ok === false) el.classList.add('invalid');
+            else el.classList.add('neutral');
+            el.textContent = ok === true ? '✓' : ok === false ? '✖' : '—';
+        }
+
+        // Validate Full & Actual (allow up to 125 per updated scoring)
+        if (fullScore === null) {
+            setIcon(fullIcon, null);
+            if (fullError) fullError.classList.add('d-none');
+        } else if (!validScore(fullScore, 125)) {
+            setIcon(fullIcon, false);
+            if (fullError) { fullError.textContent = 'Must be 0–125.'; fullError.classList.remove('d-none'); }
+            hasError = true;
+        } else {
+            setIcon(fullIcon, true);
+            if (fullError) fullError.classList.add('d-none');
+        }
+
+        if (actualScore === null) {
+            setIcon(actualIcon, null);
+            if (actualError) actualError.classList.add('d-none');
+        } else if (!validScore(actualScore, 125)) {
+            setIcon(actualIcon, false);
+            if (actualError) { actualError.textContent = 'Must be 0–125.'; actualError.classList.remove('d-none'); }
+            hasError = true;
+        } else if (fullScore !== null && fullScore > 0 && actualScore > fullScore) {
+            setIcon(actualIcon, false);
+            if (actualError) { actualError.textContent = 'Cannot exceed Full Score.'; actualError.classList.remove('d-none'); }
+            hasError = true;
+        } else {
+            setIcon(actualIcon, true);
+            if (actualError) actualError.classList.add('d-none');
+        }
+
+        // Knowledge & Skill validations (also maintain level logic)
+        const knowledgeLevel = validScore(knowledgeScore, 125) ? computeLevel(knowledgeScore) : 'X';
+        const skillLevel = validScore(skillScore, 125) ? computeLevel(skillScore) : 'X';
+
+        if (knowledgeScore === null) {
+            setIcon(knowledgeIcon, null);
+        } else if (!validScore(knowledgeScore, 125)) {
+            setIcon(knowledgeIcon, false); hasError = true;
+        } else {
+            setIcon(knowledgeIcon, knowledgeLevel !== 'X');
+        }
+
+        if (skillScore === null) {
+            setIcon(skillIcon, null);
+        } else if (!validScore(skillScore, 125)) {
+            setIcon(skillIcon, false); hasError = true;
+        } else {
+            setIcon(skillIcon, skillLevel !== 'X');
+        }
+
+        // Test result calculation (same behavior as before, but only when numbers available)
+        let testResult = '';
+        if (validScore(fullScore, 125) && validScore(actualScore, 125) && fullScore > 0) {
+            testResult = Math.min(100, Math.floor((actualScore * 100) / fullScore));
+        } else if (validScore(actualScore, 125) && !isNaN(actualScore)) {
+            testResult = actualScore;
+        }
+        if (testResultEl) testResultEl.value = testResult;
+        if (testResultDisplay) testResultDisplay.value = (testResult === '' ? '—' : testResult + '%');
+
+        if (testResultEl?.value === '') {
+            setIcon(testIcon, null);
+            if (testResultDisplay) testResultDisplay.style.color = 'var(--gray-600)';
+        } else {
+            const tr = parseInt(testResultEl?.value) || 0;
+            if (tr >= 80) { setIcon(testIcon, true); if (testResultDisplay) testResultDisplay.style.color = 'var(--success)'; }
+            else { setIcon(testIcon, false); if (testResultDisplay) testResultDisplay.style.color = 'var(--danger)'; }
+        }
+
+        // Update level badges
+        if (knowledgeLevelDisplayEl) {
+            knowledgeLevelDisplayEl.textContent = knowledgeLevel;
+            knowledgeLevelDisplayEl.style.background = knowledgeLevel === 'X' ? 'var(--danger)' : 'var(--success)';
+            knowledgeLevelDisplayEl.style.color = 'var(--white)';
+        }
+        if (skillLevelDisplayEl) {
+            skillLevelDisplayEl.textContent = skillLevel;
+            skillLevelDisplayEl.style.background = skillLevel === 'X' ? 'var(--danger)' : 'var(--success)';
+            skillLevelDisplayEl.style.color = 'var(--white)';
+        }
+
+        const judgment = (knowledgeLevel !== 'X' && skillLevel !== 'X') ? 'Pass' : 'Fail';
+        if (judgmentHiddenEl) judgmentHiddenEl.value = judgment;
+        if (judgmentTextEl) {
+            judgmentTextEl.textContent = judgment;
+            judgmentTextEl.classList.remove('pass','fail','neutral');
+            judgmentTextEl.classList.add(judgment === 'Fail' ? 'fail' : 'pass');
+        }
+        if (judgmentBadge) {
+            judgmentBadge.textContent = judgment;
+            judgmentBadge.classList.remove('pass','fail','neutral');
+            judgmentBadge.classList.add(judgment === 'Fail' ? 'fail' : 'pass');
+        }
+
+        // Also check required non-score fields
+        const _workshopReq = document.getElementById('Skill_WorkshopID');
+        const _processReq = document.getElementById('Skill_ProcessName');
+        const _certTypeReq = document.getElementById('Skill_OperatorTraining');
+        const _certDateReq = document.getElementById('Skill_CertifiedDate');
+        const _expiryDateReq = document.getElementById('Skill_ExpiryDate');
+        const _fileReq = document.getElementById('skillFileInput');
+        if (!_workshopReq?.value) hasError = true;
+        if (_processReq?.required && !_processReq.value) hasError = true;
+        if (!_certTypeReq?.value) hasError = true;
+        if (!_certDateReq?.value) hasError = true;
+        if (!_expiryDateReq?.value) hasError = true;
+        if (!(_fileReq?.files?.length > 0)) hasError = true;
+
+        // Enable/disable submit button based on all validation
+        if (saveBtn) {
+            saveBtn.disabled = hasError;
+            saveBtn.classList.toggle('disabled', hasError);
+            saveBtn.title = hasError ? 'Please fill all required fields and fix any errors before saving' : '';
+        }
+    }
+
+    async function loadProcessesForSkill() {
+        try {
+            const workshopEl = document.getElementById('Skill_WorkshopID');
+            const procEl = document.getElementById('Skill_ProcessName');
+            if (!workshopEl || !procEl) return;
+
+            // If workshop's display name is DAY, Process is not required for this workshop
+            const selectedText = (workshopEl.options[workshopEl.selectedIndex] || {}).text || '';
+            const isDayWorkshop = selectedText.trim().toLowerCase() === 'day';
+            if (isDayWorkshop) {
+                procEl.innerHTML = '<option value="">(not required for DAY workshop)</option>';
+                procEl.required = false;
+                procEl.disabled = true;
+                return;
+            }
+    
+            // Otherwise, process is required and enabled
+            procEl.required = true;
+            procEl.disabled = false;
+            const workshop = workshopEl.value;
+            procEl.innerHTML = '<option value="">Select Process</option>';
+            if (!workshop) return;
+            const res = await fetch('/api/processes?workshopId=' + encodeURIComponent(workshop));
+            if (!res.ok) return;
+            const data = await res.json();
+            const current = procEl.getAttribute('data-current') || '';
+            data.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.processName || p.ProcessName || p.Process;
+                opt.textContent = p.processName || p.ProcessName || p.Process;
+                if (opt.value === current) opt.selected = true;
+                procEl.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('loadProcessesForSkill error', e);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const scoreInputs = document.querySelectorAll('[name="Skill_FullScore"], [name="Skill_ActualScore"], [name="Skill_KnowledgeScore"], [name="Skill_SkillScore"]');
+        scoreInputs.forEach(el => {
+            el.addEventListener('input', updateDerivedFields);
+            el.addEventListener('change', updateDerivedFields);
+        });
+        updateDerivedFields();
+        
+        try { autoCalculateExpiryDate(); } catch (e) { }
+        
+        const certEl = document.getElementById('Skill_CertifiedDate');
+        if (certEl) certEl.addEventListener('change', autoCalculateExpiryDate);
+
+        // If a workshop selector exists, load processes for it on page load
+        try {
+            const ws = document.getElementById('Skill_WorkshopID');
+            if (ws) {
+                const serverWorkshop = ws.getAttribute('data-current');
+                if (serverWorkshop) ws.value = serverWorkshop;
+                loadProcessesForSkill();
+                ws.addEventListener('change', updateDerivedFields);
+            }
+        } catch (e) { }
+
+        // Listen for required field changes to re-validate the save button
+        ['Skill_OperatorTraining', 'Skill_CertifiedDate', 'Skill_ExpiryDate'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', updateDerivedFields);
+        });
+        const _procEl = document.getElementById('Skill_ProcessName');
+        if (_procEl) _procEl.addEventListener('change', updateDerivedFields);
+        const _fileEl = document.getElementById('skillFileInput');
+        if (_fileEl) _fileEl.addEventListener('change', updateDerivedFields);
+    });
+
+// Upload zone interaction + PDF validation
+    document.addEventListener('DOMContentLoaded', function () {
+        const _fileInput = document.getElementById('skillFileInput');
+        const _uploadZone = document.getElementById('uploadZone');
+        const _uploadHint = document.getElementById('uploadHint');
+        const _uploadFilename = document.getElementById('uploadFilename');
+        const _fileError = document.getElementById('skillFileError');
+
+        function applyFile(file) {
+            if (!file) return;
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            if (_uploadZone) _uploadZone.classList.toggle('has-file', isPdf);
+            if (_uploadFilename) { _uploadFilename.textContent = file.name; _uploadFilename.style.display = isPdf ? '' : 'none'; }
+            if (_uploadHint) _uploadHint.style.display = isPdf ? 'none' : '';
+            if (_fileError) isPdf ? _fileError.classList.add('d-none') : _fileError.classList.remove('d-none');
+            try { updateDerivedFields(); } catch (e) {}
+        }
+
+        if (_fileInput) {
+            _fileInput.addEventListener('change', function () {
+                if (this.files && this.files[0]) applyFile(this.files[0]);
+                else { if (_uploadZone) _uploadZone.classList.remove('has-file'); if (_uploadFilename) { _uploadFilename.textContent=''; _uploadFilename.style.display='none'; } if (_uploadHint) _uploadHint.style.display=''; }
+            });
+        }
+
+        if (_uploadZone) {
+            _uploadZone.addEventListener('dragover', function (e) { e.preventDefault(); this.style.borderColor = '#f97316'; this.style.background = '#fff7ed'; });
+            _uploadZone.addEventListener('dragleave', function () { this.style.borderColor = ''; this.style.background = ''; });
+            _uploadZone.addEventListener('drop', function (e) {
+                e.preventDefault(); this.style.borderColor = ''; this.style.background = '';
+                const files = e.dataTransfer.files;
+                if (files && files[0]) {
+                    const dt = new DataTransfer(); dt.items.add(files[0]); _fileInput.files = dt.files;
+                    applyFile(files[0]);
+                }
+            });
+        }
+
+        const form = document.getElementById('skillForm');
+        if (form && _fileInput) {
+            form.addEventListener('submit', function (evt) {
+                if (!_fileInput.files || _fileInput.files.length === 0) {
+                    evt.preventDefault(); if (_fileError) _fileError.classList.remove('d-none'); return false;
+                }
+                const f = _fileInput.files[0];
+                if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+                    evt.preventDefault(); if (_fileError) { _fileError.textContent = 'Uploaded file must be a PDF.'; _fileError.classList.remove('d-none'); } return false;
+                }
+                if (_fileError) _fileError.classList.add('d-none');
+            });
+        }
+    });
+    
+    // Auto-collapse left sidebar for focused data entry pages
+    try { document.querySelector('.app-container')?.classList.add('sidebar-collapsed'); } catch (e) { }
+</script>
+}

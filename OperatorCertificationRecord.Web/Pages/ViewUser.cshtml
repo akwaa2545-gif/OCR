@@ -1,0 +1,2819 @@
+﻿@page
+@using OperatorCertificationRecord.Web.Models
+@model OperatorCertificationRecord.Web.Pages.ViewUserModel
+@inject OperatorCertificationRecord.Web.Services.AdminService AdminService
+@{
+    ViewData["Title"] = "View Employee";
+    ViewData["ActivePage"] = "ViewUser";
+    bool isAdmin = AdminService.IsAdmin(HttpContext.Session.GetString("UserCode"));
+}
+
+<style>
+    /* ============================================================
+       VIEW USER — Profile Header + Full-Width Layout (vu-* ns)
+       Orange / White modern theme
+       ============================================================ */
+
+    /* ── Page wrapper ── */
+    .vu-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    /* ── Profile header card ── */
+    .vu-profile {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .vu-profile-banner {
+        height: 72px;
+        background: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fed7aa 100%);
+    }
+    .vu-profile-body {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.25rem;
+        padding: 0 1.5rem 0.75rem;
+        margin-top: -36px;
+        position: relative;
+        flex-wrap: wrap;
+    }
+    .vu-avatar-wrap { flex-shrink: 0; }
+    .vu-avatar-ring {
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        padding: 3px;
+        background: linear-gradient(135deg, #ea580c, #f97316, #fb923c);
+        box-shadow: 0 4px 14px rgba(234,88,12,0.2);
+    }
+    .vu-avatar-ring.ring-promoted { background: linear-gradient(135deg, #16a34a, #22c55e, #4ade80); box-shadow: 0 4px 14px rgba(22,163,74,0.2); }
+    .vu-avatar-ring.ring-resigned { background: linear-gradient(135deg, #b91c1c, #dc2626, #f87171); box-shadow: 0 4px 14px rgba(185,28,28,0.2); }
+    .vu-avatar-img {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #fff;
+        display: block;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .vu-avatar-img:hover { transform: scale(1.06); }
+
+    /* Info block */
+    .vu-info-block {
+        flex: 1;
+        min-width: 160px;
+        padding-top: 40px;
+    }
+    .vu-emp-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 0.1rem;
+        line-height: 1.25;
+    }
+    .vu-emp-code {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+        margin: 0 0 0.35rem;
+    }
+    .vu-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.15rem 0.55rem;
+        border-radius: 20px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        border: 1.5px solid;
+    }
+    .vu-badge.active   { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .vu-badge.promoted { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .vu-badge.resigned { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+
+    /* Stats row */
+    .vu-stats-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        padding-top: 40px;
+        align-items: flex-start;
+    }
+    .vu-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        padding: 0.38rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.73rem;
+        font-weight: 600;
+        white-space: nowrap;
+        border: none;
+        letter-spacing: 0.01em;
+    }
+    .vu-stat-pill i { font-size: 0.8rem; }
+    .vu-stat-pill .vu-stat-num { font-weight: 800; font-size: 0.85rem; }
+    /* Stat count pills — solid gradients */
+    .vu-stat-pill.orange {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(234,88,12,0.30);
+    }
+    .vu-stat-pill.orange .vu-stat-num { color: #fff; }
+    .vu-stat-pill.red {
+        background: linear-gradient(135deg, #f43f5e, #be123c);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(190,18,60,0.28);
+    }
+    .vu-stat-pill.red .vu-stat-num { color: #fff; }
+    .vu-stat-pill.amber {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(217,119,6,0.28);
+    }
+    .vu-stat-pill.amber .vu-stat-num { color: #fff; }
+    /* Info pills — colored variants */
+    .vu-stat-pill.blue {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.30);
+    }
+    .vu-stat-pill.purple {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(124,58,237,0.28);
+    }
+    .vu-stat-pill.slate {
+        background: linear-gradient(135deg, #ea580c, #f97316);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(234,88,12,0.28);
+    }
+
+    /* Nav row */
+    .vu-nav-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        padding: 0.75rem 1.5rem 0.85rem;
+        border-top: 1px solid #f1f5f9;
+    }
+    .vu-nav-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        padding: 0.42rem 0.9rem;
+        border-radius: 8px;
+        font-size: 0.77rem;
+        font-weight: 600;
+        border: none;
+        text-decoration: none;
+        cursor: pointer;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        line-height: 1.3;
+        transition: filter 0.15s, box-shadow 0.15s, transform 0.12s;
+    }
+    .vu-nav-btn i { font-size: 0.82rem; }
+    .vu-nav-btn:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 4px 14px rgba(0,0,0,0.14); text-decoration: none; }
+    .vu-nav-btn:active { transform: translateY(0); filter: brightness(0.96); box-shadow: none; }
+    .vu-nav-btn.disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; filter: grayscale(0.5); transform: none; }
+    .vu-nav-btn-back   { background: linear-gradient(135deg, #64748b, #475569); color: #fff !important; box-shadow: 0 2px 8px rgba(71,85,105,0.22); }
+    .vu-nav-btn-update { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff !important; box-shadow: 0 2px 8px rgba(29,78,216,0.22); }
+    .vu-nav-btn-info   { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff !important; box-shadow: 0 2px 8px rgba(8,145,178,0.22); }
+
+    /* ── Section cards ── */
+    .vu-section {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+    .vu-section-hdr {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.75rem 1.2rem;
+        background: linear-gradient(90deg, #fff7ed 0%, #fffbf8 60%, #fff 100%);
+        border-bottom: 1px solid #f1e4d0;
+        cursor: pointer;
+        user-select: none;
+    }
+    .vu-section-hdr:hover { background: linear-gradient(90deg, #ffedd5 0%, #fff7ed 60%, #fffbf8 100%); }
+    .vu-section-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+        border: 1px solid #fed7aa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #f97316;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        box-shadow: 0 1px 4px rgba(249,115,22,0.15);
+    }
+    .vu-section-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #0f172a;
+        flex: 1;
+        letter-spacing: 0.01em;
+    }
+    .vu-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.22rem 0.55rem;
+        border-radius: 20px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #c2410c;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+    .vu-toggle-btn:hover { background: #ffedd5; }
+    .vu-section-body { padding: 1.1rem 1.25rem; background: linear-gradient(180deg, #fafafa 0%, #fff 80%); }
+
+    /* ── Info fields ── */
+    .vu-subsection-label {
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: #c2410c;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 0.32rem 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: linear-gradient(90deg, #fff7ed 0%, #fffbf5 55%, transparent 100%);
+        border-left: 3px solid #f97316;
+        border-radius: 0 6px 6px 0;
+        margin-bottom: 0.65rem;
+    }
+    .vu-subsection-label.mt-2 { margin-top: 1rem; }
+    .vu-subsection-label i { color: #f97316; font-size: 0.78rem; }
+    .vu-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.7rem;
+    }
+    .vu-field {
+        background: #fff;
+        border: 1px solid #e9eff5;
+        border-left: 3px solid #f97316;
+        border-radius: 9px;
+        padding: 0.5rem 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        transition: box-shadow 0.16s ease, transform 0.13s ease, border-left-color 0.16s ease;
+    }
+    .vu-field:hover {
+        box-shadow: 0 4px 14px rgba(249,115,22,0.13);
+        transform: translateY(-1px);
+        border-left-color: #ea580c;
+    }
+    .vu-label {
+        font-size: 0.6rem;
+        color: #a0aec0;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    .vu-value {
+        font-size: 0.87rem;
+        color: #1e293b;
+        font-weight: 500;
+        line-height: 1.3;
+    }
+    .vu-value.accent { color: #ea580c; font-weight: 700; }
+    .vu-value.muted  { color: #64748b; }
+    .vu-grade-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.15rem 0.55rem;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+        color: #c2410c;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border: 1px solid #fed7aa;
+        box-shadow: 0 1px 3px rgba(249,115,22,0.14);
+    }
+
+    /* ── Skills action buttons ── */
+    .btn-sk {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        letter-spacing: 0.01em;
+        transition: filter 0.15s, box-shadow 0.15s, transform 0.12s;
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+    .btn-sk i { font-size: 0.82rem; }
+    .btn-sk:hover  { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 4px 14px rgba(0,0,0,0.14); text-decoration: none; }
+    .btn-sk:active { transform: translateY(0); filter: brightness(0.96); box-shadow: none; }
+
+    .btn-sk-update     { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; box-shadow: 0 2px 8px rgba(234,88,12,0.25); }
+    .btn-sk-disqualify { background: linear-gradient(135deg, #f43f5e, #be123c); color: #fff; box-shadow: 0 2px 8px rgba(190,18,60,0.25); }
+    .btn-sk-add        { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,0.25); }
+    .btn-sk-download   { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; box-shadow: 0 2px 8px rgba(29,78,216,0.25); }
+    .btn-sk-fit        { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; box-shadow: none; }
+    .btn-sk-fit:hover  { background: #e2e8f0; filter: none; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+    .btn-sk-disabled   { opacity: 0.45; cursor: not-allowed; pointer-events: none; filter: grayscale(0.3); }
+    .btn-sk:disabled {
+        opacity: 0.38 !important;
+        filter: grayscale(0.65) brightness(1.05) !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        transform: none !important;
+        pointer-events: none;
+    }
+
+    /* ── Badges ── */
+    .jbadge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.18rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 5px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        border: 1px solid;
+    }
+    .jbadge-pass  { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+    .jbadge-fail  { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    .jbadge-other { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+
+    /* ── Row highlights ── */
+    .table-expiry-10 td { background: rgba(239,68,68,0.06); }
+    .table-expiry-30 td { background: rgba(245,158,11,0.06); }
+    .table-promoted td  { color: #15803d; opacity: 0.85; }
+    .table-obsoleted td { opacity: 0.7; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 2.5rem 1rem; }
+    .empty-state-icon  { font-size: 2.5rem; color: #cbd5e1; display: block; margin-bottom: 0.5rem; }
+    .empty-state-title { font-size: 1rem; font-weight: 700; color: #475569; margin-bottom: 0.25rem; }
+    .empty-state-text  { font-size: 0.82rem; color: #94a3b8; }
+
+    /* ── Responsive ── */
+    @@media (max-width: 768px) {
+        .vu-profile-body { flex-direction: column; align-items: center; text-align: center; padding: 0 1rem 0.75rem; }
+        .vu-info-block { padding-top: 0.5rem; text-align: center; }
+        .vu-stats-row { padding-top: 0; justify-content: center; }
+        .vu-grid-3 { grid-template-columns: repeat(2, 1fr); }
+        .vu-nav-row { justify-content: center; }
+    }
+    @@media (max-width: 480px) {
+        .vu-grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Two-column main layout ── */
+    .vu-main-grid {
+        display: grid;
+        grid-template-columns: 1fr 3fr;
+        gap: 1rem;
+        align-items: start;
+    }
+    .vu-left-col { position: sticky; top: 1rem; }
+    .vu-right-col { min-width: 0; }
+    /* In the left panel, use single-column info fields so they don't get crushed */
+    .vu-left-col .vu-grid-3 {
+        grid-template-columns: 1fr;
+    }
+    @@media (max-width: 992px) {
+        .vu-main-grid { grid-template-columns: 1fr; }
+        .vu-left-col { position: static; }
+        .vu-left-col .vu-grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @@media (max-width: 480px) {
+        .vu-left-col .vu-grid-3 { grid-template-columns: 1fr; }
+    }
+</style>
+@if (Model.Employee != null)
+{
+    var photoUrl = Model.PhotoUrl ?? "/images/placeholder-employee.svg";
+    var ringClass = Model.IsResigned ? "ring-resigned" : ((Model.PromotedSkills != null && Model.PromotedSkills.Count > 0) ? "ring-promoted" : "ring-default");
+
+    <div class="vu-page">
+
+    <!-- ── Profile Header ── -->
+    <div class="vu-profile">
+        <div class="vu-profile-banner"></div>
+        <div class="vu-profile-body">
+            <div class="vu-avatar-wrap">
+                <div class="vu-avatar-ring @ringClass">
+                    <img id="employeePhoto" src="@photoUrl" class="vu-avatar-img" alt="Employee Photo"
+                         role="button" tabindex="0" title="Click to enlarge" aria-label="View employee photo in full screen" />
+                </div>
+            </div>
+            <div class="vu-info-block">
+                <h2 class="vu-emp-name">@Model.Employee.PrefixEng @Model.Employee.FirstNameEng @Model.Employee.LastNameEng</h2>
+                <p class="vu-emp-code">@Model.Employee.EmpCode</p>
+                <div>
+                    @if (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0)
+                    {
+                        <span class="vu-badge promoted"><i class="bi bi-arrow-up-circle-fill"></i> Promoted</span>
+                    }
+                    @if (Model.IsResigned || Model.Employee?.ResignDate != null || !string.IsNullOrWhiteSpace(Model.Employee?.ResignBy))
+                    {
+                        <span class="vu-badge resigned"><i class="bi bi-person-x-fill"></i> Resigned</span>
+                    }
+                    @if ((Model.PromotedSkills == null || Model.PromotedSkills.Count == 0) && !Model.IsResigned && Model.Employee?.ResignDate == null && string.IsNullOrWhiteSpace(Model.Employee?.ResignBy))
+                    {
+                        <span class="vu-badge active"><i class="bi bi-check-circle-fill"></i> Active</span>
+                    }
+                </div>
+            </div>
+            <div class="vu-stats-row">
+                <div class="vu-stat-pill orange"><i class="bi bi-award-fill"></i> <span class="vu-stat-num">@(Model.CurrentSkills?.Count ?? 0)</span> Qualified</div>
+                <div class="vu-stat-pill red"><i class="bi bi-x-circle-fill"></i> <span class="vu-stat-num">@(Model.DisqualifiedSkills?.Count ?? 0)</span> Disqualified</div>
+                <div class="vu-stat-pill amber"><i class="bi bi-arrow-repeat"></i> <span class="vu-stat-num">@(Model.ObsoletedSkills?.Count ?? 0)</span> Obsoleted</div>
+                <div class="vu-stat-pill blue"><i class="bi bi-briefcase-fill"></i> @(Model.Employee.JobGrade ?? "-")</div>
+                <div class="vu-stat-pill purple"><i class="bi bi-clock"></i> Shift @(Model.Employee.Shift ?? "-")</div>
+                <div class="vu-stat-pill slate"><i class="bi bi-calendar-check"></i> @Model.Employee.JoinDate.ToString("dd MMM yyyy")</div>
+            </div>
+        </div>
+        <div class="vu-nav-row">
+            <a href="/Dashboard" class="vu-nav-btn vu-nav-btn-back"><i class="bi bi-arrow-left-circle"></i> Back to Dashboard</a>
+            @if (isAdmin)
+            {
+                <a href="/UpdateUser?empCode=@Model.Employee.EmpCode" class="vu-nav-btn vu-nav-btn-update"><i class="bi bi-person-gear"></i> Update Employee</a>
+            }
+            else
+            {
+                <span class="vu-nav-btn vu-nav-btn-update disabled"><i class="bi bi-person-gear"></i> Update Employee</span>
+            }
+            <button type="button" class="vu-nav-btn vu-nav-btn-info" data-bs-toggle="modal" data-bs-target="#levelCriteriaModal">
+                <i class="bi bi-info-circle"></i> Level Criteria
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Two-column main grid ── -->
+    <div class="vu-main-grid">
+
+    <!-- ── Left column: Employee Information (always visible) ── -->
+    <div class="vu-left-col">
+    <div class="vu-section">
+        <div class="vu-section-hdr" style="cursor:default;">
+            <span class="vu-section-icon"><i class="bi bi-person-vcard"></i></span>
+            <span class="vu-section-title">Employee Information</span>
+        </div>
+        <div class="vu-section-body">
+                <div class="vu-subsection-label"><i class="bi bi-translate"></i> English Name</div>
+                <div class="vu-grid-3">
+                    <div class="vu-field">
+                        <span class="vu-label">Prefix</span>
+                        <span class="vu-value accent">@(Model.Employee.PrefixEng ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">First Name</span>
+                        <span class="vu-value">@(Model.Employee.FirstNameEng ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">Last Name</span>
+                        <span class="vu-value">@(Model.Employee.LastNameEng ?? "-")</span>
+                    </div>
+                </div>
+                <div class="vu-subsection-label mt-2"><i class="bi bi-globe-asia-australia"></i> Thai Name</div>
+                <div class="vu-grid-3">
+                    <div class="vu-field">
+                        <span class="vu-label">คำนำหน้า</span>
+                        <span class="vu-value accent">@(Model.Employee.PrefixThai ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">ชื่อ</span>
+                        <span class="vu-value">@(Model.Employee.FirstNameThai ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">นามสกุล</span>
+                        <span class="vu-value">@(Model.Employee.LastNameThai ?? "-")</span>
+                    </div>
+                </div>
+                <div class="vu-subsection-label mt-2"><i class="bi bi-diagram-3"></i> Organisation</div>
+                <div class="vu-grid-3">
+                    <div class="vu-field">
+                        <span class="vu-label">Emp. No.</span>
+                        <span class="vu-value accent">@Model.Employee.EmpCode</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">Department</span>
+                        <span class="vu-value">@(Model.DepartmentName ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">Section</span>
+                        <span class="vu-value">@(Model.SectionName ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">Workshop</span>
+                        <span class="vu-value">@(Model.WorkshopName ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">Shift</span>
+                        <span class="vu-value muted">@(Model.Employee.Shift ?? "-")</span>
+                    </div>
+                    <div class="vu-field">
+                        <span class="vu-label">Job Grade</span>
+                        <span class="vu-value"><span class="vu-grade-pill">@(Model.Employee.JobGrade ?? "-")</span></span>
+                    </div>
+                </div>
+                @if (Model.IsResigned || Model.Employee?.ResignDate != null || !string.IsNullOrWhiteSpace(Model.Employee?.ResignBy))
+                {
+                    <div class="vu-subsection-label mt-2"><i class="bi bi-person-x"></i> Resignation</div>
+                    <div class="vu-grid-3">
+                        <div class="vu-field">
+                            <span class="vu-label">Resigned On</span>
+                            <span class="vu-value">@(Model.Employee?.ResignDate?.ToString("dd MMM yyyy") ?? "-")</span>
+                        </div>
+                        <div class="vu-field">
+                            <span class="vu-label">Resigned By</span>
+                            <span class="vu-value">@(Model.Employee?.ResignBy ?? "-")</span>
+                        </div>
+                    </div>
+                }
+            </div>
+    </div>
+    </div><!-- /vu-left-col -->
+
+    <!-- ── Right column: Certification & Skills ── -->
+    <div class="vu-right-col">
+
+    <!-- ── Certification & Skills ── -->
+    <div class="vu-section">
+        <div class="vu-section-hdr" style="cursor:default; flex-wrap:wrap; gap:0.5rem;">
+            <span class="vu-section-icon"><i class="bi bi-award"></i></span>
+            <span class="vu-section-title">Certification & Skills</span>
+        </div>
+        <div class="vu-section-body">
+            <!-- Action controls row -->
+            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; margin-bottom:0.75rem;">
+                @{ bool blocked = (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0) || Model.IsResigned; }
+
+                @* ── Update Skill ── *@
+                @if (isAdmin && !blocked)
+                {
+                    <button type="button" id="updateSkillBtn" class="btn-sk btn-sk-update" disabled title="Update Skill">
+                        <i class="bi bi-pencil"></i> Update Skill
+                    </button>
+                }
+                else if (isAdmin)
+                {
+                    <button type="button" class="btn-sk btn-sk-update btn-sk-disabled" aria-disabled="true"
+                            title="@(Model.IsResigned ? "Employee resigned — action disabled" : "Employee promoted — action disabled")">
+                        <i class="bi bi-pencil"></i> Update Skill
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="btn-sk btn-sk-update btn-sk-disabled" aria-disabled="true" title="Admin only">
+                        <i class="bi bi-pencil"></i> Update Skill
+                    </button>
+                }
+
+                @* ── Disqualify Selected ── *@
+                @if (isAdmin && !blocked)
+                {
+                    <button type="button" id="disqualifySelectedBtn" class="btn-sk btn-sk-disqualify" disabled title="Disqualify Selected">
+                        <i class="bi bi-x-circle"></i> Disqualify Selected
+                    </button>
+                }
+                else if (isAdmin)
+                {
+                    <button type="button" class="btn-sk btn-sk-disqualify btn-sk-disabled" aria-disabled="true"
+                            title="@(Model.IsResigned ? "Employee resigned — action disabled" : "Employee promoted — action disabled")">
+                        <i class="bi bi-x-circle"></i> Disqualify Selected
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="btn-sk btn-sk-disqualify btn-sk-disabled" aria-disabled="true" title="Admin only">
+                        <i class="bi bi-x-circle"></i> Disqualify Selected
+                    </button>
+                }
+
+                @* ── Add Skill ── *@
+                @if (isAdmin && !blocked)
+                {
+                    <a href="/AddSkill?empCode=@Model.Employee.EmpCode" class="btn-sk btn-sk-add" title="Add Skill">
+                        <i class="bi bi-plus-lg"></i> Add Skill
+                    </a>
+                }
+                else if (isAdmin)
+                {
+                    <span class="btn-sk btn-sk-add btn-sk-disabled"
+                          title="@(Model.IsResigned ? "Employee resigned — cannot add skills" : "Employee promoted — cannot add skills")">
+                        <i class="bi bi-plus-lg"></i> Add Skill
+                    </span>
+                }
+                else
+                {
+                    <span class="btn-sk btn-sk-add btn-sk-disabled" title="Admin only">
+                        <i class="bi bi-plus-lg"></i> Add Skill
+                    </span>
+                }
+
+                @* ── Download ── *@
+                <a id="btnDownloadTab"
+                   href="?handler=DownloadCurrentSkills&empCode=@Model.Employee.EmpCode"
+                   class="btn-sk btn-sk-download"
+                   onclick="Toast.info('Download', 'Preparing file...');">
+                    <i class="bi bi-download"></i>
+                    <span id="lblDownloadTab">Download Current Skills</span>
+                </a>
+
+                @* ── Fit ── *@
+                <button type="button" id="skillFitBtn" class="btn-sk btn-sk-fit" title="Fit all columns to screen without scrolling">
+                    <i class="bi bi-arrows-angle-contract"></i> Fit
+                </button>
+            </div>
+
+            <style>
+                /* Fit mode: compress all skill tab tables to viewport width */
+                .skill-table-fit {
+                    overflow-x: hidden !important;
+                }
+                .skill-table-fit .table {
+                    width: 100% !important;
+                    table-layout: fixed !important;
+                    font-size: 0.72rem !important;
+                    word-break: break-word;
+                }
+                .skill-table-fit .table th,
+                .skill-table-fit .table td {
+                    padding: 0.2rem 0.3rem !important;
+                    white-space: nowrap !important;
+                    overflow: hidden !important;
+                    text-overflow: ellipsis !important;
+                }
+                #skillFitBtn.fit-active {
+                    background: #0f172a !important;
+                    color: #fff !important;
+                    border-color: #0f172a !important;
+                }
+                #skillFitBtn.fit-active i::before {
+                    content: "\F143"; /* bi-arrows-angle-expand */
+                }
+
+                /* ── Column-resize handle ── */
+                .table th {
+                    position: relative;
+                    user-select: none;
+                    white-space: nowrap;
+                }
+                .col-resizer {
+                    position: absolute;
+                    right: 0;
+                    top: 0;
+                    height: 100%;
+                    width: 6px;
+                    cursor: col-resize;
+                    z-index: 1;
+                    background: transparent;
+                    transition: background 0.15s;
+                }
+                .col-resizer:hover,
+                .col-resizer.resizing {
+                    background: var(--accent, #3b82f6);
+                    opacity: 0.55;
+                    border-radius: 3px;
+                }
+                /* While dragging, prevent text selection across the page */
+                body.col-resizing * {
+                    cursor: col-resize !important;
+                    user-select: none !important;
+                }
+            </style>
+
+            <!-- Tab Navigation (order changed: Current, Disqualified, Obsoleted, Timeline, Promoted, Resigned) -->
+            <div class="tabs-container mb-4">
+                <button class="tab-btn active" data-tab="current-skill">
+                    <i class="bi bi-check-circle"></i> Current Skill <span class="text-success" style="margin-left:0.5rem;">@Model.CurrentSkills.Count</span>
+                </button>
+
+                <!-- Disqualified immediately after Current -->
+                <button class="tab-btn" data-tab="disqualified">
+                    <i class="bi bi-x-circle"></i> Disqualified <span class="text-danger" style="margin-left:0.5rem;">@Model.DisqualifiedSkills.Count</span>
+                </button>
+
+                <!-- Obsoleted next -->
+                <button class="tab-btn" data-tab="obsoleted">
+                    <i class="bi bi-arrow-repeat"></i> Obsoleted <span class="text-warning" style="margin-left:0.5rem;">@Model.ObsoletedSkills.Count</span>
+                </button>
+
+                <!-- Timeline moved before Promoted/Resigned -->
+                <button class="tab-btn" data-tab="timeline">
+                    <i class="bi bi-clock-history"></i> Timeline <span class="text-secondary" style="margin-left:0.5rem;">@((Model.CurrentSkills?.Count ?? 0) + (Model.DisqualifiedSkills?.Count ?? 0) + (Model.ObsoletedSkills?.Count ?? 0) + (Model.PromotedSkills?.Count ?? 0) + (Model.ResignedSkills?.Count ?? 0))</span>
+                </button>
+
+                @if (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0)
+                {
+                    <button class="tab-btn" data-tab="promoted">
+                        <i class="bi bi-arrow-up-circle"></i> Promoted <span class="text-success" style="margin-left:0.5rem; font-weight:600;">@Model.PromotedSkills.Count</span>
+                    </button>
+                }
+
+                @if (Model.ResignedSkills != null && Model.ResignedSkills.Count > 0)
+                {
+                    <button class="tab-btn" data-tab="resigned">
+                        <i class="bi bi-person-x-fill"></i> Resigned <span class="text-danger" style="margin-left:0.5rem; font-weight:600;">@Model.ResignedSkills.Count</span>
+                    </button>
+                }
+            </div>                                         
+
+            <!-- Current Skill Tab -->
+            <div class="tab-content active" id="current-skill">
+                @if (Model.CurrentSkills != null && Model.CurrentSkills.Count > 0)
+                {
+                    <form method="post" asp-page-handler="BulkDisqualify" asp-antiforgery="true" id="bulkDisqualifyForm">
+                        <input type="hidden" name="empCode" value="@Model.Employee?.EmpCode" />
+                        <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                            <table class="table" id="currentSkillTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"><input type="checkbox" id="selectAllSkills" class="form-checkbox" /></th>
+                                        <th>Process</th>
+                                        <th>Classification</th>
+                                        <th>Theory</th>
+                                        <th>OJT</th>
+                                        <th>Result</th>
+                                        <th>K</th>
+                                        <th>S</th>
+                                        <th>Judgment</th>
+                                        <th>Certified Date</th>
+                                        <th>Expiry Date</th>
+                                        <th>Verifier</th>
+                                        <th>Remark</th>
+                                        <th>Download</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var skill in Model.CurrentSkills)
+                                    {
+                                        var daysUntilExpiry = skill.ExpiryDate.HasValue ? (skill.ExpiryDate.Value.Date - DateTime.Now.Date).TotalDays : double.NaN;
+                                        var highlight10 = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry >= 0 && daysUntilExpiry <= 10;
+                                        var highlight30 = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry > 10 && daysUntilExpiry <= 30;
+                                        <tr class="@(highlight10 ? "table-expiry-10" : (highlight30 ? "table-expiry-30" : ""))">
+                                            <td><input type="checkbox" name="SelectedProcesses" value="@skill.Process" class="skillCheckbox form-checkbox" /></td>
+                                            <td><strong>@skill.Process</strong></td>
+                                            <td title="@skill.CertifyClassification"><div class="col-cls">@skill.CertifyClassification</div></td>
+                                            <td>@(skill.Theory?.ToString("dd MMM yyyy") ?? "-")</td>
+                                            <td>@(skill.OJT?.ToString("dd MMM yyyy") ?? "-")</td>
+                                            <td>@(string.IsNullOrWhiteSpace(skill.TestResult) ? (string.IsNullOrWhiteSpace(skill.ActualScore) ? "-" : skill.ActualScore) : skill.TestResult)</td>
+                                            <td>@skill.K</td>
+                                            <td>@skill.S</td>
+                                            <td>
+                                                @if (skill.Judgment == "Pass")
+                                                {
+                                                    <span class="jbadge jbadge-pass"><i class="bi bi-check-lg"></i>Pass</span>
+                                                }
+                                                else if (skill.Judgment == "Fail" || skill.Judgment == "Failed")
+                                                {
+                                                    <span class="jbadge jbadge-fail"><i class="bi bi-x-lg"></i>@skill.Judgment</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="jbadge jbadge-other">@skill.Judgment</span>
+                                                }
+                                            </td>
+                                            <td>@(skill.CertifiedDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                            <td>@(skill.ExpiryDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                            <td>@(skill.VerifierName ?? skill.Verifier)</td>
+                                            <td>@skill.Remark</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(skill.DownloadPath))
+                                                {
+                                                    var previewUrl = Model.ResolvePublicDownloadUrl(skill.DownloadPath, Model.Employee?.EmpCode ?? "");
+                                                    <div class="download-actions" style="display:flex; gap:0.5rem; align-items:center;">
+                                                        @if (AdminService.IsAdmin(HttpContext.Session.GetString("UserCode")))
+                                                        {
+                                                            <a href="@previewUrl" class="btn btn-sm btn-outline-primary" title="Download PDF Certificate" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;" target="_blank" rel="noopener noreferrer" download>
+                                                                <i class="bi bi-file-earmark-pdf"></i> PDF
+                                                            </a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-primary" disabled title="Admin only" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; opacity:.6; cursor:not-allowed;">
+                                                                <i class="bi bi-file-earmark-pdf"></i> PDF
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted" style="font-size: 0.875rem;">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-clipboard-x empty-state-icon"></i>
+                        <h3 class="empty-state-title">No Current Skills</h3>
+                        <p class="empty-state-text">This employee has no current skill certifications.</p>
+                    </div>
+                }
+            </div>
+
+<!-- Resigned tab moved below Timeline -->
+
+<!-- Promoted tab moved below Timeline -->
+
+            <!-- Disqualified Tab -->
+            <div class="tab-content" id="disqualified">
+                @if (Model.DisqualifiedSkills != null && Model.DisqualifiedSkills.Count > 0)
+                {
+                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                        <table class="table" id="disqualifiedTable" style="table-layout:fixed; width:100%; min-width:820px;">
+                            <colgroup>
+                                <col style="width:170px"><!-- Process -->
+                                <col style="width:90px"> <!-- Certified Date -->
+                                <col style="width:36px"> <!-- K -->
+                                <col style="width:36px"> <!-- S -->
+                                <col style="width:100px"><!-- Verifier -->
+                                <col style="width:100px"><!-- Disqualified Date -->
+                                <col style="width:100px"><!-- Disqualified By -->
+                                <col style="width:140px"><!-- Reason -->
+                                <col>                    <!-- Remark -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Certified Date</th>
+                                    <th>K</th>
+                                    <th>S</th>
+                                    <th>Verifier</th>
+                                    <th>Disqualified Date</th>
+                                    <th>Disqualified By</th>
+                                    <th>Reason</th>
+                                    <th>Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var dq in Model.DisqualifiedSkills)
+                                {
+                                    <tr style="color: var(--danger);">
+                                        <td class="col-proc-td"><strong>@dq.Process</strong></td>
+                                        <td>@(dq.CertifiedDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@dq.K</td>
+                                        <td>@dq.S</td>
+                                        <td class="col-cls-td" title="@(dq.VerifierName ?? dq.Verifier)">@(dq.VerifierName ?? dq.Verifier)</td>
+                                        <td>@(dq.DisqualifiedDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td class="col-cls-td" title="@dq.DisqualifiedBy">@dq.DisqualifiedBy</td>
+                                        <td class="col-cls-td" title="@dq.TheReason">@dq.TheReason</td>
+                                        <td>@dq.Remark</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-shield-check empty-state-icon" style="color: var(--success);"></i>
+                        <h3 class="empty-state-title">No Disqualified Records</h3>
+                        <p class="empty-state-text">This employee has no disqualified skill records.</p>
+                    </div>
+                }
+            </div>
+
+            <!-- Obsoleted Tab -->
+            <div class="tab-content" id="obsoleted">
+                @if (Model.ObsoletedSkills != null && Model.ObsoletedSkills.Count > 0)
+                {
+                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                        <table class="table" id="obsoletedTable" style="table-layout:fixed; width:100%; min-width:920px;">
+                            <colgroup>
+                                <col style="width:160px"><!-- Process -->
+                                <col style="width:140px"><!-- Classification -->
+                                <col style="width:88px"> <!-- Theory -->
+                                <col style="width:88px"> <!-- OJT -->
+                                <col style="width:52px"> <!-- Result -->
+                                <col style="width:88px"> <!-- Certified Date -->
+                                <col style="width:36px"> <!-- K -->
+                                <col style="width:36px"> <!-- S -->
+                                <col style="width:72px"> <!-- Judgment -->
+                                <col style="width:88px"> <!-- Expiry Date -->
+                                <col style="width:80px"> <!-- Verifier -->
+                                <col>                    <!-- Remark -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Classification</th>
+                                    <th>Theory</th>
+                                    <th>OJT</th>
+                                    <th>Result</th>
+                                    <th>Certified Date</th>
+                                    <th>K</th>
+                                    <th>S</th>
+                                    <th>Judgment</th>
+                                    <th>Expiry Date</th>
+                                    <th>Verifier</th>
+                                    <th>Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var obs in Model.ObsoletedSkills)
+                                {
+                                    var daysUntilExpiry = obs.ExpiryDate.HasValue ? (obs.ExpiryDate.Value.Date - DateTime.Now.Date).TotalDays : double.NaN;
+                                    var isExpired = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry < 0;
+                                    var highlight10 = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry >= 0 && daysUntilExpiry <= 10;
+                                    var highlight30 = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry > 10 && daysUntilExpiry <= 30;
+                                    <tr class="table-obsoleted @(isExpired ? "expiry-row-expired" : (highlight10 ? "expiry-row-critical" : (highlight30 ? "expiry-row-soon" : "")))" style="opacity: 0.7;">
+                                        <td class="col-proc-td">@obs.Process</td>
+                                        <td class="col-cls-td" title="@obs.CertifyClassification">@obs.CertifyClassification</td>
+                                        <td>@(obs.Theory?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(obs.OJT?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(string.IsNullOrWhiteSpace(obs.Result) ? "-" : obs.Result)</td>
+                                        <td>@(obs.CertifiedDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@obs.K</td>
+                                        <td>@obs.S</td>
+                                        <td>
+                                            @if (obs.Judgment == "Pass")
+                                            {
+                                                <span class="jbadge jbadge-pass"><i class="bi bi-check-lg"></i>Pass</span>
+                                            }
+                                            else if (obs.Judgment == "Fail" || obs.Judgment == "Failed")
+                                            {
+                                                <span class="jbadge jbadge-fail"><i class="bi bi-x-lg"></i>@obs.Judgment</span>
+                                            }
+                                            else if (!string.IsNullOrEmpty(obs.Judgment) && obs.Judgment != "-")
+                                            {
+                                                <span class="jbadge jbadge-other">@obs.Judgment</span>
+                                            }
+                                            else { <span>-</span> }
+                                        </td>
+                                        <td>@(obs.ExpiryDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(obs.VerifierName ?? obs.Verifier)</td>
+                                        <td>@obs.Remark</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-archive empty-state-icon"></i>
+                        <h3 class="empty-state-title">No Obsoleted Records</h3>
+                        <p class="empty-state-text">This employee has no obsoleted skill records.</p>
+                    </div>
+                }
+            </div>
+
+            <!-- Timeline Tab -->
+            <div class="tab-content" id="timeline">
+                @{
+                    var timelineItems = new List<dynamic>();
+                    
+                    // Add current skills
+                    foreach (var skill in Model.CurrentSkills ?? new List<EmployeeSkillRecord>())
+                    {
+                        timelineItems.Add(new {
+                            Date = skill.CertifiedDate ?? DateTime.MinValue,
+                            Status = "Current",
+                            StatusClass = "timeline-current",
+                            Icon = "bi-check-circle-fill",
+                            Process = skill.Process,
+                            Classification = skill.CertifyClassification,
+                            Theory = skill.Theory,
+                            OJT = skill.OJT,
+                            K = skill.K,
+                            S = skill.S,
+                            Judgment = skill.Judgment,
+                            CertifiedDate = skill.CertifiedDate,
+                            ExpiryDate = skill.ExpiryDate,
+                            Verifier = skill.VerifierName ?? skill.Verifier,
+                            Remark = skill.Remark,
+                            Type = "current"
+                        });
+                    }
+                    
+                    // Add promoted skills (from tblQualified marked with [PROMOTED])
+                    foreach (var skill in Model.PromotedSkills ?? new List<EmployeeSkillRecord>())
+                    {
+                        timelineItems.Add(new {
+                            Date = skill.CertifiedDate ?? DateTime.MinValue,
+                            Status = "Promoted",
+                            StatusClass = "timeline-promoted",
+                            Icon = "bi-arrow-up-circle",
+                            Process = skill.Process,
+                            Classification = skill.CertifyClassification,
+                            Theory = skill.Theory,
+                            OJT = skill.OJT,
+                            K = skill.K,
+                            S = skill.S,
+                            Judgment = skill.Judgment,
+                            CertifiedDate = skill.CertifiedDate,
+                            ExpiryDate = skill.ExpiryDate,
+                            Verifier = skill.VerifierName ?? skill.Verifier,
+                            Remark = skill.Remark,
+                            Type = "promoted"
+                        });
+                    }
+                    
+                    // Add disqualified skills
+                    foreach (var skill in Model.DisqualifiedSkills ?? new List<EmployeeDisqualifiedRecord>())
+                    {
+                        timelineItems.Add(new {
+                            Date = skill.DisqualifiedDate ?? skill.CertifiedDate ?? DateTime.MinValue,
+                            Status = "Disqualified",
+                            StatusClass = "timeline-disqualified",
+                            Icon = "bi-x-circle-fill",
+                            Process = skill.Process,
+                            Classification = "-",
+                            Theory = (DateTime?)null,
+                            OJT = (DateTime?)null,
+                            K = skill.K,
+                            S = skill.S,
+                            Judgment = "-",
+                            CertifiedDate = skill.CertifiedDate,
+                            ExpiryDate = (DateTime?)null,
+                            Verifier = skill.VerifierName ?? skill.Verifier,
+                            Remark = skill.TheReason ?? skill.Remark,
+                            Type = "disqualified",
+                            DisqualifiedDate = skill.DisqualifiedDate,
+                            DisqualifiedBy = skill.DisqualifiedBy
+                        });
+                    }
+                    
+                    // Add obsoleted skills
+                    foreach (var skill in Model.TimelineObsoletedSkills ?? new List<EmployeeObsoletedRecord>())
+                    {
+                        timelineItems.Add(new {
+                            Date = skill.ExpiryDate ?? skill.CertifiedDate ?? DateTime.MinValue,
+                            Status = "Obsoleted",
+                            StatusClass = "timeline-obsoleted",
+                            Icon = "bi-arrow-repeat",
+                            Process = skill.Process,
+                            Classification = skill.CertifyClassification,
+                            Theory = skill.Theory,
+                            OJT = skill.OJT,
+                            K = skill.K,
+                            S = skill.S,
+                            Judgment = skill.Judgment,
+                            CertifiedDate = skill.CertifiedDate,
+                            ExpiryDate = skill.ExpiryDate,
+                            Verifier = skill.VerifierName ?? skill.Verifier,
+                            Remark = skill.Remark,
+                            Type = "obsoleted"
+                        });
+                    }
+                    
+                    // Sort by status priority (Current first), then by date descending
+                    var sortedTimeline = timelineItems
+                        .OrderBy(x => x.Status == "Current" ? 0 : x.Status == "Disqualified" ? 1 : 2)
+                        .ThenByDescending(x => x.Date)
+                        .ToList();
+                }
+                
+                @if (sortedTimeline.Any())
+                {
+                    <div class="timeline-container" id="timelineContainer">
+                        @{
+                            var itemIndex = 0;
+                        }
+                        @foreach (var item in sortedTimeline)
+                        {
+                            var isLeft = itemIndex % 2 == 0;
+                            var delay = itemIndex * 80;
+                            <div class="timeline-item @(isLeft ? "timeline-left" : "timeline-right") @item.StatusClass" style="--tl-delay:@(delay)ms">
+                                <div class="timeline-date-box">
+                                    @if (item.Date != DateTime.MinValue)
+                                    {
+                                        <div class="date-month">@item.Date.ToString("MMM")</div>
+                                        <div class="date-day">@item.Date.ToString("dd")</div>
+                                        <div class="date-year">@item.Date.ToString("yyyy")</div>
+                                    }
+                                </div>
+                                <div class="timeline-marker">
+                                    <div class="timeline-dot"></div>
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="timeline-header">
+                                        <h4 class="timeline-title">@item.Process</h4>
+                                        <span class="timeline-badge @(item.Status == "Current" ? "badge-success" : item.Status == "Disqualified" ? "badge-danger" : "badge-secondary")">@item.Status</span>
+                                    </div>
+                                    <div class="timeline-body">
+                                        <div class="timeline-grid">
+                                            <div class="timeline-field">
+                                                <label>Classification:</label>
+                                                <span>@(item.Classification ?? "-")</span>
+                                            </div>
+                                            @if (item.Type != "disqualified")
+                                            {
+                                                <div class="timeline-field">
+                                                    <label>Theory:</label>
+                                                    <span>@(item.Theory?.ToString("dd MMM yyyy") ?? "-")</span>
+                                                </div>
+                                                <div class="timeline-field">
+                                                    <label>OJT:</label>
+                                                    <span>@(item.OJT?.ToString("dd MMM yyyy") ?? "-")</span>
+                                                </div>
+                                            }
+                                            <div class="timeline-field">
+                                                <label>K:</label>
+                                                <span>@(item.K ?? "-")</span>
+                                            </div>
+                                            <div class="timeline-field">
+                                                <label>S:</label>
+                                                <span>@(item.S ?? "-")</span>
+                                            </div>
+                                            @if (item.Type != "disqualified")
+                                            {
+                                                <div class="timeline-field timeline-field-highlight">
+                                                    <label>Judgment:</label>
+                                                    <span>@(item.Judgment ?? "-")</span>
+                                                </div>
+                                            }
+                                            @if (item.Type == "current" || item.Type == "obsoleted")
+                                            {
+                                                <div class="timeline-field">
+                                                    <label>Certified Date:</label>
+                                                    <span>@(item.CertifiedDate?.ToString("dd MMM yyyy") ?? "-")</span>
+                                                </div>
+                                                <div class="timeline-field">
+                                                    <label>Expiry Date:</label>
+                                                    <span>@(item.ExpiryDate?.ToString("dd MMM yyyy") ?? "-")</span>
+                                                </div>
+                                            }
+                                            @if (item.Type == "disqualified")
+                                            {
+                                                <div class="timeline-field">
+                                                    <label>Disqualified Date:</label>
+                                                    <span>@(item.DisqualifiedDate?.ToString("dd MMM yyyy") ?? "-")</span>
+                                                </div>
+                                                <div class="timeline-field">
+                                                    <label>Disqualified By:</label>
+                                                    <span>@(item.DisqualifiedBy ?? "-")</span>
+                                                </div>
+                                            }
+                                            <div class="timeline-field timeline-field-highlight">
+                                                <label>Verifier:</label>
+                                                <span>@(item.Verifier ?? "-")</span>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(item.Remark))
+                                            {
+                                                <div class="timeline-field timeline-field-full">
+                                                    <label>Remark:</label>
+                                                    <span>@item.Remark</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            itemIndex++;
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-clock-history empty-state-icon"></i>
+                        <h3 class="empty-state-title">No Skill History</h3>
+                        <p class="empty-state-text">No skill records found for this employee.</p>
+                    </div>
+                }
+            </div>
+
+            <!-- Promoted Tab -->
+            <div class="tab-content" id="promoted">
+                @if (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0)
+                {
+                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                        <table class="table" id="promotedTable" style="table-layout:fixed; width:100%; min-width:880px;">
+                            <colgroup>
+                                <col style="width:160px"><!-- Process -->
+                                <col style="width:140px"><!-- Classification -->
+                                <col style="width:88px"> <!-- Theory -->
+                                <col style="width:88px"> <!-- OJT -->
+                                <col style="width:36px"> <!-- K -->
+                                <col style="width:36px"> <!-- S -->
+                                <col style="width:72px"> <!-- Judgment -->
+                                <col style="width:88px"> <!-- Certified Date -->
+                                <col style="width:88px"> <!-- Expiry Date -->
+                                <col style="width:80px"> <!-- Verifier -->
+                                <col>                    <!-- Remark -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Classification</th>
+                                    <th>Theory</th>
+                                    <th>OJT</th>
+                                    <th>Result</th>
+                                    <th>K</th>
+                                    <th>S</th>
+                                    <th>Judgment</th>
+                                    <th>Certified Date</th>
+                                    <th>Expiry Date</th>
+                                    <th>Verifier</th>
+                                    <th>Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var ps in Model.PromotedSkills)
+                                {
+                                    <tr class="table-promoted">
+                                        <td class="col-proc-td"><strong>@ps.Process</strong></td>
+                                        <td class="col-cls-td" title="@ps.CertifyClassification">@ps.CertifyClassification</td>
+                                        <td>@(ps.Theory?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(ps.OJT?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(string.IsNullOrWhiteSpace(ps.TestResult) ? (string.IsNullOrWhiteSpace(ps.ActualScore) ? "-" : ps.ActualScore) : ps.TestResult)</td>
+                                        <td>@ps.K</td>
+                                        <td>@ps.S</td>
+                                        <td>@(ps.Judgment ?? "-")</td>
+                                        <td>@(ps.CertifiedDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(ps.ExpiryDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(ps.VerifierName ?? ps.Verifier)</td>
+                                        <td>@ps.Remark</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-arrow-up-circle empty-state-icon" style="color: var(--success);"></i>
+                        <h3 class="empty-state-title">No Promoted Records</h3>
+                        <p class="empty-state-text">This employee has no promoted skill records.</p>
+                    </div>
+                }
+            </div>
+
+            <!-- Resigned Tab -->
+            <div class="tab-content" id="resigned">
+                @if (Model.ResignedSkills != null && Model.ResignedSkills.Count > 0)
+                {
+                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                        <table class="table" id="resignedTable" style="table-layout:fixed; width:100%; min-width:880px;">
+                            <colgroup>
+                                <col style="width:160px"><!-- Process -->
+                                <col style="width:140px"><!-- Classification -->
+                                <col style="width:88px"> <!-- Theory -->
+                                <col style="width:88px"> <!-- OJT -->
+                                <col style="width:36px"> <!-- K -->
+                                <col style="width:36px"> <!-- S -->
+                                <col style="width:72px"> <!-- Judgment -->
+                                <col style="width:88px"> <!-- Certified Date -->
+                                <col style="width:88px"> <!-- Expiry Date -->
+                                <col style="width:80px"> <!-- Verifier -->
+                                <col>                    <!-- Remark -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Classification</th>
+                                    <th>Theory</th>
+                                    <th>OJT</th>
+                                    <th>Result</th>
+                                    <th>K</th>
+                                    <th>S</th>
+                                    <th>Judgment</th>
+                                    <th>Certified Date</th>
+                                    <th>Expiry Date</th>
+                                    <th>Verifier</th>
+                                    <th>Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var rs in Model.ResignedSkills)
+                                {
+                                    <tr style="opacity:0.7;">
+                                        <td class="col-proc-td"><strong>@rs.Process</strong></td>
+                                        <td class="col-cls-td" title="@rs.CertifyClassification">@rs.CertifyClassification</td>
+                                        <td>@(rs.Theory?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(rs.OJT?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(string.IsNullOrWhiteSpace(rs.TestResult) ? (string.IsNullOrWhiteSpace(rs.ActualScore) ? "-" : rs.ActualScore) : rs.TestResult)</td>
+                                        <td>@rs.K</td>
+                                        <td>@rs.S</td>
+                                        <td>@(rs.Judgment ?? "-")</td>
+                                        <td>@(rs.CertifiedDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(rs.ExpiryDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                        <td>@(rs.VerifierName ?? rs.Verifier)</td>
+                                        <td>@rs.Remark</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-person-x empty-state-icon" style="color: var(--danger);"></i>
+                        <h3 class="empty-state-title">No Resigned Records</h3>
+                        <p class="empty-state-text">This employee has no resigned skill records.</p>
+                    </div>
+                }
+            </div>
+        </div><!-- /vu-section-body -->
+    </div><!-- /vu-section -->
+
+    <!-- ── Inline Certification Level Criteria ── -->
+    <div class="vu-section" style="margin-top:1rem;">
+        <div class="vu-section-hdr" onclick="toggleLevelCriteria()">
+            <span class="vu-section-icon"><i class="bi bi-list-check"></i></span>
+            <span class="vu-section-title">Certification Level Criteria</span>
+            <button id="btnToggleLevelCriteria" class="vu-toggle-btn" type="button">
+                <i class="bi bi-chevron-down"></i>
+                <span id="lblToggleLevelCriteria">Show Criteria</span>
+            </button>
+        </div>
+        <div id="levelCriteriaCollapse" style="overflow:hidden;transition:max-height 0.45s ease,opacity 0.35s ease;max-height:0px;opacity:0;">
+            <div class="vu-section-body">
+                <p class="mb-2"><strong>Summary of levels and score ranges for Knowledge (K) and Skill (S)</strong></p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th style="width:60px;">Level</th>
+                                <th>Judgment</th>
+                                <th>Description</th>
+                                <th style="width:140px;">Score (K) / (S)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="background-color:#fee2e2;">
+                                <td><strong>X</strong></td>
+                                <td style="color:#b91c1c;">Fail</td>
+                                <td style="color:#b91c1c;">Low skill/knowledge : Not allow to operate by themselves without mentor.<br/><span lang="th">(ทักษะและความรู้น้อยมาก : ไม่อนุญาตให้ปฏิบัติงานได้ด้วยตัวเองโดยไม่มีพี่เลี้ยง)</span></td>
+                                <td style="color:#b91c1c;">≤ 25 / ≤ 25</td>
+                            </tr>
+                            <tr style="background-color:#ede9fe;">
+                                <td><strong>I</strong></td>
+                                <td style="color:#6d28d9;">Pass</td>
+                                <td style="color:#6d28d9;">Normal skill/knowledge : Can operate by themselves but can't fix the problem.<br/><span lang="th">(ทักษะและความรู้ขั้นพื้นฐาน : สามารถปฏิบัติงานได้ด้วยตัวเอง แต่ยังไม่สามารถแก้ไขปัญหาเองได้)</span></td>
+                                <td style="color:#6d28d9;">26 - 50 / 26 - 50</td>
+                            </tr>
+                            <tr style="background-color:#dbeafe;">
+                                <td><strong>L</strong></td>
+                                <td style="color:#1e3a8a;">Pass</td>
+                                <td style="color:#1e3a8a;">Medium skill/knowledge : Can operate by themselves,and understand quality, safety, environmental impact, can fix a few problems.<br/><span lang="th">(ทักษะและความรู้ปานกลาง : สามารถปฏิบัติงานได้ด้วยตัวเอง และเข้าใจในผลกระทบด้านคุณภาพ ความปลอดภัยและสิ่งแวดล้อม และสามารถแก้ไขปัญหาได้บ้างเล็กน้อย)</span></td>
+                                <td style="color:#1e3a8a;">51 - 75 / 51 - 75</td>
+                            </tr>
+                            <tr style="background-color:#fef3c7;">
+                                <td><strong>U</strong></td>
+                                <td style="color:#92400e;">Pass</td>
+                                <td style="color:#92400e;">High skill/knowledge : Can operate by themselves,understand Quality, Safety&amp;environmental impact and can solve the problem.<br/><span lang="th">(ทักษะและความรู้สูง : สามารถปฏิบัติ งานได้ด้วยตัวเอง เข้าใจในผลกระทบด้านคุณภาพ ความปลอดภัยและสิ่งแวดล้อม และสามารถแก้ไขปัญหาได้ดี)</span></td>
+                                <td style="color:#92400e;">76 - 100 / 76 - 100</td>
+                            </tr>
+                            <tr style="background-color:#d1fae5;">
+                                <td><strong>O</strong></td>
+                                <td style="color:#065f46;">Pass</td>
+                                <td style="color:#065f46;">Excellent skill/knowledge : Can operate by themselves, understand Quality, Safety&amp;Environmental impact, can solve the problem and can train &amp; motivate other peoples.<br/><span lang="th">(ทักษะและความรู้ดีเยี่ยม : สามารถปฏิบัติงานได้ด้วยตัวเอง เข้าใจในผลกระทบด้านคุณภาพ ความปลอดภัยและสิ่งแวดล้อม สามารถแก้ไขปัญหาได้ สอนและกระตุ้นผู้อื่นได้)</span></td>
+                                <td style="color:#065f46;">101 - 125 / 101 - 125</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div><!-- /vu-section level-criteria -->
+
+    </div><!-- /vu-right-col -->
+    </div><!-- /vu-main-grid -->
+
+    </div><!-- /vu-page -->
+
+    <!-- Bulk Disqualify Modal (centered on screen) -->
+    <style>
+        /* Center the modal in the viewport */
+        #bulkDisqualifyModal.modal.fade.show { display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; z-index: 1080; }
+
+        /* Dialog constrained width for good readability and centered layout */
+        #bulkDisqualifyModal .modal-dialog {
+            max-width: none !important;
+            width: min(900px, calc(100% - 40px)) !important;
+            margin: 0 auto !important;
+            border-radius: 8px !important;
+            max-height: 92vh;
+        }
+
+        #bulkDisqualifyModal .modal-content { max-height: 92vh; height: auto; }
+        #bulkDisqualifyModal .modal-body { max-height: calc(92vh - 140px) !important; overflow: auto !important; }
+
+        /* Larger labels and spacing for readability */
+        #bulkDisqualifyModal .form-check-label { font-size: 1.05rem; line-height: 1.4; }
+        #bulkDisqualifyModal .form-check { padding: 0.35rem 0; }
+        #bulkDisqualifyModal .modal-footer .btn { min-width: 140px; }
+
+        /* Responsive fallback for narrow screens */
+        @@media (max-width: 900px) {
+            #bulkDisqualifyModal .modal-dialog { width: calc(100% - 40px) !important; margin: 20px !important; }
+        }
+    </style>
+    <div class="modal fade" id="bulkDisqualifyModal" tabindex="-1" aria-labelledby="bulkDisqualifyLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkDisqualifyLabel">
+                        <i class="bi bi-exclamation-triangle text-danger"></i> Disqualify Selected Skills
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Select a reason for disqualification:</p>
+                    <div class="form-group">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="BulkReason" id="bulkReason1" value="Failed at certify / re-certify process" checked>
+                            <label class="form-check-label" for="bulkReason1">1. Failed at certify / re-certify process.</label>
+                        </div>
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="radio" name="BulkReason" id="bulkReason2" value="Leave out or no work from the certified process longer than 3 months consecutively">
+                            <label class="form-check-label" for="bulkReason2">2. Leave out or no work from the certified process longer than 3 months consecutively.</label>
+                        </div>
+                        <div id="leaveDetails" class="mb-2" style="display:none; margin-left:1.75rem; padding:0.6rem 0.85rem; border-left:3px solid #4f46e5; background:rgba(79,70,229,0.06); border-radius:0 6px 6px 0;">
+                            <p class="mb-2" style="font-size:0.85rem; color:#6b7280; font-weight:500;">Specify the reason:</p>
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="radio" name="BulkSubReason" id="bulkSub1" value="No work longer than 3 months consecutively" checked>
+                                <label class="form-check-label" for="bulkSub1">No work longer than 3 months consecutively</label>
+                            </div>
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="radio" name="BulkSubReason" id="bulkSub2" value="Pregnant">
+                                <label class="form-check-label" for="bulkSub2">Pregnant</label>
+                            </div>
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="radio" name="BulkSubReason" id="bulkSub4" value="Maternity leave">
+                                <label class="form-check-label" for="bulkSub4">Maternity leave</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="BulkSubReason" id="bulkSub3" value="Transfer">
+                                <label class="form-check-label" for="bulkSub3">Transfer</label>
+                            </div>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="BulkReason" id="bulkReason3" value="No compliance with work specification and make high significant mistake on quality issue">
+                            <label class="form-check-label" for="bulkReason3">3. No compliance with work specification and make high significant mistake on quality issue.</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmBulkDisqualify">
+                        <i class="bi bi-x-circle"></i> Disqualify
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Criteria Modal -->
+    <style>
+        /* Center the Level Criteria modal on screen with constrained width */
+        #levelCriteriaModal.modal.fade.show { display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; }
+        #levelCriteriaModal .modal-dialog {
+            max-width: none !important;
+            width: min(1100px, calc(100% - 40px)) !important; /* center and limit width */
+            margin: 0 auto !important;
+            border-radius: 8px;
+            max-height: 92vh;
+        }
+        /* Modal content and body sizing */
+        #levelCriteriaModal .modal-content { height: auto; max-height: 92vh; }
+        /* add closing animation on hide */
+        #levelCriteriaModal .modal-content { transition: transform .28s ease, opacity .28s ease; }
+        #levelCriteriaModal .modal-content.closing { transform: scale(0.95); opacity: 0; }
+        #levelCriteriaModal .modal-body { max-height: calc(92vh - 120px) !important; overflow: auto !important; }
+        @@media (min-width:1400px) {
+            #levelCriteriaModal .modal-dialog { width: min(1200px, calc(100% - 80px)) !important; }
+        }
+    </style>
+    <div class="modal fade" id="levelCriteriaModal" tabindex="-1" aria-labelledby="levelCriteriaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width:1100px; width:95%;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="levelCriteriaLabel"><i class="bi bi-list-check"></i> Certification Level Criteria</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <script>
+                    (function(){
+                        var lvl = document.getElementById('levelCriteriaModal');
+                        if(!lvl) return;
+                        var closeBtn = lvl.querySelector('.btn-close');
+                        if(closeBtn){
+                            closeBtn.addEventListener('click', function(e){
+                                e.preventDefault();
+                                e.stopPropagation();
+                                var c = lvl.querySelector('.modal-content');
+                                if(c) c.classList.add('closing');
+                                setTimeout(function(){
+                                    var inst = bootstrap.Modal.getInstance(lvl);
+                                    if(inst) inst.hide();
+                                }, 240);
+                            });
+                        }
+                        // cleanup class when completely hidden (in case other hide paths used)
+                        lvl.addEventListener('hidden.bs.modal', function(){
+                            var c = this.querySelector('.modal-content');
+                            if(c) c.classList.remove('closing');
+                        });
+                    })();
+                </script>
+                <div class="modal-body" style="max-height:80vh; overflow:auto;">
+                    <style>
+                        /* level criteria row colouring */
+                        #levelCriteriaModal .row-fail { background-color: #fee2e2; }
+                        #levelCriteriaModal .row-I { background-color: #ede9fe; }  /* light purple */
+                        #levelCriteriaModal .row-L { background-color: #dbeafe; }   /* light blue */
+                        #levelCriteriaModal .row-U { background-color: #fef3c7; }   /* light yellow */
+                        #levelCriteriaModal .row-O { background-color: #d1fae5; }   /* light green */
+                        #levelCriteriaModal .row-fail td { color: #b91c1c; }
+                        #levelCriteriaModal .row-I td { color: #6d28d9; }
+                        #levelCriteriaModal .row-L td { color: #1e3a8a; }
+                        #levelCriteriaModal .row-U td { color: #92400e; }
+                        #levelCriteriaModal .row-O td { color: #065f46; }
+                    </style>
+                    <p class="mb-2"><strong>Summary of levels and score ranges for Knowledge (K) and Skill (S)</strong></p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px;">Level</th>
+                                    <th>Judgment</th>
+                                    <th>Description</th>
+                                    <th style="width:140px;">Score (K) / (S)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="row-fail">
+                                    <td><strong>X</strong></td>
+                                    <td>Fail</td>
+                                    <td>Low skill/knowledge : Not allow to operate by themselves without mentor.<br/><span lang="th">(ทักษะและความรู้น้อยมาก : ไม่อนุญาตให้ปฏิบัติงานได้ด้วยตัวเองโดยไม่มีพี่เลี้ยง)</span>
+                                    <td>≤ 25 / ≤ 25</td>
+                                </tr>
+                                <tr class="row-I">
+                                    <td><strong>I</strong></td>
+                                    <td>Pass</td>
+                                    <td>Normal skill/knowledge : Can operate by themselves but can’t fix the problem.<br/><span lang="th">(ทักษะและความรู้ขั้นพื้นฐาน : สามารถปฏิบัติงานได้ด้วยตัวเอง แต่ยังไม่สามารถแก้ไขปัญหาเองได้)</span></td>
+                                    <td>26 - 50 / 26 - 50</td>
+                                </tr>
+                                <tr class="row-pass row-L">
+                                    <td><strong>L</strong></td>
+                                    <td>Pass</td>
+                                    <td>Medium skill/knowledge : Can operate by themselves,and understand quality, safety, environmental impact, can fix a few problems.<br/><span lang="th">(ทักษะและความรู้ปานกลาง : สามารถปฏิบัติงานได้ด้วยตัวเอง และเข้าใจในผลกระทบด้านคุณภาพ ความปลอดภัยและสิ่งแวดล้อม และสามารถแก้ไขปัญหาได้บ้างเล็กน้อย)</span></td>
+                                    <td>51 - 75 / 51 - 75</td>
+                                </tr>
+                                <tr class="row-pass row-U">
+                                    <td><strong>U</strong></td>
+                                    <td>Pass</td>
+                                    <td>High skill/knowledge : Can operate by themselves,understand Quality, Safety&environmental impact and can solve the problem.<br/><span lang="th">(ทักษะและความรู้สูง : สามารถปฏิบัติ งานได้ด้วยตัวเอง เข้าใจในผลกระทบด้านคุณภาพ ความปลอดภัยและสิ่งแวดล้อม และสามารถแก้ไขปัญหาได้ดี)</span></td>
+                                    <td>76 - 100 / 76 - 100</td>
+                                </tr>
+                                <tr class="row-pass row-O">
+                                    <td><strong>O</strong></td>
+                                    <td>Pass</td>
+                                    <td>Excellent skill/knowledge : Can operate by themselves, understand Quality, Safety&Environmental impact, can solve the problem and can train & motivate other peoples.<br/><span lang="th">(ทักษะและความรู้ดีเยี่ยม : สามารถปฏิบัติงานได้ด้วยตัวเอง เข้าใจในผลกระทบด้านคุณภาพ ความปลอดภัยและสิ่งแวดล้อม สามารถแก้ไขปัญหาได้ สอนและกระตุ้นผู้อื่นได้)</span></td>
+                                    <td>101 - 125 / 101 - 125</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted small">Click anywhere outside the dialog or press Close to dismiss.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:100vw; margin:0; pointer-events:none;">
+            <div class="modal-content" style="background:transparent; border:none; box-shadow:none; pointer-events:none;">
+                <div class="modal-body text-center p-0" style="pointer-events:none;">
+                    <img id="imagePreviewSrc" src="" class="img-fluid image-preview-img" alt="Preview"
+                         style="max-height:90vh; max-width:90vw; border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,0.55); pointer-events:auto; cursor:zoom-out;"
+                         onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('imagePreviewModal')).hide()" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-labelledby="pdfPreviewLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content" style="background: transparent; border: none;">
+                <button type="button" class="btn-close image-modal-close" aria-label="Close preview"></button>
+                <div class="modal-body p-0" style="position:relative; text-align:center;">
+                    <div id="pdfPreviewSpinner" style="position:absolute; inset:0; display:flex;align-items:center;justify-content:center; z-index:1062;">
+                        <div class="spinner spinner-lg"></div>
+                    </div>
+                    <iframe id="pdfPreviewIframe" src="" style="width:90vw; height:82vh; border:none; border-radius:6px; box-shadow:0 8px 30px rgba(0,0,0,0.35); background:#fff;" ></iframe>
+                </div>
+                <div class="modal-footer image-modal-footer" style="border: none; justify-content: center;">
+                    @if (AdminService.IsAdmin(HttpContext.Session.GetString("UserCode")))
+                    {
+                        <a id="pdfDownloadLink" class="btn btn-primary btn-lg" target="_blank" rel="noopener noreferrer" style="display:inline-block;"><i class="bi bi-file-earmark-pdf"></i> Open in New Tab</a>
+                    }
+                    <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="bi bi-person-x empty-state-icon"></i>
+                <h3 class="empty-state-title">Employee Not Found</h3>
+                <p class="empty-state-text">The requested employee could not be found.</p>
+                <a href="/Dashboard" class="btn btn-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+@section Styles {
+<style>
+    /* Page-scale adjustments: make ViewUser UI larger and more prominent */
+    h1 {
+        font-size: 2.4rem !important;
+        line-height: 1.1 !important;
+    }
+    .card-body {
+        padding: 0.85rem 1rem !important;
+    }
+    .avatar.avatar-xl {
+        width: 140px !important;
+        height: 140px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.18) !important;
+        border: 4px solid rgba(255,255,255,0.95) !important;
+    }
+    .form-value {
+        font-size: 1rem !important;
+        padding: 0.65rem 0.9rem !important;
+        min-height: 44px !important;
+    }
+    .form-label {
+        font-size: 0.95rem !important;
+    }
+    .table th, .table td {
+        font-size: 0.78rem !important;
+        padding: 0.35rem 0.5rem !important;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    /* Process column: allow wrapping — scoped to currentSkillTable where Process is col 2 (after checkbox) */
+    #currentSkillTable td:nth-child(2),
+    #currentSkillTable th:nth-child(2) {
+        white-space: normal !important;
+        min-width: 140px;
+        max-width: 200px;
+        word-break: break-word;
+    }
+    /* Classification column: wrapper div makes max-width + text-overflow actually work in tables */
+    .col-cls {
+        display: block;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    /* Classification td for fixed-layout tables — overflow works directly on the cell */
+    .col-cls-td {
+        overflow: hidden !important;
+        text-overflow: ellipsis;
+        white-space: nowrap !important;
+        max-width: 0; /* required for text-overflow to fire in fixed-layout tables */
+    }
+    /* Process td for fixed-layout tables — allow wrapping */
+    .col-proc-td {
+        white-space: normal !important;
+        word-break: break-word;
+        min-width: 0;
+    }
+    /* Date columns (Theory, OJT, Certified Date, Expiry Date): fixed width so dates never compress */
+    .table td:nth-child(4), .table th:nth-child(4),
+    .table td:nth-child(5), .table th:nth-child(5),
+    .table td:nth-child(9), .table th:nth-child(9),
+    .table td:nth-child(10), .table th:nth-child(10) {
+        min-width: 90px;
+        white-space: nowrap !important;
+    }
+    .table-container {
+        padding: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .btn-lg {
+        padding: 0.8rem 1.25rem !important;
+        font-size: 1.05rem !important;
+        border-radius: 10px !important;
+    }
+    .tab-btn { padding: 0.55rem 1rem !important; font-size: 0.82rem !important; }
+
+    .tabs-container {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid var(--gray-200);
+        padding-bottom: 0;
+    }
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        color: var(--gray-600);
+        font-weight: 500;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .tab-btn:hover {
+        color: var(--primary);
+    }
+    .tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+    /* Image preview modal styling */
+    #imagePreviewModal .modal-content {
+        background: transparent;
+        border: none;
+        padding: 0;
+        max-width: 96vw;
+        max-height: 96vh;
+    }
+    #imagePreviewModal .modal-body {
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    #imagePreviewModal .image-preview-img {
+        max-height: 90vh;
+        max-width: 90vw;
+        object-fit: contain;
+        display: block;
+        border-radius: 6px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    }
+
+    /* PDF preview modal content */
+    #pdfPreviewModal .modal-content {
+        background: transparent;
+        border: none;
+        padding: 0;
+        max-width: 98vw;
+        max-height: 98vh;
+    }
+    #pdfPreviewModal .modal-body { padding: 0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    #pdfPreviewModal iframe { width: 100%; height: 82vh; border-radius:6px; box-shadow: 0 8px 30px rgba(0,0,0,0.35); }
+
+    /* Inline actions (preview + download) for skill table */
+    .download-actions { display:flex; gap:0.5rem; align-items:center; }
+    .download-actions .pdfPreviewBtn { padding: 0.25rem 0.5rem; min-width:38px; display:inline-flex; align-items:center; justify-content:center; }
+    @@media (max-width: 540px) {
+        .download-actions { gap:0.25rem; }
+        .download-actions .btn { padding:0.25rem 0.4rem; font-size:0.85rem; }
+    }
+
+    /* Timeline Styles */
+    .timeline-container {
+        position: relative;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.5rem 0;
+    }
+    /* line draw animation */
+    @@keyframes timelineLineDraw {
+        from { transform: translateX(-50%) scaleY(0); transform-origin: top center; }
+        to   { transform: translateX(-50%) scaleY(1); transform-origin: top center; }
+    }
+    .timeline-container::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, #e0e0e0 0%, #e0e0e0 100%);
+        transform: translateX(-50%);
+        transform-origin: top center;
+    }
+    #timeline.tab-content.active .timeline-container::before {
+        animation: timelineLineDraw 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+    /* card slide-in keyframes */
+    @@keyframes tlSlideLeft {
+        from { opacity: 0; transform: translateX(-48px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    @@keyframes tlSlideRight {
+        from { opacity: 0; transform: translateX(48px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    @@keyframes tlDotPop {
+        0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+        70%  { transform: translate(-50%, -50%) scale(1.25); }
+        100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    @@keyframes tlDateFade {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    /* apply staggered animation on each .timeline-item via --tl-delay */
+    #timeline.tab-content.active .timeline-item.tl-animate {
+        animation-fill-mode: both;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+        animation-duration: 0.5s;
+        animation-delay: var(--tl-delay, 0ms);
+    }
+    #timeline.tab-content.active .timeline-left.tl-animate {
+        animation-name: tlSlideLeft;
+    }
+    #timeline.tab-content.active .timeline-right.tl-animate {
+        animation-name: tlSlideRight;
+    }
+    #timeline.tab-content.active .tl-animate .timeline-dot {
+        opacity: 0;
+        animation: tlDotPop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        animation-delay: calc(var(--tl-delay, 0ms) + 120ms);
+    }
+    #timeline.tab-content.active .tl-animate .timeline-date-box {
+        opacity: 0;
+        animation: tlDateFade 0.38s ease both;
+        animation-delay: calc(var(--tl-delay, 0ms) + 80ms);
+    }
+    .timeline-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+    }
+    .timeline-left {
+        flex-direction: row;
+    }
+    .timeline-right {
+        flex-direction: row-reverse;
+    }
+    .timeline-date-box {
+        width: 64px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    .timeline-left .timeline-date-box {
+        order: 1;
+    }
+    .timeline-right .timeline-date-box {
+        order: 3;
+    }
+    .date-month {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .date-day {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--primary);
+        line-height: 1;
+        margin: 0.1rem 0;
+    }
+    .date-year {
+        font-size: 0.7rem;
+        color: var(--gray-500);
+        font-weight: 500;
+    }
+    .timeline-marker {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        z-index: 2;
+        order: 2;
+    }
+    .timeline-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #2196F3;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 3px #2196F3;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .timeline-current .timeline-dot {
+        background: #28a745;
+        box-shadow: 0 0 0 3px #28a745;
+    }
+    .timeline-disqualified .timeline-dot {
+        background: #dc3545;
+        box-shadow: 0 0 0 3px #dc3545;
+    }
+    .timeline-obsoleted .timeline-dot {
+        background: #6c757d;
+        box-shadow: 0 0 0 3px #6c757d;
+    }
+    .timeline-content {
+        flex: 1;
+        background: var(--white);
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+        border: 1px solid #e8e8e8;
+        transition: all 0.3s ease;
+        max-width: calc(50% - 50px);
+    }
+    .timeline-left .timeline-content {
+        order: 1;
+    }
+    .timeline-right .timeline-content {
+        order: 3;
+    }
+    .timeline-content:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        transform: translateY(-3px);
+    }
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.6rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1.5px solid #f5f5f5;
+    }
+    .timeline-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 0;
+    }
+    .timeline-badge {
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .timeline-badge.badge-success {
+        background: #d4edda;
+        color: #155724;
+    }
+    .timeline-badge.badge-danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .timeline-badge.badge-secondary {
+        background: #e2e3e5;
+        color: #383d41;
+    }
+    .timeline-body {
+        margin-top: 0.5rem;
+    }
+    .timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.45rem;
+    }
+    .timeline-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+    .timeline-field label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .timeline-field span {
+        font-size: 0.78rem;
+        color: #212529;
+        font-weight: 500;
+    }
+    .timeline-field-full {
+        grid-column: 1 / -1;
+    }
+    .timeline-field-highlight {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-left: 3px solid #28a745;
+        padding: 0.4rem 0.5rem;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px rgba(40, 167, 69, 0.1);
+    }
+    .timeline-field-highlight label {
+        color: #155724;
+        font-weight: 700;
+    }
+    .timeline-field-highlight span {
+        color: #212529;
+        font-weight: 600;
+    }
+    @@media (max-width: 992px) {
+        .timeline-container::before {
+            left: 30px;
+        }
+        .timeline-item {
+            flex-direction: row !important;
+        }
+        .timeline-left .timeline-date-box,
+        .timeline-right .timeline-date-box {
+            order: 1;
+            width: 70px;
+        }
+        .timeline-marker {
+            order: 2;
+            position: absolute;
+            left: 21px;
+        }
+        .timeline-left .timeline-content,
+        .timeline-right .timeline-content {
+            order: 3;
+            max-width: calc(100% - 100px);
+            margin-left: 40px;
+        }
+        .date-day {
+            font-size: 2rem;
+        }
+    }
+    @@media (max-width: 768px) {
+        .timeline-container::before {
+            left: 20px;
+        }
+        .timeline-date-box {
+            width: 60px;
+        }
+        .date-day {
+            font-size: 1.75rem;
+        }
+        .date-month,
+        .date-year {
+            font-size: 0.75rem;
+        }
+        .timeline-marker {
+            left: 11px;
+        }
+        .timeline-content {
+            margin-left: 30px;
+            padding: 1.25rem;
+        }
+        .timeline-grid {
+            grid-template-columns: 1fr;
+        }
+        .timeline-title {
+            font-size: 1.1rem;
+        }
+    }
+
+    .image-modal-close {
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+        z-index: 1071;
+        background: rgba(255,255,255,0.9);
+        border-radius: 6px;
+        border: none;
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .image-modal-close:hover { background: white; transform: scale(1.03); }
+    #imagePreviewModal .modal-dialog { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    #imagePreviewModal .modal-backdrop,
+    #imagePreviewModal + .modal-backdrop { background: rgba(0,0,0,0.82); }
+    /* Button emphasis styles */
+    .btn-primary {
+        background: var(--primary);
+        border-color: rgba(0,0,0,0.06);
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(79,70,229,0.18);
+        transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(79,70,229,0.22); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-danger {
+        background: var(--danger);
+        color: white;
+        box-shadow: 0 6px 18px rgba(220,38,38,0.14);
+    }
+    /* Stronger, more prominent danger button (target the Disqualify Selected) */
+    #disqualifySelectedBtn:not(:disabled):hover {
+        background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%) !important;
+        box-shadow: 0 12px 28px rgba(220,38,38,0.42) !important;
+        transform: translateY(-2px) !important;
+    }
+    #disqualifySelectedBtn:not(:disabled):active {
+        transform: translateY(0) !important;
+        box-shadow: 0 4px 12px rgba(220,38,38,0.28) !important;
+    }
+    /* when disabled, show muted appearance — handled by .btn-sk:disabled rule */
+    .btn-outline {
+        border: 1px solid var(--gray-200);
+        color: var(--gray-700);
+        background: transparent;
+    }
+    /* Make important action buttons slightly larger and clearer */
+    .btn-lg { padding: 0.6rem 1rem; font-size: 1rem; }
+
+    /* ── Page action buttons ── */
+    .page-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1.5rem;
+    }
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 1.2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+        white-space: nowrap;
+        line-height: 1.4;
+    }
+    .btn-action:hover { transform: translateY(-2px); filter: brightness(1.07); text-decoration: none; }
+    .btn-action:active { transform: translateY(0); filter: brightness(0.96); }
+    .btn-action-back {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(37,99,235,0.28);
+    }
+    .btn-action-back:hover { color: #fff; box-shadow: 0 8px 20px rgba(37,99,235,0.38); }
+    .btn-action-update {
+        background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(6,182,212,0.28);
+    }
+    .btn-action-update:hover { color: #fff; box-shadow: 0 8px 20px rgba(6,182,212,0.38); }
+    .btn-action-update.disabled, .btn-action-update[aria-disabled="true"] {
+        opacity: 0.55; cursor: not-allowed; pointer-events: none;
+    }
+    .btn-action-info {
+        background: #fff;
+        color: #374151;
+        border: 1.5px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .btn-action-info:hover { color: #0ea5e9; border-color: #0ea5e9; box-shadow: 0 6px 16px rgba(14,165,233,0.15); }
+    .modal-backdrop.custom-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1050;
+    }
+    .image-modal-footer { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 1071; }
+    .tab-content {
+        display: none;
+        padding-top: 1.5rem;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .form-checkbox {
+        width: 1.1rem;
+        height: 1.1rem;
+        cursor: pointer;
+    }
+    /* Make Disqualified table text clearly red; keep header black for readability */
+    #disqualified .table th {
+        color: #000 !important;
+        font-weight: 400 !important;
+    }
+    #disqualified .table td,
+    #disqualified .table {
+        color: var(--danger) !important;
+    }
+    #disqualified .table tr { color: var(--danger) !important; }
+</style>
+}
+
+@section Scripts {
+<script>
+    // ── Dynamic download button ──────────────────────────────────────
+    const _empCode = '@Model.Employee?.EmpCode';
+    const _tabDownloadMap = {
+        'current-skill':  { label: 'Download Current Skills',  handler: 'DownloadCurrentSkills'  },
+        'disqualified':   { label: 'Download Disqualified',     handler: 'DownloadDisqualifiedSkills' },
+        'obsoleted':      { label: 'Download Obsoleted',        handler: 'DownloadObsoletedSkills' },
+        'promoted':       { label: 'Download Promoted',         handler: 'DownloadPromotedSkills'  },
+        'resigned':       { label: 'Download Resigned',         handler: 'DownloadResignedSkills'  },
+    };
+    function updateDownloadBtn(tabId) {
+        const btn = document.getElementById('btnDownloadTab');
+        const lbl = document.getElementById('lblDownloadTab');
+        if (!btn || !lbl) return;
+        const cfg = _tabDownloadMap[tabId];
+        if (cfg) {
+            btn.href = `?handler=${cfg.handler}&empCode=${_empCode}`;
+            lbl.textContent = cfg.label;
+            btn.style.display = '';
+        } else {
+            // Timeline tab — hide download button
+            btn.style.display = 'none';
+        }
+        // Re-apply selection-based URL if checkboxes are already checked
+        if (tabId !== 'current-skill') return;
+        const checkboxes = document.querySelectorAll('.skillCheckbox');
+        const checked = Array.from(checkboxes).filter(cb => cb.checked);
+        if (checked.length > 0) {
+            const params = checked.map(cb => 'process=' + encodeURIComponent(cb.value)).join('&');
+            btn.href = '?handler=DownloadCurrentSkills&empCode=' + _empCode + '&' + params;
+            lbl.textContent = 'Download Selected (' + checked.length + ')';
+        }
+    }
+    // Init on load
+    updateDownloadBtn('current-skill');
+
+    // ── Toggle level criteria inline panel ────────────────────────────────
+    function toggleLevelCriteria() {
+        const panel = document.getElementById('levelCriteriaCollapse');
+        const btn   = document.getElementById('btnToggleLevelCriteria');
+        const lbl   = document.getElementById('lblToggleLevelCriteria');
+        if (!panel) return;
+        const isHidden = panel.style.maxHeight === '0px';
+        if (isHidden) {
+            panel.style.maxHeight = '800px';
+            panel.style.opacity   = '1';
+            if (btn) btn.classList.remove('collapsed');
+            if (lbl) lbl.textContent = 'Hide Criteria';
+        } else {
+            panel.style.maxHeight = '0px';
+            panel.style.opacity   = '0';
+            if (btn) btn.classList.add('collapsed');
+            if (lbl) lbl.textContent = 'Show Criteria';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Auto-collapse left sidebar for focused view pages
+        try { document.querySelector('.app-container')?.classList.add('sidebar-collapsed'); } catch (e) { }
+        // Tab switching
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const tabId = this.dataset.tab;
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                updateDownloadBtn(tabId);
+                const tabEl = document.getElementById(tabId);
+                if (tabEl) {
+                    tabEl.classList.add('active');
+                } else {
+                    console.warn('Missing tab-content for tab:', tabId);
+                }
+                // Timeline entrance animation — triggered after active class is applied
+                if (tabId === 'timeline') {
+                    requestAnimationFrame(function () {
+                        document.querySelectorAll('#timeline .timeline-item').forEach(function (el) {
+                            el.classList.remove('tl-animate');
+                            void el.offsetWidth;
+                            el.classList.add('tl-animate');
+                        });
+                    });
+                }
+            });
+        });
+
+        // Fit-mode toggle: compress skill tab tables to fit viewport without scrolling
+        (function(){
+            const fitBtn = document.getElementById('skillFitBtn');
+            if (!fitBtn) return;
+            let fitOn = false;
+            fitBtn.addEventListener('click', function(){
+                fitOn = !fitOn;
+                document.querySelectorAll('#current-skill .table-container, #disqualified .table-container, #obsoleted .table-container')
+                    .forEach(function(tc){ tc.classList.toggle('skill-table-fit', fitOn); });
+                fitBtn.classList.toggle('fit-active', fitOn);
+                const icon = fitBtn.querySelector('i');
+                const label = fitBtn.querySelector('span');
+                if (fitOn) {
+                    if (icon) { icon.className = 'bi bi-arrows-angle-expand'; icon.style.fontSize = '1rem'; }
+                    if (label) label.textContent = 'Unfit';
+                    fitBtn.title = 'Restore scrollable table view';
+                } else {
+                    if (icon) { icon.className = 'bi bi-arrows-angle-contract'; icon.style.fontSize = '1rem'; }
+                    if (label) label.textContent = 'Fit';
+                    fitBtn.title = 'Fit all columns to screen without scrolling';
+                }
+            });
+        })();
+
+        // Checkbox handling
+        const selectAll = document.getElementById('selectAllSkills');
+        const checkboxes = document.querySelectorAll('.skillCheckbox');
+        const disBtn = document.getElementById('disqualifySelectedBtn');
+        const updateBtn = document.getElementById('updateSkillBtn');
+        const isAdmin = @((isAdmin) ? "true" : "false");
+
+        function updateDownloadForSelection() {
+            const btn = document.getElementById('btnDownloadTab');
+            const lbl = document.getElementById('lblDownloadTab');
+            if (!btn || !lbl) return;
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            if (checked.length > 0) {
+                const params = checked.map(cb => 'process=' + encodeURIComponent(cb.value)).join('&');
+                btn.href = '?handler=DownloadCurrentSkills&empCode=' + _empCode + '&' + params;
+                lbl.textContent = 'Download Selected (' + checked.length + ')';
+            } else {
+                btn.href = '?handler=DownloadCurrentSkills&empCode=' + _empCode;
+                lbl.textContent = 'Download Current Skills';
+            }
+        }
+
+        function updateButtonStates() {
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            const anyChecked = checked.length > 0;
+            const exactlyOne = checked.length === 1;
+            if (disBtn) disBtn.disabled = !(anyChecked && isAdmin);
+            if (updateBtn) updateBtn.disabled = !(exactlyOne && isAdmin);
+            updateDownloadForSelection();
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(cb => cb.checked = selectAll.checked);
+                updateButtonStates();
+            });
+        }
+
+        checkboxes.forEach(cb => cb.addEventListener('change', updateButtonStates));
+
+        // Update Skill button
+        if (updateBtn) {
+            updateBtn.addEventListener('click', function () {
+                const checked = Array.from(checkboxes).filter(cb => cb.checked);
+                if (checked.length === 1) {
+                    const processName = encodeURIComponent(checked[0].value);
+                    const empCode = '@Model.Employee?.EmpCode';
+                    window.location.href = `/UpdateSkill?empCode=${empCode}&processName=${processName}`;
+                }
+            });
+        }
+
+        // Disqualify Selected button: open modal only when clicked (and at least one checkbox selected)
+        if (disBtn) {
+            disBtn.addEventListener('click', function () {
+                const checked = Array.from(checkboxes).filter(cb => cb.checked);
+                if (checked.length === 0) {
+                    if (window.Toast && typeof Toast.info === 'function') {
+                        Toast.info('Please select at least one skill to disqualify.');
+                    } else {
+                        alert('Please select at least one skill to disqualify.');
+                    }
+                    return;
+                }
+                const modalEl = document.getElementById('bulkDisqualifyModal');
+                if (!modalEl) return;
+
+                // If Bootstrap's JS is available, use its Modal API. Otherwise fallback to a simple show/hide.
+                try {
+                    if (window.bootstrap && typeof bootstrap.Modal === 'function') {
+                        const modal = new bootstrap.Modal(modalEl);
+                        modal.show();
+                        return;
+                    }
+                } catch (e) {
+                    // ignore and fallback
+                }
+
+                // Fallback: toggle .show and create a backdrop
+                modalEl.classList.add('show');
+                modalEl.style.display = 'flex';
+                // ensure fallback modal is positioned above the backdrop and is interactive
+                modalEl.style.position = 'fixed';
+                modalEl.style.inset = '0';
+                modalEl.style.justifyContent = 'center';
+                modalEl.style.alignItems = 'center';
+                modalEl.style.zIndex = '1071';
+                modalEl.style.pointerEvents = 'auto';
+
+                let backdrop = document.querySelector('.modal-backdrop.custom-backdrop');
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop custom-backdrop show';
+                    document.body.appendChild(backdrop);
+                } else {
+                    backdrop.classList.add('show');
+                }
+
+                // Close handlers for fallback
+                function closeFallback() {
+                    modalEl.classList.remove('show');
+                    modalEl.style.display = 'none';
+                    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+                }
+
+                // wire close buttons inside modal
+                modalEl.querySelectorAll('[data-bs-dismiss], .btn-close').forEach(btn => {
+                    btn.addEventListener('click', closeFallback, { once: true });
+                });
+
+                // clicking backdrop should also close
+                backdrop.addEventListener('click', closeFallback, { once: true });
+            });
+        }
+
+        // Show/hide leave sub-reasons when option 2 is selected
+        const leaveDetails = document.getElementById('leaveDetails');
+        const bulkReasonRadios = document.querySelectorAll('input[name="BulkReason"]');
+        function updateLeaveDetails() {
+            const current = document.querySelector('input[name="BulkReason"]:checked');
+            if (!current) return;
+            if (current.id === 'bulkReason2') {
+                if (leaveDetails) leaveDetails.style.display = 'block';
+            } else {
+                if (leaveDetails) leaveDetails.style.display = 'none';
+            }
+        }
+        bulkReasonRadios.forEach(r => r.addEventListener('change', updateLeaveDetails));
+        // initial state
+        updateLeaveDetails();
+
+        // Bulk disqualify confirm
+        const confirmBtn = document.getElementById('confirmBulkDisqualify');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function () {
+                const form = document.getElementById('bulkDisqualifyForm');
+                if (!form) return;
+
+                // remove any previously cloned inputs
+                form.querySelectorAll('input[name="SelectedProcesses"][data-cloned]').forEach(el => el.remove());
+
+                const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => (cb.value || '').trim()).filter(v => v !== '');
+                if (selected.length === 0) return;
+
+                // append selected process hidden inputs
+                selected.forEach(proc => {
+                    const inp = document.createElement('input');
+                    inp.type = 'hidden';
+                    inp.name = 'SelectedProcesses';
+                    inp.value = proc;
+                    inp.setAttribute('data-cloned', '1');
+                    form.appendChild(inp);
+                });
+
+                // append reason
+                const reason = (document.querySelector('input[name="BulkReason"]:checked')?.value || '').trim();
+                form.querySelectorAll('input[name="BulkReason"][data-cloned]').forEach(el => el.remove());
+                const rInp = document.createElement('input');
+                rInp.type = 'hidden';
+                rInp.name = 'BulkReason';
+                rInp.value = reason;
+                rInp.setAttribute('data-cloned', '1');
+                form.appendChild(rInp);
+
+                // append sub-reason if present and visible
+                const sub = (document.querySelector('input[name="BulkSubReason"]:checked')?.value || '').trim();
+                form.querySelectorAll('input[name="BulkSubReason"][data-cloned]').forEach(el => el.remove());
+                if (sub !== '') {
+                    const sInp = document.createElement('input');
+                    sInp.type = 'hidden';
+                    sInp.name = 'BulkSubReason';
+                    sInp.value = sub;
+                    sInp.setAttribute('data-cloned', '1');
+                    form.appendChild(sInp);
+                }
+
+                // disable button to prevent double submit and show toast
+                confirmBtn.disabled = true;
+                if (window.Toast && typeof Toast.info === 'function') Toast.info('Disqualify', 'Submitting disqualification...');
+
+                // close modal politely if Bootstrap present
+                try {
+                    const modalEl = document.getElementById('bulkDisqualifyModal');
+                    if (window.bootstrap && typeof bootstrap.Modal === 'function' && modalEl) {
+                        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modal.hide();
+                    }
+                } catch (e) { }
+
+                // submit
+                form.submit();
+            });
+        }
+
+        // Image preview modal (with Bootstrap + JS fallback)
+        const empPhoto = document.getElementById('employeePhoto');
+        const previewImg = document.getElementById('imagePreviewSrc');
+        const imageModalEl = document.getElementById('imagePreviewModal');
+        if (empPhoto && previewImg && imageModalEl) {
+            function showImagePreview(src) {
+                previewImg.src = src;
+                try {
+                    if (window.bootstrap && typeof bootstrap.Modal === 'function') {
+                        const modal = new bootstrap.Modal(imageModalEl);
+                        modal.show();
+                        return;
+                    }
+                } catch (e) { /* fall through to fallback */ }
+
+                // Fallback: show modal manually and add backdrop
+                imageModalEl.classList.add('show');
+                // lock body scroll while modal open
+                try { document.body.style.overflow = 'hidden'; } catch (e) {}
+                // Use flex centering for modal container so dialog centers properly
+                imageModalEl.style.display = 'flex';
+                imageModalEl.style.position = 'fixed';
+                imageModalEl.style.inset = '0';
+                imageModalEl.style.justifyContent = 'center';
+                imageModalEl.style.alignItems = 'center';
+                imageModalEl.style.zIndex = '1060';
+
+                let backdrop = document.querySelector('.modal-backdrop.custom-backdrop');
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop custom-backdrop show';
+                    // ensure backdrop covers viewport
+                    backdrop.style.position = 'fixed';
+                    backdrop.style.inset = '0';
+                    backdrop.style.background = 'rgba(0,0,0,0.6)';
+                    backdrop.style.zIndex = '1050';
+                    document.body.appendChild(backdrop);
+                } else {
+                    backdrop.classList.add('show');
+                }
+
+                // constrain preview image to viewport to avoid internal scrollbars
+                if (previewImg) {
+                    previewImg.style.maxHeight = '90vh';
+                    previewImg.style.maxWidth = '90vw';
+                    previewImg.style.objectFit = 'contain';
+                    previewImg.style.display = 'inline-block';
+                }
+
+                function closeFallback() {
+                    imageModalEl.classList.remove('show');
+                    imageModalEl.style.display = 'none';
+                    imageModalEl.style.position = '';
+                    imageModalEl.style.inset = '';
+                    imageModalEl.style.justifyContent = '';
+                    imageModalEl.style.alignItems = '';
+                    imageModalEl.style.zIndex = '';
+                    try { document.body.style.overflow = ''; } catch (e) {}
+                    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+                }
+
+                // wire close buttons inside modal
+                imageModalEl.querySelectorAll('[data-bs-dismiss], .btn-close, .btn-secondary').forEach(btn => {
+                    btn.addEventListener('click', closeFallback, { once: true });
+                });
+
+                // clicking backdrop should also close
+                backdrop.addEventListener('click', closeFallback, { once: true });
+
+                // ESC to close
+                function escHandler(e) { if (e.key === 'Escape') { closeFallback(); document.removeEventListener('keydown', escHandler); } }
+                document.addEventListener('keydown', escHandler);
+            }
+
+            empPhoto.addEventListener('click', function () {
+                const src = empPhoto.getAttribute('src') || empPhoto.dataset.src;
+                if (!src) return;
+                showImagePreview(src);
+            });
+
+            // allow keyboard activation (Enter / Space)
+            empPhoto.addEventListener('keydown', function (ev) {
+                const key = ev.key || ev.code || ev.which;
+                if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+                    ev.preventDefault();
+                    empPhoto.click();
+                }
+            });
+        }
+
+        // --- PDF Preview handlers ---
+        // Create references to modal elements (modal markup is in page below)
+        const pdfModalEl = document.getElementById('pdfPreviewModal');
+        const pdfIframe = document.getElementById('pdfPreviewIframe');
+        const pdfSpinner = document.getElementById('pdfPreviewSpinner');
+        const pdfDownloadLink = document.getElementById('pdfDownloadLink');
+
+        function showPdfPreview(src) {
+            if (!pdfModalEl || !pdfIframe) return;
+            if (pdfSpinner) pdfSpinner.style.display = 'flex';
+            pdfIframe.src = src;
+            if (pdfDownloadLink) {
+                pdfDownloadLink.href = src;
+                pdfDownloadLink.style.display = '';
+            }
+
+            try {
+                if (window.bootstrap && typeof bootstrap.Modal === 'function') {
+                    const modal = new bootstrap.Modal(pdfModalEl);
+                    modal.show();
+                    pdfIframe.onload = function () { if (pdfSpinner) pdfSpinner.style.display = 'none'; };
+                    return;
+                }
+            } catch (e) { /* fallback */ }
+
+            pdfModalEl.classList.add('show');
+            try { document.body.style.overflow = 'hidden'; } catch (e) {}
+            pdfModalEl.style.display = 'flex';
+            pdfModalEl.style.position = 'fixed';
+            pdfModalEl.style.inset = '0';
+            pdfModalEl.style.justifyContent = 'center';
+            pdfModalEl.style.alignItems = 'center';
+            pdfModalEl.style.zIndex = '1060';
+            pdfModalEl.style.pointerEvents = 'auto';
+            pdfModalEl.focus();
+      
+
+            let backdrop = document.querySelector('.modal-backdrop.custom-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop custom-backdrop show';
+                backdrop.style.position = 'fixed';
+                backdrop.style.inset = '0';
+                backdrop.style.background = 'rgba(0,0,0,0.6)';
+                backdrop.style.zIndex = '1050';
+                document.body.appendChild(backdrop);
+            } else {
+                backdrop.classList.add('show');
+            }
+
+            function closePdfFallback() {
+                pdfModalEl.classList.remove('show');
+                pdfModalEl.style.display = 'none';
+                pdfModalEl.style.position = '';
+                pdfModalEl.style.inset = '';
+                pdfModalEl.style.justifyContent = '';
+                pdfModalEl.style.alignItems = '';
+                pdfModalEl.style.zIndex = '';
+                try { document.body.style.overflow = ''; } catch (e) {}
+                if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+                if (pdfIframe) pdfIframe.src = '';
+                if (pdfSpinner) pdfSpinner.style.display = 'none';
+            }
+
+            pdfModalEl.querySelectorAll('[data-bs-dismiss], .btn-close, .btn-secondary').forEach(btn => {
+                btn.addEventListener('click', closePdfFallback, { once: true });
+            });
+
+            backdrop.addEventListener('click', closePdfFallback, { once: true });
+
+            pdfIframe.onload = function () { if (pdfSpinner) pdfSpinner.style.display = 'none'; };
+        }
+
+        // ── Show server-side message as Toast (disqualify result, AddSkill/UpdateSkill redirect) ──
+        @if (!string.IsNullOrEmpty(Model.Message))
+        {
+            <text>
+        (function () {
+            var msg = '@Html.Raw(Model.Message.Replace("'", "\\'"))';
+            var type = '@Model.MessageType';
+            if (msg && window.Toast) {
+                if (type === 'success') window.Toast.success('Success', msg);
+                else window.Toast.error('Error', msg);
+            }
+        })();
+            </text>
+        }
+
+        // ── Resizable column headers for all skill-tab tables ──
+        (function () {
+            // Selector: all tables inside the 5 skill tab containers
+            const SKILL_TABS = ['#current-skill', '#disqualified', '#obsoleted', '#promoted', '#resigned'];
+            const tables = document.querySelectorAll(
+                SKILL_TABS.map(s => s + ' table.table').join(', ')
+            );
+
+            tables.forEach(function (table) {
+                // Switch to fixed layout so explicit widths are honoured
+                table.style.tableLayout = 'fixed';
+
+                const ths = table.querySelectorAll('thead tr:first-child th');
+                ths.forEach(function (th) {
+                    // Freeze current rendered width as inline style
+                    th.style.width = th.offsetWidth + 'px';
+                    th.style.overflow = 'hidden';
+                    th.style.textOverflow = 'ellipsis';
+
+                    // Native tooltip so full text is always accessible on hover
+                    if (!th.title) th.title = th.textContent.trim();
+
+                    // Append drag handle
+                    const resizer = document.createElement('span');
+                    resizer.className = 'col-resizer';
+                    th.appendChild(resizer);
+
+                    // ── drag state ──
+                    let startX = 0;
+                    let startW = 0;
+
+                    resizer.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        startX = e.clientX;
+                        startW = th.offsetWidth;
+                        resizer.classList.add('resizing');
+                        document.body.classList.add('col-resizing');
+
+                        function onMove(ev) {
+                            const newW = Math.max(40, startW + (ev.clientX - startX));
+                            th.style.width = newW + 'px';
+                        }
+
+                        function onUp() {
+                            resizer.classList.remove('resizing');
+                            document.body.classList.remove('col-resizing');
+                            document.removeEventListener('mousemove', onMove);
+                            document.removeEventListener('mouseup', onUp);
+                        }
+
+                        document.addEventListener('mousemove', onMove);
+                        document.addEventListener('mouseup', onUp);
+                    });
+
+                    // Double-click: auto-fit column to widest cell content
+                    resizer.addEventListener('dblclick', function (e) {
+                        e.stopPropagation();
+                        const colIndex = Array.from(th.parentElement.children).indexOf(th);
+                        let maxW = 0;
+                        // measure header text
+                        const tmpCanvas = document.createElement('canvas');
+                        const ctx = tmpCanvas.getContext('2d');
+                        if (ctx) {
+                            const cs = window.getComputedStyle(th);
+                            ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+                            // header (minus resizer span text)
+                            const headerText = Array.from(th.childNodes)
+                                .filter(n => n.nodeType === Node.TEXT_NODE)
+                                .map(n => n.textContent).join('').trim() ||
+                                th.textContent.replace(th.querySelector('.col-resizer')?.textContent || '', '').trim();
+                            maxW = Math.max(maxW, ctx.measureText(headerText).width + 24);
+                            // all body cells in this column
+                            const rows = table.querySelectorAll('tbody tr');
+                            rows.forEach(function (row) {
+                                const cell = row.cells[colIndex];
+                                if (cell) {
+                                    const text = cell.textContent.trim();
+                                    const w = ctx.measureText(text).width + 20;
+                                    if (w > maxW) maxW = w;
+                                }
+                            });
+                        }
+                        if (maxW > 0) th.style.width = Math.min(maxW, 400) + 'px';
+                    });
+                });
+            });
+        })();
+
+    });
+</script>
+}

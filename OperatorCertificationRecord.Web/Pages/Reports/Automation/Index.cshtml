@@ -1,0 +1,131 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.Automation.IndexModel
+@{
+    ViewData["Title"] = "Report Automation";
+    ViewData["ActivePage"] = "AutomationIndex";
+}
+
+<!-- Hero -->
+<div class="ra-hero">
+    <div class="ra-hero-info">
+        <div class="ra-hero-badge"><i class="bi bi-graph-up-arrow"></i> Report Automation</div>
+        <h1 class="ra-hero-title">Report Automation</h1>
+        <p class="ra-hero-sub">Select a report to view skill level analysis, process qualification data, or multi-skill ratio trends.</p>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-top:1.5rem;">
+
+    <!-- ILUO Skill Level -->
+    <a href="/Reports/Automation/ILUOSkillLevel" class="ra-menu-card">
+        <div class="ra-menu-icon" style="background:#eff6ff;color:#1d4ed8;">
+            <i class="bi bi-bar-chart-steps"></i>
+        </div>
+        <div class="ra-menu-body">
+            <h3 class="ra-menu-title">ILUO Skill Level</h3>
+            <span class="ra-menu-tag"><i class="bi bi-building"></i> By Workshop</span>
+            <span class="ra-menu-tag"><i class="bi bi-calendar3"></i> Monthly Trend</span>
+        </div>
+        <div class="ra-menu-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
+    </a>
+
+    <!-- Skill by Process -->
+    <a href="/Reports/Automation/SkillByProcess" class="ra-menu-card">
+        <div class="ra-menu-icon" style="background:#fdf4ff;color:#7c3aed;">
+            <i class="bi bi-diagram-3-fill"></i>
+        </div>
+        <div class="ra-menu-body">
+            <h3 class="ra-menu-title">Skill by Process</h3>
+            <span class="ra-menu-tag"><i class="bi bi-gear-fill"></i> By Process</span>
+            <span class="ra-menu-tag"><i class="bi bi-funnel-fill"></i> Workshop Filter</span>
+        </div>
+        <div class="ra-menu-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
+    </a>
+
+    <!-- Multi-skill Ratio -->
+    <a href="/Reports/Automation/MultiSkillRatio" class="ra-menu-card">
+        <div class="ra-menu-icon" style="background:#f0fdf4;color:#16a34a;">
+            <i class="bi bi-people-fill"></i>
+        </div>
+        <div class="ra-menu-body">
+            <h3 class="ra-menu-title">Multi-skill Ratio</h3>
+            <span class="ra-menu-tag"><i class="bi bi-award-fill"></i> 2+ Skills</span>
+            <span class="ra-menu-tag"><i class="bi bi-graph-up"></i> Plan vs Actual</span>
+        </div>
+        <div class="ra-menu-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
+    </a>
+
+</div>
+
+<style>
+    .ra-menu-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.25rem;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1.5rem;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        position: relative;
+    }
+    .ra-menu-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0,0,0,.10);
+        border-color: #94a3b8;
+        color: inherit;
+        text-decoration: none;
+    }
+    .ra-menu-icon {
+        flex-shrink: 0;
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+    }
+    .ra-menu-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .ra-menu-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 .4rem;
+    }
+    .ra-menu-desc {
+        font-size: .875rem;
+        color: #64748b;
+        margin: 0 0 .75rem;
+        line-height: 1.55;
+    }
+    .ra-menu-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        font-size: .75rem;
+        font-weight: 600;
+        color: #475569;
+        background: #f1f5f9;
+        border-radius: 999px;
+        padding: .2rem .65rem;
+        margin-right: .4rem;
+    }
+    .ra-menu-arrow {
+        flex-shrink: 0;
+        font-size: 1.4rem;
+        color: #cbd5e1;
+        align-self: center;
+        transition: color .15s, transform .15s;
+    }
+    .ra-menu-card:hover .ra-menu-arrow {
+        color: #3b82f6;
+        transform: translateX(3px);
+    }
+</style>

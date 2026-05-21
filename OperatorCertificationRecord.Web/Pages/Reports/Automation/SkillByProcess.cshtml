@@ -1,0 +1,186 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.Automation.SkillByProcessModel
+@{
+    ViewData["Title"] = "Skill by Process";
+    ViewData["ActivePage"] = "SkillByProcess";
+}
+
+<!-- Hero -->
+<div class="ra-hero">
+    <div class="ra-hero-info">
+        <div class="ra-hero-badge"><i class="bi bi-list-stars"></i> Report Automation</div>
+        <h1 class="ra-hero-title">Skill by Process</h1>
+        <p class="ra-hero-sub">Multi-skill count per process grouped by workshop/area.</p>
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+        <!-- Filter -->
+        <form method="get" style="display:flex;gap:0.5rem;align-items:center;">
+            <select name="WorkshopFilter" class="ra-select" onchange="this.form.submit()">
+                <option value="">All Workshops</option>
+                @foreach (var w in Model.Workshops)
+                {
+                    <option value="@w" selected="@(Model.WorkshopFilter == w)">@w</option>
+                }
+            </select>
+        </form>
+        <!-- Download -->
+        <form method="post" asp-page-handler="Download">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="WorkshopFilter" value="@Model.WorkshopFilter" />
+            <button type="submit" class="ra-btn ra-btn-primary">
+                <i class="bi bi-file-earmark-excel"></i> Download Excel
+            </button>
+        </form>
+    </div>
+</div>
+
+@if (!Model.GroupedBySection.Any())
+{
+    <div class="ra-empty"><i class="bi bi-inbox"></i><p>No data found.</p></div>
+}
+else
+{
+    int totalSections  = Model.GroupedBySection.Count;
+    int totalWorkshops = Model.GroupedBySection.Values.Sum(d => d.Count);
+
+    <!-- Summary chips -->
+    <div class="ra-stat-strip">
+        <div class="ra-stat-chip"><i class="bi bi-diagram-3-fill"></i><span class="rc-val">@totalSections</span><span class="rc-lbl">Sections</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-building"></i><span class="rc-val">@totalWorkshops</span><span class="rc-lbl">Workshops</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-gear-fill"></i><span class="rc-val">@Model.Rows.Count</span><span class="rc-lbl">Processes</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-award-fill"></i><span class="rc-val">@Model.Rows.Sum(r => r.CountQualified)</span><span class="rc-lbl">Total Qualified</span></div>
+    </div>
+
+    <!-- Section Summary Table -->
+    <div class="ra-card">
+        <div class="ra-card-header">
+            <i class="bi bi-table"></i> Section Summary
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="ra-table">
+                <thead>
+                    <tr>
+                        <th>Section</th>
+                        <th style="text-align:center;">Workshops</th>
+                        <th style="text-align:center;">Processes</th>
+                        <th style="text-align:center;">Total Qualified</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (sn, wss) in Model.GroupedBySection)
+                    {
+                        int sProc = wss.Values.Sum(r => r.Count);
+                        int sQual = wss.Values.Sum(r => r.Sum(x => x.CountQualified));
+                        <tr>
+                            <td><i class="bi bi-diagram-3-fill" style="color:#f97316;margin-right:.35rem;"></i><strong>@sn</strong></td>
+                            <td class="ra-td-num">@wss.Count</td>
+                            <td class="ra-td-num">@sProc</td>
+                            <td class="ra-td-num"><span class="ra-skb ra-skb-tot">@sQual</span></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="ra-total-row">
+                        <td><strong>Grand Total</strong></td>
+                        <td>@totalWorkshops</td>
+                        <td>@Model.Rows.Count</td>
+                        <td><strong>@Model.Rows.Sum(r => r.CountQualified)</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Stacked single-column layout -->
+    <div>
+            @{
+                bool firstSection = true;
+            }
+            @foreach (var (sectName, workshops) in Model.GroupedBySection)
+            {
+        int sectTotalProcesses  = workshops.Values.Sum(r => r.Count);
+        int sectTotalQualified  = workshops.Values.Sum(r => r.Sum(x => x.CountQualified));
+
+        <!-- Section divider (skip before first section) -->
+        if (!firstSection)
+        {
+            <div class="sbp-sect-divider">
+                <span><i class="bi bi-dash-lg"></i></span>
+            </div>
+        }
+        firstSection = false;
+
+        <!-- Section header banner -->
+        <div class="ra-sect-header sbp-sect-banner">
+            <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+                <i class="bi bi-diagram-3-fill"></i>
+                <span>@sectName</span>
+                <span class="sbp-sect-pill">@workshops.Count workshop(s)</span>
+                <span class="sbp-sect-pill">@sectTotalProcesses process(es)</span>
+            </div>
+            <div class="sbp-sect-summary">
+                <span class="sbp-sect-kv"><span class="sbp-sect-kv-lbl">Qualified</span><span class="sbp-sect-kv-val">@sectTotalQualified</span></span>
+            </div>
+        </div>
+
+        int wsIdx2 = 0;
+        @foreach (var (areaName, areaRows) in workshops)
+        {
+            int total    = areaRows.Sum(r => r.CountQualified);
+            bool isLast  = (wsIdx2 == workshops.Count - 1);
+            wsIdx2++;
+            <div class="ra-card sbp-ws-card @(isLast ? "sbp-ws-last" : "")">
+                <div class="ra-card-header sbp-ws-header">
+                    <span><i class="bi bi-building"></i> @areaName</span>
+                    <span class="ra-card-badge">@areaRows.Count processes &bull; @total qualified</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="ra-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">No.</th>
+                                <th>Process Name</th>
+                                <th style="width:130px;text-align:center;">Qualified Count</th>
+                                <th style="width:80px;text-align:center;">Need</th>
+                                <th style="width:100px;text-align:center;">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int no = 1; }
+                            @foreach (var row in areaRows)
+                            {
+                                <tr>
+                                    <td class="ra-td-num">@(no++)</td>
+                                    <td>@row.ProcessName</td>
+                                    <td class="ra-td-num"><span class="ra-skb ra-skb-tot">@row.CountQualified</span></td>
+                                    <td class="ra-td-num" style="color:var(--text-tertiary,#9ca3af);">@row.Need</td>
+                                    <td class="ra-td-num">@row.Balance</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="ra-total-row">
+                                <td colspan="2"><strong>Total — @areaName</strong></td>
+                                <td>@total</td>
+                                <td>0</td>
+                                <td>@total</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- Section subtotal bar -->
+        <div class="sbp-sect-subtotal">
+            <i class="bi bi-calculator-fill" style="margin-right:.4rem;"></i>
+            Section Subtotal — <strong>@sectName</strong>
+            <span class="sbp-sect-subtotal-chips">
+                <span class="sbp-sub-chip"><i class="bi bi-building"></i> @workshops.Count workshops</span>
+                <span class="sbp-sub-chip"><i class="bi bi-gear-fill"></i> @sectTotalProcesses processes</span>
+                <span class="sbp-sub-chip ra-skb ra-skb-tot" style="font-size:.78rem;padding:.25rem .6rem;">@sectTotalQualified qualified</span>
+            </span>
+        </div>
+    }
+    </div>
+}

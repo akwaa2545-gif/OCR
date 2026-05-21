@@ -1,0 +1,52 @@
+[
+  {
+    "Id": "198d9264-12ed-4fc8-8489-80af958e2405",
+    "ReportType": "Section",
+    "Format": "pdf",
+    "Section": "BOL",
+    "Department": "EHS Center",
+    "StartDate": "2024-01-19",
+    "EndDate": "2025-12-19",
+    "CreatedAt": "2026-01-19T04:27:08.6428014Z"
+  },
+  {
+    "Id": "2529cd6a-b028-46c5-aa2a-45794964b8da",
+    "ReportType": "SkillInventory",
+    "Format": "xlsx",
+    "Section": "",
+    "Department": "",
+    "StartDate": "",
+    "EndDate": "",
+    "CreatedAt": "2026-01-19T04:28:42.8387727Z"
+  },
+  {
+    "Id": "8c25cad2-8a35-4ff6-963c-c427a67ab204",
+    "ReportType": "SkillInventory",
+    "Format": "xlsx",
+    "Section": "",
+    "Department": "",
+    "StartDate": "",
+    "EndDate": "",
+    "CreatedAt": "2026-01-19T04:36:31.62385Z"
+  },
+  {
+    "Id": "084f5dca-c87c-4637-97a0-1a0e2fe6c4ae",
+    "ReportType": "SkillInventory",
+    "Format": "xlsx",
+    "Section": "",
+    "Department": "",
+    "StartDate": "",
+    "EndDate": "",
+    "CreatedAt": "2026-01-19T04:37:31.0236286Z"
+  },
+  {
+    "Id": "97184988-410f-49db-a86a-39018d33319c",
+    "ReportType": "SkillInventory",
+    "Format": "xlsx",
+    "Section": "",
+    "Department": "",
+    "StartDate": "",
+    "EndDate": "",
+    "CreatedAt": "2026-01-19T04:44:35.2596839Z"
+  }
+]

@@ -1,0 +1,20 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Download.SectionModel
+@{
+    ViewData["Title"] = "Download by Section";
+    ViewData["ActivePage"] = "DownloadSection";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Download — Section</h1>
+        <p class="page-subtitle">Export operator training records filtered by section</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <p>Select a section from the menu to download the Excel file.</p>
+        <a href="/DownloadSection" class="btn btn-secondary">Back to Download Menu</a>
+    </div>
+</div>

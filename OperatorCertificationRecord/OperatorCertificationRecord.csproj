@@ -1,0 +1,285 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{27ABB0EA-D25D-4B61-A812-6B6490EA02DF}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>OperatorTrainingRecord</RootNamespace>
+    <AssemblyName>OperatorTrainingRecord</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Logo-OTR.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="frmAddUser.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmAddUser.Designer.cs">
+      <DependentUpon>frmAddUser.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmDisqualification.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmDisqualification.Designer.cs">
+      <DependentUpon>frmDisqualification.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmDownLoadDisqualification.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmDownLoadDisqualification.Designer.cs">
+      <DependentUpon>frmDownLoadDisqualification.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmDownloadExpiryDate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmDownloadExpiryDate.Designer.cs">
+      <DependentUpon>frmDownloadExpiryDate.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmDownloadResign.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmDownloadResign.Designer.cs">
+      <DependentUpon>frmDownloadResign.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmDownloadSection.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmDownloadSection.Designer.cs">
+      <DependentUpon>frmDownloadSection.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmOperatorTraining.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmOperatorTraining.Designer.cs">
+      <DependentUpon>frmOperatorTraining.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmUpdateSkill.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUpdateSkill.Designer.cs">
+      <DependentUpon>frmUpdateSkill.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmUpdateUser.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUpdateUser.Designer.cs">
+      <DependentUpon>frmUpdateUser.cs</DependentUpon>
+    </Compile>
+    <Compile Include="frmWelcome.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmWelcome.Designer.cs">
+      <DependentUpon>frmWelcome.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Login.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Login.Designer.cs">
+      <DependentUpon>Login.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Number.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="frmAddUser.resx">
+      <DependentUpon>frmAddUser.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmDisqualification.resx">
+      <DependentUpon>frmDisqualification.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmDownLoadDisqualification.resx">
+      <DependentUpon>frmDownLoadDisqualification.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmDownloadExpiryDate.resx">
+      <DependentUpon>frmDownloadExpiryDate.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmDownloadResign.resx">
+      <DependentUpon>frmDownloadResign.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmDownloadSection.resx">
+      <DependentUpon>frmDownloadSection.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmOperatorTraining.resx">
+      <DependentUpon>frmOperatorTraining.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUpdateSkill.resx">
+      <DependentUpon>frmUpdateSkill.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUpdateUser.resx">
+      <DependentUpon>frmUpdateUser.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmWelcome.resx">
+      <DependentUpon>frmWelcome.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Login.resx">
+      <DependentUpon>Login.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="app.config" />
+    <None Include="ClassDiagram1.cd" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\key.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\เครื่องหมายถูก.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\กากบาท.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\00195189.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Picture1.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Picture11.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Search.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\images %289%29.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\images %289%291.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\logout.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Picture12.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Dept.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Disqualified.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Section.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Expire.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Dept1.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Resign.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Dis.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Logo-OTR.ico" />
+    <Content Include="shortcut.ico" />
+    <None Include="Resources\add emp.png" />
+    <None Include="Resources\no skill1.png" />
+    <None Include="Resources\skill.png" />
+    <None Include="Resources\no skill.png" />
+    <None Include="Resources\download %281%29.png" />
+    <None Include="Resources\Resign1.png" />
+    <None Include="Resources\Dept2.png" />
+    <None Include="Resources\Obsoleted.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="Microsoft.Office.Core">
+      <Guid>{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}</Guid>
+      <VersionMajor>2</VersionMajor>
+      <VersionMinor>5</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="Microsoft.Office.Interop.Excel">
+      <Guid>{00020813-0000-0000-C000-000000000046}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>7</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="VBIDE">
+      <Guid>{0002E157-0000-0000-C000-000000000046}</Guid>
+      <VersionMajor>5</VersionMajor>
+      <VersionMinor>3</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>primary</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

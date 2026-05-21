@@ -1,0 +1,303 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.Automation.ILUOSkillLevelModel
+@{
+    ViewData["Title"] = "ILUO Skill Level";
+    ViewData["ActivePage"] = "ILUOSkillLevel";
+    int totOp = Model.Rows.Sum(r => r.NoOperator);
+    int totProc = Model.Rows.Sum(r => r.ProcessSkill);
+    int totX = Model.Rows.Sum(r => r.LevelX);
+    int totI = Model.Rows.Sum(r => r.LevelI);
+    int totL = Model.Rows.Sum(r => r.LevelL);
+    int totU = Model.Rows.Sum(r => r.LevelU);
+    int totO = Model.Rows.Sum(r => r.LevelO);
+    int totUO = totU + totO;
+    double ratioUO = totProc > 0 ? Math.Round((double)totUO / totProc * 100, 2) : 0;
+}
+
+<!-- Hero -->
+<div class="ra-hero">
+    <div class="ra-hero-info">
+        <div class="ra-hero-badge"><i class="bi bi-bar-chart-steps"></i> Report Automation</div>
+        <h1 class="ra-hero-title">ILUO Skill Level</h1>
+        <p class="ra-hero-sub">Skill level breakdown (X / I / L / U / O) per workshop, with U+O ratio.</p>
+    </div>
+    <form method="post" asp-page-handler="Download">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="ra-btn ra-btn-primary">
+            <i class="bi bi-file-earmark-excel"></i> Download Excel
+        </button>
+    </form>
+</div>
+
+@if (!Model.Rows.Any())
+{
+    <div class="ra-empty">
+        <i class="bi bi-inbox"></i>
+        <p>No data found. Ensure employees and qualified skills exist in the database.</p>
+    </div>
+}
+else
+{
+    <!-- Summary chips -->
+    <div class="ra-stat-strip">
+        <div class="ra-stat-chip"><i class="bi bi-people-fill"></i><span class="rc-val">@totOp</span><span class="rc-lbl">Total Operators</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-award-fill"></i><span class="rc-val">@totProc</span><span class="rc-lbl">Process Skills</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-bar-chart-fill"></i><span class="rc-val">@totUO</span><span class="rc-lbl">Level U+O</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-percent"></i><span class="rc-val">@ratioUO%</span><span class="rc-lbl">Ratio U+O</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-folder2-open"></i><span class="rc-val">@Model.Grouped.Count</span><span class="rc-lbl">Sections</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-building"></i><span class="rc-val">@Model.Rows.Count</span><span class="rc-lbl">Workshops</span></div>
+    </div>
+
+    @if (Model.MonthRows.Any())
+    {
+        <!-- Monthly stacked bar chart -->
+        <div class="ra-card" style="margin-top:1.5rem;">
+            <div class="ra-card-header">
+                <h2 class="ra-card-title"><i class="bi bi-bar-chart-fill"></i> Operator Skill Inventory — Separate by Month (Total)</h2>
+                <span class="ra-card-badge">@Model.MonthRows.Count months</span>
+            </div>
+            <div class="ra-card-body">
+                <div style="position:relative;height:400px;">
+                    <canvas id="ILUOMonthChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly pivot table -->
+        <div class="ra-card" style="margin-top:1.5rem;">
+            <div class="ra-card-header">
+                <h2 class="ra-card-title"><i class="bi bi-table"></i> Skill Level Summary by Month</h2>
+                <span class="ra-card-badge">Rows = level · Columns = month</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="ra-table ra-month-pivot">
+                    <thead>
+                        <tr>
+                            <th style="min-width:70px;">Level</th>
+                            @foreach (var m in Model.MonthRows)
+                            {
+                                <th>@m.MonthLabel</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="ra-skb ra-skb-X">X</span></td>
+                            @foreach (var m in Model.MonthRows) { <td class="ra-td-num">@m.LevelX</td> }
+                        </tr>
+                        <tr>
+                            <td><span class="ra-skb ra-skb-I">I</span></td>
+                            @foreach (var m in Model.MonthRows) { <td class="ra-td-num">@m.LevelI</td> }
+                        </tr>
+                        <tr>
+                            <td><span class="ra-skb ra-skb-L">L</span></td>
+                            @foreach (var m in Model.MonthRows) { <td class="ra-td-num">@m.LevelL</td> }
+                        </tr>
+                        <tr>
+                            <td><span class="ra-skb ra-skb-U">U</span></td>
+                            @foreach (var m in Model.MonthRows) { <td class="ra-td-num">@m.LevelU</td> }
+                        </tr>
+                        <tr>
+                            <td><span class="ra-skb ra-skb-O">O</span></td>
+                            @foreach (var m in Model.MonthRows) { <td class="ra-td-num">@m.LevelO</td> }
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="ra-total-row">
+                            <td><strong>Total</strong></td>
+                            @foreach (var m in Model.MonthRows) { <td class="ra-td-num"><strong>@m.Total</strong></td> }
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="ra-card">
+        <div class="ra-card-header">
+            <h2 class="ra-card-title"><i class="bi bi-diagram-3"></i> Workshop Skill Level — Grouped by Section</h2>
+            <span class="ra-card-badge">@Model.Rows.Count workshops · @Model.Grouped.Count sections</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="ra-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="min-width:120px;">Section</th>
+                        <th rowspan="2" style="min-width:160px;">Workshop / Area</th>
+                        <th rowspan="2">No. Operator</th>
+                        <th rowspan="2">Process Skill</th>
+                        <th colspan="5" style="background:#374151;text-align:center;">ILUO Level</th>
+                        <th rowspan="2" style="background:#374151;">Level U+O</th>
+                        <th rowspan="2" style="background:#374151;">Ratio U+O (%)</th>
+                    </tr>
+                    <tr>
+                        <th>Level - X</th>
+                        <th>Level - I</th>
+                        <th>Level - L</th>
+                        <th style="background:#1f2937;">Level - U</th>
+                        <th style="background:#1f2937;">Level - O</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (sectName, sectRows) in Model.Grouped)
+                    {
+                        int sOp   = sectRows.Sum(r => r.NoOperator);
+                        int sProc = sectRows.Sum(r => r.ProcessSkill);
+                        int sX    = sectRows.Sum(r => r.LevelX);
+                        int sI    = sectRows.Sum(r => r.LevelI);
+                        int sL    = sectRows.Sum(r => r.LevelL);
+                        int sU    = sectRows.Sum(r => r.LevelU);
+                        int sO    = sectRows.Sum(r => r.LevelO);
+                        int sUO   = sU + sO;
+                        double sRatio = sProc > 0 ? Math.Round((double)sUO / sProc * 100, 2) : 0;
+
+                        <!-- Section group header -->
+                        <tr class="ra-sect-header">
+                            <td colspan="11"><i class="bi bi-diagram-3-fill" style="margin-right:.35rem;"></i>@sectName</td>
+                        </tr>
+                        @foreach (var r in sectRows)
+                        {
+                            <tr>
+                                <td class="ra-td-workshop" style="color:var(--text-secondary);font-weight:400;">@r.SectionName</td>
+                                <td class="ra-td-workshop">@r.WorkshopName</td>
+                                <td class="ra-td-num">@r.NoOperator</td>
+                                <td class="ra-td-num">@r.ProcessSkill</td>
+                                <td class="ra-td-num ra-level-x"><span class="ra-skb ra-skb-X">@r.LevelX</span></td>
+                                <td class="ra-td-num"><span class="ra-skb ra-skb-I">@r.LevelI</span></td>
+                                <td class="ra-td-num"><span class="ra-skb ra-skb-L">@r.LevelL</span></td>
+                                <td class="ra-td-num"><span class="ra-skb ra-skb-U">@r.LevelU</span></td>
+                                <td class="ra-td-num"><span class="ra-skb ra-skb-O">@r.LevelO</span></td>
+                                <td class="ra-td-num ra-uo-sum">@r.LevelUO</td>
+                                <td class="ra-td-num ra-uo-sum">@r.RatioUO</td>
+                            </tr>
+                        }
+                        <!-- Section subtotal -->
+                        <tr class="ra-sect-subtotal">
+                            <td colspan="2"><strong>Subtotal — @sectName</strong></td>
+                            <td class="ra-td-num">@sOp</td>
+                            <td class="ra-td-num">@sProc</td>
+                            <td class="ra-td-num">@sX</td>
+                            <td class="ra-td-num">@sI</td>
+                            <td class="ra-td-num">@sL</td>
+                            <td class="ra-td-num">@sU</td>
+                            <td class="ra-td-num">@sO</td>
+                            <td class="ra-td-num ra-uo-sum">@sUO</td>
+                            <td class="ra-td-num ra-uo-sum">@sRatio</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="ra-total-row">
+                        <td colspan="2"><strong>Grand Total</strong></td>
+                        <td>@totOp</td>
+                        <td>@totProc</td>
+                        <td>@totX</td>
+                        <td>@totI</td>
+                        <td>@totL</td>
+                        <td>@totU</td>
+                        <td>@totO</td>
+                        <td>@totUO</td>
+                        <td>@ratioUO</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var monthRows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MonthRows));
+    if (!monthRows || monthRows.length === 0) return;
+
+    var labels = monthRows.map(function(r){ return r.MonthLabel; });
+
+    var datasets = [
+        {
+            label: 'O',
+            data: monthRows.map(function(r){ return r.LevelO; }),
+            backgroundColor: '#3b82f6',
+            stack: 'a'
+        },
+        {
+            label: 'U',
+            data: monthRows.map(function(r){ return r.LevelU; }),
+            backgroundColor: '#fbbf24',
+            stack: 'a'
+        },
+        {
+            label: 'L',
+            data: monthRows.map(function(r){ return r.LevelL; }),
+            backgroundColor: '#ec4899',
+            stack: 'a'
+        },
+        {
+            label: 'I',
+            data: monthRows.map(function(r){ return r.LevelI; }),
+            backgroundColor: '#22c55e',
+            stack: 'a'
+        },
+        {
+            label: 'X',
+            data: monthRows.map(function(r){ return r.LevelX; }),
+            backgroundColor: '#a3e635',
+            stack: 'a'
+        }
+    ];
+
+    new Chart(document.getElementById('ILUOMonthChart'), {
+        type: 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 600, easing: 'easeInOutQuart' },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded',
+                        padding: 18,
+                        font: { size: 12, weight: '600' }
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(17,24,39,0.9)',
+                    titleColor: '#f9fafb',
+                    bodyColor: '#e5e7eb',
+                    borderColor: '#f97316',
+                    borderWidth: 1,
+                    padding: 10,
+                    callbacks: {
+                        footer: function(items) {
+                            var total = items.reduce(function(s,i){ return s + i.parsed.y; }, 0);
+                            return 'Total: ' + total;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { display: false },
+                    ticks: { font: { size: 11 }, color: '#374151' },
+                    border: { color: '#e5e7eb' }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: { color: '#f3f4f6' },
+                    ticks: { font: { size: 11 }, color: '#374151' },
+                    border: { color: '#e5e7eb', dash: [3,3] }
+                }
+            }
+        }
+    });
+})();
+</script>
+}

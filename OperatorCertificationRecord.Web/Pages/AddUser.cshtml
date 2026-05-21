@@ -1,0 +1,776 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AddUserModel
+@{
+    ViewData["Title"] = "Add Employee";
+    ViewData["ActivePage"] = "AddUser";
+}
+
+@section Styles {
+<style>
+/* ================================================================
+   ADD USER — Orange / White Theme  (matches UpdateUser 2026-03)
+   ================================================================ */
+
+/* Layout */
+.au-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    padding: 0.5rem 0 2rem;
+}
+@@media (max-width: 900px) { .au-layout { grid-template-columns: 1fr; } }
+
+/* Sidebar */
+.au-sidebar { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 1rem; }
+
+.au-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+/* Photo card */
+.au-photo-card {
+    padding: 1.75rem 1.25rem 1.25rem;
+    display: flex; flex-direction: column;
+    align-items: center; text-align: center; gap: 0.5rem;
+    background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
+}
+.au-avatar-ring {
+    position: relative; width: 110px; height: 110px;
+    border-radius: 50%; padding: 4px; margin-bottom: 0.25rem;
+    background: linear-gradient(135deg,#f97316,#fb923c);
+}
+.au-avatar-img {
+    width: 100%; height: 100%; border-radius: 50%;
+    object-fit: cover; border: 3px solid #fff; display: block; background: #f1f5f9;
+    cursor: pointer; transition: transform 0.2s;
+}
+.au-avatar-img:hover { transform: scale(1.04); }
+.au-cam-btn {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #f97316; color: #fff; border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+}
+.au-cam-btn:hover { background: #ea580c; transform: scale(1.1); }
+.au-avatar-name { font-weight: 700; font-size: 1rem; color: #0f172a; line-height: 1.3; }
+.au-avatar-hint { font-size: 0.73rem; color: #94a3b8; margin-top: 0.1rem; }
+
+/* Info preview card */
+.au-info-card { padding: 0.25rem 0; }
+.au-info-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.6rem 1rem; border-bottom: 1px solid #f1f5f9;
+    border-left: 3px solid transparent;
+}
+.au-info-row:last-child { border-bottom: 0; }
+.au-info-icon {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+}
+.au-info-val { font-weight: 700; font-size: 0.9rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-info-lbl { font-size: 0.67rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Nav card */
+.au-nav-card { overflow: hidden; }
+.au-nav-link {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.7rem 1rem; font-size: 0.88rem; font-weight: 600; color: #475569;
+    border-bottom: 1px solid #f1f5f9;
+    text-decoration: none; background: none;
+    border-left: 0; border-right: 0; border-top: 0;
+    width: 100%; cursor: pointer;
+    transition: background 0.14s, color 0.14s;
+}
+.au-nav-link:last-child { border-bottom: 0; }
+.au-nav-link:hover { background: #fff7ed; color: #ea580c; }
+
+/* Main */
+.au-main { display: flex; flex-direction: column; gap: 1rem; }
+
+.au-section-card {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.au-section-hdr { display: none; }
+.au-section-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    background: rgba(249,115,22,0.1); color: #ea580c;
+}
+.au-section-title { font-weight: 700; font-size: 0.97rem; color: #0f172a; }
+.au-section-sub   { font-size: 0.78rem; color: #94a3b8; margin-top: 1px; }
+
+/* Grid */
+.au-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.75rem 1.1rem; padding: 0.8rem 1rem; }
+.au-grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.75rem 1.1rem; padding: 0.8rem 1rem; }
+@@media (max-width: 620px) { .au-grid-3 { grid-template-columns: 1fr 1fr; } }
+@@media (max-width: 420px) { .au-grid-3, .au-grid-2 { grid-template-columns: 1fr; } }
+
+.au-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.au-label {
+    font-size: 0.56rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: #64748b;
+}
+.au-label .req { color: #ef4444; margin-left: 2px; }
+
+@@keyframes au-shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-5px); }
+    40%      { transform: translateX(5px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
+}
+.au-input {
+    width: 100%; padding: 0.55rem 0.75rem;
+    font-size: 0.76rem; font-weight: 500; color: #0f172a;
+    background: #f8fafc; border: 1.5px solid #e2e8f0;
+    border-left: 3px solid #f97316;
+    border-radius: 9px; outline: none;
+    min-height: 2.5rem; box-sizing: border-box;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+    -webkit-appearance: none;
+}
+.au-input:focus { border-color: #f97316; border-left-color: #ea580c; box-shadow: 0 0 0 3px rgba(249,115,22,0.15); background: #fff; }
+input[type="date"].au-input { border-left-color: #f59e0b; }
+input[type="date"].au-input:focus { border-left-color: #d97706; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); }
+
+/* Select */
+select.au-input {
+    background-color: #fff7ed;
+    border-left: 3px solid #f97316;
+    padding: 0.55rem 2.2rem 0.55rem 0.75rem;
+    min-height: 2.5rem; box-sizing: border-box;
+    cursor: pointer; appearance: none; -webkit-appearance: none;
+}
+select.au-input:hover { background-color: #ffedd5; border-left-color: #fb923c; }
+select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
+.au-field:has(select) { position: relative; }
+.au-field:has(select)::after {
+    content: ""; position: absolute; right: 0.75rem; bottom: 50%; transform: translateY(50%);
+    width: 0.85rem; height: 0.85rem;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f97316' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") no-repeat center/contain;
+    pointer-events: none;
+}
+.au-field:has(.fancy-select-wrapper)::after { display: none !important; }
+.au-field:has(select) .au-label::after {
+    content: "select"; display: inline-block; margin-left: 0.4rem;
+    background: #ffedd5; color: #c2410c;
+    font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em;
+    padding: 1px 5px; border-radius: 4px; vertical-align: middle; text-transform: uppercase;
+}
+.au-field:has(.fancy-select-wrapper) .au-label::after { display: none !important; }
+
+/* Dropzone */
+.au-dropzone {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.3rem;
+    padding: 1.1rem 1rem;
+    border: 2px dashed #fed7aa; border-radius: 9px;
+    background: #fffbf8; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.au-dropzone:hover, .au-dropzone.dz-over { border-color: #f97316; background: #fff7ed; }
+.au-dz-icon { font-size: 1.2rem; color: #fb923c; }
+.au-dz-title { font-size: 0.7rem; font-weight: 600; color: #64748b; }
+.au-dz-title u { color: #f97316; }
+.au-dz-sub { font-size: 0.71rem; color: #94a3b8; }
+
+/* Action bar */
+.au-actions {
+    display: flex; flex-wrap: wrap; gap: 0.65rem;
+    padding: 0.8rem 1rem;
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+
+/* Buttons */
+.au-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.42rem 1.2rem; border-radius: 9px;
+    font-size: 0.7rem; font-weight: 600;
+    border: 1.5px solid transparent; cursor: pointer;
+    text-decoration: none; white-space: nowrap;
+    transition: transform 0.1s, box-shadow 0.12s;
+}
+.au-btn:hover { transform: translateY(-1px); }
+.au-btn-primary { background: linear-gradient(135deg,#ea580c,#f97316); color: #fff; box-shadow: 0 4px 14px rgba(249,115,22,0.35); }
+.au-btn-primary:hover { box-shadow: 0 6px 22px rgba(249,115,22,0.5); color: #fff; }
+.au-btn-ghost   { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+.au-btn-ghost:hover { background: #e2e8f0; color: #0f172a; }
+.au-btn-reset   { background: transparent; color: #94a3b8; border-color: #e2e8f0; margin-left: auto; }
+.au-btn-reset:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.au-field-err {
+    display: block; font-size: 0.72rem; color: #ef4444;
+    min-height: 1rem; margin-top: 1px;
+    opacity: 0; transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.au-field-err.visible {
+    opacity: 1; transform: translateY(0);
+}
+.au-input.au-invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.15) !important;
+    animation: au-shake 0.35s ease;
+}
+
+    /* ===== Crop Photo Modal ===== */
+    #cropModal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.72); align-items:center; justify-content:center; }
+.crop-box  { background:#1e293b; border-radius:16px; padding:1.25rem; max-width:min(90vw,500px); width:calc(100% - 2rem); max-height:calc(100dvh - 2rem); display:flex; flex-direction:column; gap:0.85rem; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+.crop-hdr  { display:flex; align-items:center; justify-content:space-between; }
+.crop-title { font-weight:700; color:#f1f5f9; font-size:1rem; display:flex; align-items:center; gap:0.5rem; }
+.crop-close { background:none; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer; padding:0.15rem 0.4rem; border-radius:6px; transition:color 0.15s; line-height:1; }
+.crop-close:hover { color:#f87171; }
+.crop-img-wrap { height:460px; background:#0f172a; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .crop-img-wrap img { display:block; max-width:100%; max-height:100%; }
+    .crop-foot { display:flex; gap:0.6rem; justify-content:flex-end; }
+    .crop-btn  { padding:0.5rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; border:none; cursor:pointer; transition:opacity 0.14s; font-family:inherit; display:inline-flex; align-items:center; gap:0.4rem; }
+    .crop-btn-ok  { background:#ea580c; color:#fff; }
+    .crop-btn-x   { background:rgba(255,255,255,0.08); color:#cbd5e1; }
+    .crop-btn:hover { opacity:0.82; }
+</style>
+}
+
+@if (TempData["Message"] != null)
+{
+    var t = TempData["MessageType"]?.ToString() ?? "success";
+    <div class="alert alert-@((t=="success")?"success":"danger")" data-auto-dismiss>
+        <i class="bi bi-@((t=="success")?"check-circle-fill":"exclamation-circle-fill")"></i>
+        @TempData["Message"]
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-@((Model.MessageType=="success")?"success":"danger")">
+        <i class="bi bi-@((Model.MessageType=="success")?"check-circle-fill":"exclamation-circle-fill")"></i>
+        @Model.Message
+    </div>
+}
+
+<div class="au-layout">
+
+    <!-- =====================================================
+         LEFT SIDEBAR
+    ===================================================== -->
+    <aside class="au-sidebar">
+
+        <div class="au-card au-photo-card">
+            <div class="au-avatar-ring">
+                <img id="photoPreview" src="/images/placeholder-employee.svg" class="au-avatar-img" alt="Photo preview"
+                     onclick="document.getElementById('PhotoFile').click()" title="Click to upload photo" />
+                <button type="button" class="au-cam-btn" onclick="document.getElementById('PhotoFile').click()" title="Upload photo">
+                    <i class="bi bi-camera-fill"></i>
+                </button>
+            </div>
+            <div class="au-avatar-name" id="previewName">
+                <span style="font-weight:400;font-size:0.85rem;color:#94a3b8;">New Employee</span>
+            </div>
+            <div class="au-avatar-hint"><i class="bi bi-camera"></i> Click photo to upload</div>
+        </div>
+
+        <div class="au-card au-info-card">
+            <div class="au-info-row" style="border-left-color:#f59e0b;">
+                <div class="au-info-icon" style="background:#fffbeb;color:#d97706;"><i class="bi bi-fingerprint"></i></div>
+                <div style="min-width:0">
+                    <div class="au-info-val" id="previewEmpCode">—</div>
+                    <div class="au-info-lbl">Employee No.</div>
+                </div>
+            </div>
+            <div class="au-info-row" style="border-left-color:#3b82f6;">
+                <div class="au-info-icon" style="background:#eff6ff;color:#2563eb;"><i class="bi bi-briefcase-fill"></i></div>
+                <div style="min-width:0">
+                    <div class="au-info-val" id="previewGrade">—</div>
+                    <div class="au-info-lbl">Job Grade</div>
+                </div>
+            </div>
+            <div class="au-info-row" style="border-left-color:#8b5cf6;">
+                <div class="au-info-icon" style="background:#faf5ff;color:#7c3aed;"><i class="bi bi-clock-fill"></i></div>
+                <div style="min-width:0">
+                    <div class="au-info-val" id="previewShift">—</div>
+                    <div class="au-info-lbl">Shift</div>
+                </div>
+            </div>
+            <div class="au-info-row" style="border-left-color:#ea580c;border-bottom:0;">
+                <div class="au-info-icon" style="background:#fff7ed;color:#ea580c;"><i class="bi bi-calendar3"></i></div>
+                <div style="min-width:0">
+                    <div class="au-info-val" id="previewJoinDate">—</div>
+                    <div class="au-info-lbl">Join Date</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="au-card au-nav-card">
+            <a href="/Dashboard" class="au-nav-link">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+
+    </aside>
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ===================================================== -->
+    <main class="au-main">
+        <form method="post" enctype="multipart/form-data" id="addUserForm">
+
+            <!-- Identity -->
+            <div class="au-section-card">
+                <div class="au-section-hdr">
+                    <div class="au-section-icon" style="background:#eef2ff;color:#4f46e5;"><i class="bi bi-fingerprint"></i></div>
+                    <div>
+                        <div class="au-section-title">Identity</div>
+                        <div class="au-section-sub">Employee number, join date &amp; grade</div>
+                    </div>
+                </div>
+                <div class="au-grid-3">
+                    <div class="au-field">
+                        <label class="au-label" for="EmpCode">Emp. No. <span class="req">*</span></label>
+                        <input type="number" id="EmpCode" asp-for="EmpCode" class="au-input" placeholder="e.g. 1101234" required oninput="syncPreview()" />
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="JoinDate">Join Date <span class="req">*</span></label>
+                        <input type="date" id="JoinDate" asp-for="JoinDate" class="au-input" required oninput="syncPreview()" />
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="JobGrade">Job Grade</label>
+                        <select id="JobGrade" asp-for="JobGrade" class="au-input" onchange="syncPreview()">
+                            <option value=""> Select </option>
+                            @foreach (var jg in Model.JobGrades)
+                            {
+                                <option value="@jg.JobGradeID">@jg.JobGradeID</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- English Name -->
+            <div class="au-section-card">
+                <div class="au-section-hdr">
+                    <div class="au-section-icon" style="background:#f0fdf4;color:#16a34a;"><i class="bi bi-translate"></i></div>
+                    <div>
+                        <div class="au-section-title">English Name</div>
+                        <div class="au-section-sub">Prefix, first name &amp; last name in English</div>
+                    </div>
+                </div>
+                <div class="au-grid-3">
+                    <div class="au-field">
+                        <label class="au-label" for="PrefixEng">Prefix</label>
+                        <select id="PrefixEng" asp-for="PrefixEng" class="au-input" onchange="syncThaiPrefix(); syncPreview()">
+                            <option value=""> Select </option>
+                            <option value="Mr.">Mr.</option>
+                            <option value="Ms.">Ms.</option>
+                            <option value="Mrs.">Mrs.</option>
+                        </select>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="FirstNameEng">First Name</label>
+                        <input type="text" id="FirstNameEng" asp-for="FirstNameEng" class="au-input" placeholder="First name" oninput="validateEngInput(this); syncPreview()" />
+                        <span class="au-field-err" id="FirstNameEng-err"></span>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="LastNameEng">Last Name</label>
+                        <input type="text" id="LastNameEng" asp-for="LastNameEng" class="au-input" placeholder="Last name" oninput="validateEngInput(this); syncPreview()" />
+                        <span class="au-field-err" id="LastNameEng-err"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thai Name -->
+            <div class="au-section-card">
+                <div class="au-section-hdr">
+                    <div class="au-section-icon" style="background:#fdf4ff;color:#a21caf;"><i class="bi bi-chat-square-text"></i></div>
+                    <div>
+                        <div class="au-section-title">Thai Name</div>
+                        <div class="au-section-sub">Prefix, first name &amp; last name in Thai</div>
+                    </div>
+                </div>
+                <div class="au-grid-3">
+                    <div class="au-field">
+                        <label class="au-label" for="PrefixThai">Prefix (Thai)</label>
+                        <select id="PrefixThai" asp-for="PrefixThai" class="au-input" onchange="syncEngPrefix()">
+                            <option value=""> เลือก </option>
+                            <option value="นาย">นาย</option>
+                            <option value="นาง">นาง</option>
+                            <option value="นางสาว">นางสาว</option>
+                        </select>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="FirstNameThai">First Name (Thai)</label>
+                        <input type="text" id="FirstNameThai" asp-for="FirstNameThai" class="au-input" placeholder="ชื่อ" oninput="validateThaiInput(this)" />
+                        <span class="au-field-err" id="FirstNameThai-err"></span>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="LastNameThai">Last Name (Thai)</label>
+                        <input type="text" id="LastNameThai" asp-for="LastNameThai" class="au-input" placeholder="นามสกุล" oninput="validateThaiInput(this)" />
+                        <span class="au-field-err" id="LastNameThai-err"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organisation -->
+            <div class="au-section-card">
+                <div class="au-section-hdr">
+                    <div class="au-section-icon" style="background:#f0fdf4;color:#15803d;"><i class="bi bi-building"></i></div>
+                    <div>
+                        <div class="au-section-title">Organisation</div>
+                        <div class="au-section-sub">Department &amp; section assignment</div>
+                    </div>
+                </div>
+                <div class="au-grid-2">
+                    <div class="au-field">
+                        <label class="au-label" for="DeptID">Department <span class="req">*</span></label>
+                        <select id="DeptID" asp-for="DeptID" class="au-input" onchange="loadSections()" required>
+                            <option value=""> Select Department </option>
+                            @foreach (var dept in Model.Departments)
+                            {
+                                <option value="@dept.DeptID">@dept.DeptName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="SectID">Section <span class="req">*</span></label>
+                        <select id="SectID" asp-for="SectID" class="au-input" data-current="@Model.SectID" required>
+                            <option value=""> Select Section </option>
+                            @foreach (var sect in Model.Sections)
+                            {
+                                <option value="@sect.SectID">@sect.SectName</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work Details -->
+            <div class="au-section-card">
+                <div class="au-section-hdr">
+                    <div class="au-section-icon" style="background:#fff7ed;color:#c2410c;"><i class="bi bi-tools"></i></div>
+                    <div>
+                        <div class="au-section-title">Work Details</div>
+                        <div class="au-section-sub">Workshop, shift &amp; employee photo</div>
+                    </div>
+                </div>
+                <div class="au-grid-3">
+                    <div class="au-field">
+                        <label class="au-label" for="WorkshopID">Workshop <span class="req">*</span></label>
+                        <select id="WorkshopID" asp-for="WorkshopID" class="au-input" required>
+                            <option value=""> Select Workshop </option>
+                            @foreach (var ws in Model.Workshops)
+                            {
+                                <option value="@ws.WorkshopID">@ws.WorkshopName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label" for="Shift">Shift <span class="req">*</span></label>
+                        <select id="Shift" asp-for="Shift" class="au-input" onchange="syncPreview()" required>
+                            <option value=""> Select </option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="DAY">DAY</option>
+                        </select>
+                    </div>
+                    <div class="au-field">
+                        <label class="au-label">Photo</label>
+                        <label for="PhotoFile">
+                            <div class="au-dropzone" id="photoDropzone"
+                                 ondragover="event.preventDefault();this.classList.add('dz-over')"
+                                 ondragleave="this.classList.remove('dz-over')"
+                                 ondrop="handlePhotoDrop(event)">
+                                <div class="au-dz-icon"><i class="bi bi-cloud-upload"></i></div>
+                                <div class="au-dz-title"><u>Click</u> or drag photo</div>
+                                <div class="au-dz-sub" id="fileLabelText">JPEG, PNG, GIF accepted</div>
+                            </div>
+                        </label>
+                        <input type="file" id="PhotoFile" asp-for="PhotoFile" style="display:none;"
+                               accept="image/*" onchange="previewPhoto(event)" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="au-actions">
+                <button type="submit" class="au-btn au-btn-primary">
+                    <i class="bi bi-person-plus-fill"></i> Add Employee
+                </button>
+                <a href="/Dashboard" class="au-btn au-btn-ghost">
+                    <i class="bi bi-arrow-left"></i> Cancel
+                </a>
+                <button type="reset" class="au-btn au-btn-reset" onclick="return resetForm()">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </button>
+            </div>
+
+        </form>
+    </main>
+
+</div>
+
+<!-- ===== Photo Crop Modal ===== -->
+<div id="cropModal">
+    <div class="crop-box">
+        <div class="crop-hdr">
+            <div class="crop-title"><i class="bi bi-crop"></i> Crop Photo</div>
+            <button type="button" class="crop-close crop-cancel" aria-label="Close">&times;</button>
+        </div>
+        <div class="crop-img-wrap">
+            <img id="cropImage" alt="Crop preview">
+        </div>
+        <div class="crop-foot">
+            <button type="button" class="crop-btn crop-btn-x crop-cancel">Cancel</button>
+            <button type="button" class="crop-btn crop-btn-ok" id="cropConfirmBtn"><i class="bi bi-scissors"></i> Crop &amp; Use</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
+<script>
+    /* ===== Crop Modal Logic ===== */
+    let _cropper = null, _cropSrcName = 'photo.jpg';
+
+    function openCropModal(file) {
+        _cropSrcName = file.name || 'photo.jpg';
+        const img = document.getElementById('cropImage');
+        const modal = document.getElementById('cropModal');
+        if (_cropper) { _cropper.destroy(); _cropper = null; }
+        img.src = '';
+        modal.style.display = 'flex';
+        img.onload = () => {
+            _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, responsive: true, background: false, zoomable: true, scalable: true });
+        };
+        img.src = URL.createObjectURL(file);
+    }
+
+    function closeCropModal() {
+        document.getElementById('cropModal').style.display = 'none';
+        if (_cropper) { _cropper.destroy(); _cropper = null; }
+        document.getElementById('PhotoFile').value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('cropConfirmBtn').addEventListener('click', () => {
+            if (!_cropper) return;
+            _cropper.getCroppedCanvas({ width: 600, height: 600 }).toBlob(blob => {
+                const croppedFile = new File([blob], _cropSrcName, { type: 'image/jpeg' });
+                const dt = new DataTransfer();
+                dt.items.add(croppedFile);
+                const input = document.getElementById('PhotoFile');
+                input.files = dt.files;
+                const url = URL.createObjectURL(blob);
+                document.getElementById('photoPreview').src = url;
+                const sub = document.getElementById('fileLabelText');
+                if (sub) sub.textContent = _cropSrcName.length > 26 ? _cropSrcName.slice(0, 24) + '\u2026' : _cropSrcName;
+                syncPreview();
+                document.getElementById('cropModal').style.display = 'none';
+                if (_cropper) { _cropper.destroy(); _cropper = null; }
+            }, 'image/jpeg', 0.92);
+        });
+        document.querySelectorAll('.crop-cancel').forEach(b => b.addEventListener('click', closeCropModal));
+    });
+
+    function previewPhoto(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        openCropModal(file);
+    }
+
+    function handlePhotoDrop(event) {
+        event.preventDefault();
+        document.getElementById('photoDropzone')?.classList.remove('dz-over');
+        const file = event.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) openCropModal(file);
+    }
+
+    const THAI_RE = /[\u0E00-\u0E7F]/;
+    const LATIN_RE = /[A-Za-z]/;
+
+    function showErr(el, errEl, msg) {
+        // Remove first to force reflow so animation always replays
+        el.classList.remove('au-invalid');
+        void el.offsetWidth; // trigger reflow
+        el.classList.add('au-invalid');
+        if (errEl) { errEl.textContent = msg; errEl.classList.add('visible'); }
+        clearTimeout(el._errTimer);
+        el._errTimer = setTimeout(() => {
+            el.classList.remove('au-invalid');
+            if (errEl) { errEl.classList.remove('visible'); setTimeout(() => { errEl.textContent = ''; }, 200); }
+        }, 2000);
+    }
+
+    function clearErr(el, errEl) {
+        el.classList.remove('au-invalid');
+        if (errEl) { errEl.classList.remove('visible'); setTimeout(() => { errEl.textContent = ''; }, 200); }
+    }
+
+    function validateEngInput(el) {
+        const errEl = document.getElementById(el.id + '-err');
+        if (THAI_RE.test(el.value)) {
+            el.value = el.value.replace(/[\u0E00-\u0E7F]/g, '');
+            showErr(el, errEl, 'Thai characters are not allowed here.');
+        } else {
+            clearErr(el, errEl);
+        }
+    }
+
+    function validateThaiInput(el) {
+        const errEl = document.getElementById(el.id + '-err');
+        if (LATIN_RE.test(el.value)) {
+            el.value = el.value.replace(/[A-Za-z]/g, '');
+            showErr(el, errEl, 'English letters are not allowed here.');
+        } else {
+            clearErr(el, errEl);
+        }
+    }
+
+    function syncThaiPrefix() {
+        const eng = document.getElementById('PrefixEng')?.value;
+        const thai = document.getElementById('PrefixThai');
+        if (!thai) return;
+        const map = { 'Mr.': 'นาย', 'Ms.': 'นางสาว', 'Mrs.': 'นาง' };
+        if (map[eng]) {
+            thai.value = map[eng];
+        } else {
+            thai.value = '';
+        }
+        thai.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function syncEngPrefix() {
+        const thai = document.getElementById('PrefixThai')?.value;
+        const eng = document.getElementById('PrefixEng');
+        if (!eng) return;
+        const map = { 'นาย': 'Mr.', 'นางสาว': 'Ms.', 'นาง': 'Mrs.' };
+        if (map[thai]) {
+            eng.value = map[thai];
+        } else {
+            eng.value = '';
+        }
+        eng.dispatchEvent(new Event('change', { bubbles: true }));
+        syncPreview();
+    }
+
+    function syncPreview() {
+        const p  = document.getElementById('PrefixEng')?.value   || '';
+        const fn = document.getElementById('FirstNameEng')?.value || '';
+        const ln = document.getElementById('LastNameEng')?.value  || '';
+        const nameEl = document.getElementById('previewName');
+        if (nameEl) {
+            const full = [p, fn, ln].filter(Boolean).join(' ');
+            nameEl.innerHTML = full
+                ? `<span style="font-weight:700">${full}</span>`
+                : '<span style="font-weight:400;font-size:0.85rem;color:#94a3b8;">New Employee</span>';
+        }
+
+        const ec = document.getElementById('EmpCode')?.value;
+        const ecEl = document.getElementById('previewEmpCode');
+        if (ecEl) ecEl.textContent = ec || '—';
+
+        const jg = document.getElementById('JobGrade')?.value;
+        const jgEl = document.getElementById('previewGrade');
+        if (jgEl) jgEl.textContent = jg || '—';
+
+        const sh = document.getElementById('Shift')?.value;
+        const shEl = document.getElementById('previewShift');
+        if (shEl) shEl.textContent = sh ? 'Shift ' + sh : '—';
+
+        const jd = document.getElementById('JoinDate')?.value;
+        const jdEl = document.getElementById('previewJoinDate');
+        if (jdEl && jd) {
+            const d = new Date(jd);
+            jdEl.textContent = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        } else if (jdEl) {
+            jdEl.textContent = '—';
+        }
+    }
+
+    async function loadSections() {
+        const deptEl = document.getElementById('DeptID');
+        const sectEl = document.getElementById('SectID');
+        if (!deptEl || !sectEl) return;
+        const dept = deptEl.value;
+        sectEl.innerHTML = '<option value="">Loading...</option>';
+        if (!dept) { sectEl.innerHTML = '<option value=""> Select Section </option>'; return; }
+        try {
+            const res = await fetch('/api/sections?deptId=' + encodeURIComponent(dept));
+            if (!res.ok) throw new Error();
+            const list = await res.json();
+            let html = '<option value=""> Select Section </option>';
+            list.forEach(s => {
+                const id   = s.SectID || s.sectID || s.sectId || s.id || '';
+                const name = s.SectName || s.sectName || s.name || s.Name || '';
+                html += `<option value="${id}">${name}</option>`;
+            });
+            sectEl.innerHTML = html;
+            const current = sectEl.getAttribute('data-current');
+            if (current) sectEl.value = current;
+        } catch {
+            sectEl.innerHTML = '<option value=""> Select Section </option>';
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('photoPreview').src = '/images/placeholder-employee.svg';
+        document.getElementById('fileLabelText').textContent = 'JPEG, PNG, GIF accepted';
+        setTimeout(syncPreview, 50);
+        return true;
+    }
+
+    // Form validation - check all required fields
+    function validateForm() {
+        const requiredFields = ['EmpCode', 'JoinDate', 'DeptID', 'SectID', 'WorkshopID', 'Shift'];
+        let allFilled = true;
+        
+        for (const fieldId of requiredFields) {
+            const field = document.getElementById(fieldId);
+            if (!field || !field.value || field.value.trim() === '') {
+                allFilled = false;
+                break;
+            }
+        }
+        
+        const submitBtn = document.querySelector('.au-btn-primary');
+        if (submitBtn) {
+            submitBtn.disabled = !allFilled;
+            if (!allFilled) {
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+            } else {
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            const msg  = '@(TempData["Message"] ?? "")'.trim();
+            const type = '@(TempData["MessageType"] ?? "")'.trim();
+            if (msg) { type === 'success' ? Toast.success('Success', msg) : Toast.error('Error', msg); }
+        } catch(e) {}
+        
+        // Initialize form validation
+        validateForm();
+        
+        // Add listeners to required fields
+        const requiredFields = ['EmpCode', 'JoinDate', 'DeptID', 'SectID', 'WorkshopID', 'Shift'];
+        requiredFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('change', validateForm);
+                field.addEventListener('input', validateForm);
+            }
+        });
+    });
+</script>
+}

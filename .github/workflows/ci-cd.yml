@@ -1,0 +1,163 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Deploy to (test / production)"
+        required: true
+        default: test
+        type: choice
+        options:
+          - test
+          - production
+
+env:
+  IMAGE_NAME: operatorcertificationrecord:web
+  PROD_CONTAINER: ocrweb
+  TEST_CONTAINER: ocrwebtest
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  # ── Build & Test ────────────────────────────────────────────────────────────
+  build-and-test:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
+
+      - name: Build
+        run: dotnet build OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj --no-restore -c Release
+
+      - name: Test
+        run: dotnet test tests/OperatorCertificationRecord.Web.Tests/OperatorCertificationRecord.Web.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=results.trx"
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__DefaultConnection: ${{ secrets.OCR_TEST_CONNECTION_STRING }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/*.trx"
+
+  # ── Docker Build ─────────────────────────────────────────────────────────────
+  docker-build:
+    runs-on: self-hosted
+    needs: build-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t $env:IMAGE_NAME .
+
+  # ── Deploy Test (auto on every push to main) ─────────────────────────────────
+  deploy-test:
+    runs-on: self-hosted
+    needs: docker-build
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_target == 'test')
+    steps:
+      - name: Stop & remove existing test container
+        run: |
+          docker stop $env:TEST_CONTAINER 2>$null
+          docker rm   $env:TEST_CONTAINER 2>$null
+          exit 0
+
+      - name: Ensure host volume directories exist
+        run: |
+          $dirs = @('C:\uploads','C:\ocr-uploads','C:\ocr-dataprotection','C:\ocr-photos','C:\ocr-logs-test')
+          foreach ($d in $dirs) {
+            if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force $d | Out-Null }
+          }
+
+      - name: Start test container
+        run: |
+          $connStr = "${{ secrets.OCR_TEST_CONNECTION_STRING }}"
+          docker run -d `
+            --name $env:TEST_CONTAINER `
+            -p 5050:80 `
+            -v "C:\uploads:/app/wwwroot/certs" `
+            -v "C:\ocr-uploads:/app/wwwroot/uploads" `
+            -v "C:\ocr-dataprotection:/app/dataprotection" `
+            -v "C:\ocr-photos:/app/wwwroot/photos" `
+            -v "C:\ocr-logs-test:/app/logs" `
+            -e ASPNETCORE_ENVIRONMENT=Testing `
+            -e "ConnectionStrings__DefaultConnection=$connStr" `
+            --restart unless-stopped `
+            $env:IMAGE_NAME
+
+      - name: Health check (test)
+        run: |
+          Write-Host "Waiting for container to start..."
+          Start-Sleep -Seconds 10
+          try {
+            $r = Invoke-WebRequest -Uri http://localhost:5050/ -UseBasicParsing -TimeoutSec 15
+            Write-Host "Health check passed: $($r.StatusCode)"
+          } catch {
+            docker logs $env:TEST_CONTAINER
+            throw "Health check failed: $_"
+          }
+
+  # ── Deploy Production (manual trigger only) ──────────────────────────────────
+  deploy-production:
+    runs-on: self-hosted
+    needs: docker-build
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_target == 'production'
+    environment:
+      name: production
+    steps:
+      - name: Stop & remove existing production container
+        run: |
+          docker stop $env:PROD_CONTAINER 2>$null
+          docker rm   $env:PROD_CONTAINER 2>$null
+          exit 0
+
+      - name: Ensure host volume directories exist
+        run: |
+          $dirs = @('C:\uploads','C:\ocr-uploads','C:\ocr-dataprotection','C:\ocr-photos','C:\ocr-logs')
+          foreach ($d in $dirs) {
+            if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force $d | Out-Null }
+          }
+
+      - name: Start production container
+        run: |
+          $connStr = "${{ secrets.OCR_PROD_CONNECTION_STRING }}"
+          docker run -d `
+            --name $env:PROD_CONTAINER `
+            -p 8080:80 `
+            -v "C:\uploads:/app/wwwroot/certs" `
+            -v "C:\ocr-uploads:/app/wwwroot/uploads" `
+            -v "C:\ocr-dataprotection:/app/dataprotection" `
+            -v "C:\ocr-photos:/app/wwwroot/photos" `
+            -v "C:\ocr-logs:/app/logs" `
+            -e ASPNETCORE_ENVIRONMENT=Production `
+            -e "ConnectionStrings__DefaultConnection=$connStr" `
+            --restart unless-stopped `
+            $env:IMAGE_NAME
+
+      - name: Health check (production)
+        run: |
+          Write-Host "Waiting for container to start..."
+          Start-Sleep -Seconds 10
+          try {
+            $r = Invoke-WebRequest -Uri http://localhost:8080/ -UseBasicParsing -TimeoutSec 15
+            Write-Host "Health check passed: $($r.StatusCode)"
+          } catch {
+            docker logs $env:PROD_CONTAINER
+            throw "Health check failed: $_"
+          }

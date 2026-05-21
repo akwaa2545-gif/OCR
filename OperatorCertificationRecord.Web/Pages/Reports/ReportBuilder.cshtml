@@ -1,0 +1,1642 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.ReportBuilderModel
+@{
+    ViewData["Title"] = "Custom Report Builder";
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .builder-container {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 1.5rem;
+        min-height: calc(100vh - 200px);
+    }
+    
+    .builder-sidebar {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 1.25rem;
+        height: fit-content;
+        position: sticky;
+        top: 1rem;
+    }
+    
+    .builder-main {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 1.5rem;
+    }
+    
+    .section-title {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-title i { color: #3b82f6; }
+    
+    .field-category { margin-bottom: 1rem; }
+    
+    .field-category-header {
+        font-weight: 500;
+        color: #64748b;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .field-category-header:hover { color: #3b82f6; }
+    
+    .field-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .field-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        cursor: grab;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+        background: #f8fafc;
+        border: 1px solid transparent;
+    }
+    
+    .field-item:hover {
+        background: #e0f2fe;
+        border-color: #3b82f6;
+    }
+    
+    .field-item.selected {
+        background: #dbeafe;
+        border-color: #3b82f6;
+    }
+    
+    .field-item i {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+    
+    .field-item.dragging { opacity: 0.5; }
+    
+    .drop-zone {
+        min-height: 120px;
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s;
+        background: #f8fafc;
+    }
+    
+    .drop-zone.drag-over {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .drop-zone-label {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.9rem;
+        padding: 1rem;
+    }
+    
+    .drop-zone-label i {
+        font-size: 1.5rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    
+    .selected-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+        background: #3b82f6;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        margin: 0.25rem;
+        cursor: move;
+    }
+    
+    .selected-field .remove-field {
+        cursor: pointer;
+        opacity: 0.8;
+        margin-left: 0.25rem;
+    }
+    
+    .selected-field .remove-field:hover { opacity: 1; }
+    
+    .filter-row {
+        display: grid;
+        grid-template-columns: 1fr 120px 1fr auto;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        align-items: center;
+    }
+    
+    .filter-row select, .filter-row input {
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    
+    .filter-connector {
+        display: flex;
+        justify-content: center;
+        margin: 0.5rem 0;
+    }
+    
+    .filter-connector .btn-group .btn {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .config-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: #f1f5f9;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .config-row select {
+        flex: 1;
+        padding: 0.4rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+    }
+    
+    .preview-section { margin-top: 1.5rem; }
+    
+    .preview-table-container {
+        max-height: 500px;
+        overflow: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+    
+    .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .preview-table th {
+        background: #f1f5f9;
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        position: sticky;
+        top: 0;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .preview-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .preview-table tr:hover { background: #f8fafc; }
+    
+    .builder-toolbar {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .builder-toolbar .btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .saved-reports-list { max-height: 200px; overflow-y: auto; }
+    
+    .saved-report-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .saved-report-item:hover { background: #f1f5f9; }
+    .saved-report-item.active { background: #dbeafe; }
+    
+    .agg-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        background: rgba(255,255,255,0.3);
+        border-radius: 3px;
+        margin-left: 0.25rem;
+    }
+    
+    .summary-stats {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .stat-card {
+        flex: 1;
+        min-width: 120px;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0369a1;
+    }
+    
+    .stat-card .stat-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+    
+    .builder-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 0.5rem;
+    }
+    
+    .builder-tab {
+        padding: 0.5rem 1rem;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        cursor: pointer;
+        border-radius: 6px 6px 0 0;
+        transition: all 0.2s;
+        font-weight: 500;
+    }
+    
+    .builder-tab:hover {
+        color: #3b82f6;
+        background: #f1f5f9;
+    }
+    
+    .builder-tab.active {
+        color: #3b82f6;
+        background: #dbeafe;
+    }
+    
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .export-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .export-option {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .export-option:hover {
+        border-color: #3b82f6;
+        background: #f8fafc;
+        transform: translateY(-2px);
+    }
+    
+    .export-option i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .export-option.excel i { color: #217346; }
+    .export-option.csv i { color: #f59e0b; }
+    .export-option.pdf i { color: #dc2626; }
+    .export-option.json i { color: #6366f1; }
+    
+    .template-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .template-card {
+        padding: 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    
+    .template-card:hover {
+        border-color: #3b82f6;
+        background: #f0f9ff;
+        transform: translateY(-2px);
+    }
+    
+    .template-card i {
+        font-size: 1.5rem;
+        color: #3b82f6;
+        margin-bottom: 0.5rem;
+    }
+    
+    .template-card h6 { margin: 0; color: #1e293b; }
+    .template-card small { color: #64748b; }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 12px;
+    }
+    
+    .loading-overlay.hidden { display: none; }
+    
+    @@media (max-width: 992px) {
+        .builder-container { grid-template-columns: 1fr; }
+        .builder-sidebar { position: static; }
+        .filter-row { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-tools me-2"></i>Custom Report Builder</h4>
+            <p class="text-muted mb-0">Create custom reports with drag-and-drop interface</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#loadReportModal">
+                <i class="bi bi-folder-open me-1"></i> Load Report
+            </button>
+            <button class="btn btn-outline-primary" onclick="saveReport()">
+                <i class="bi bi-save me-1"></i> Save Report
+            </button>
+        </div>
+    </div>
+    
+    <!-- Quick Templates -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="mb-3"><i class="bi bi-lightning-charge me-2 text-warning"></i>Quick Start Templates</h6>
+            <div class="template-grid">
+                <div class="template-card" onclick="loadTemplate('employee-skills')">
+                    <i class="bi bi-person-badge"></i>
+                    <h6>Employee Skills</h6>
+                    <small>Employee info with skill counts</small>
+                </div>
+                <div class="template-card" onclick="loadTemplate('section-summary')">
+                    <i class="bi bi-diagram-3"></i>
+                    <h6>Section Summary</h6>
+                    <small>Group by section with totals</small>
+                </div>
+                <div class="template-card" onclick="loadTemplate('skill-matrix')">
+                    <i class="bi bi-grid-3x3"></i>
+                    <h6>Skill Matrix</h6>
+                    <small>Skills across departments</small>
+                </div>
+                <div class="template-card" onclick="loadTemplate('expiring-certs')">
+                    <i class="bi bi-calendar-x"></i>
+                    <h6>Expiring Certifications</h6>
+                    <small>Certs expiring within period</small>
+                </div>
+                <div class="template-card" onclick="loadTemplate('training-progress')">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <h6>Training Progress</h6>
+                    <small>Training completion status</small>
+                </div>
+                <div class="template-card" onclick="loadTemplate('custom')">
+                    <i class="bi bi-plus-circle"></i>
+                    <h6>Blank Report</h6>
+                    <small>Start from scratch</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="builder-container">
+        <!-- Sidebar - Available Fields -->
+        <div class="builder-sidebar">
+            <div class="section-title">
+                <i class="bi bi-database"></i> Available Fields
+            </div>
+            
+            <div class="mb-3">
+                <input type="text" class="form-control form-control-sm" id="fieldSearch" 
+                       placeholder="Search fields..." oninput="filterFields(this.value)">
+            </div>
+            
+            <!-- Employee Fields -->
+            <div class="field-category">
+                <div class="field-category-header" onclick="toggleCategory(this)">
+                    <span><i class="bi bi-person me-1"></i> Employee</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="field-list">
+                    <div class="field-item" draggable="true" data-field="EmployeeCode" data-type="string">
+                        <i class="bi bi-hash"></i> Employee Code
+                    </div>
+                    <div class="field-item" draggable="true" data-field="EmployeeName" data-type="string">
+                        <i class="bi bi-person"></i> Employee Name
+                    </div>
+                    <div class="field-item" draggable="true" data-field="Department" data-type="string">
+                        <i class="bi bi-building"></i> Department
+                    </div>
+                    <div class="field-item" draggable="true" data-field="Section" data-type="string">
+                        <i class="bi bi-diagram-2"></i> Section
+                    </div>
+                    <div class="field-item" draggable="true" data-field="JobGrade" data-type="string">
+                        <i class="bi bi-award"></i> Job Grade
+                    </div>
+                    <div class="field-item" draggable="true" data-field="HireDate" data-type="date">
+                        <i class="bi bi-calendar"></i> Hire Date
+                    </div>
+                    <div class="field-item" draggable="true" data-field="Status" data-type="string">
+                        <i class="bi bi-circle-fill"></i> Status
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Skill Fields -->
+            <div class="field-category">
+                <div class="field-category-header" onclick="toggleCategory(this)">
+                    <span><i class="bi bi-mortarboard me-1"></i> Skills</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="field-list">
+                    <div class="field-item" draggable="true" data-field="ProcessName" data-type="string">
+                        <i class="bi bi-gear"></i> Process Name
+                    </div>
+                    <div class="field-item" draggable="true" data-field="SkillLevel" data-type="number">
+                        <i class="bi bi-speedometer2"></i> Skill Level
+                    </div>
+                    <div class="field-item" draggable="true" data-field="CertificationDate" data-type="date">
+                        <i class="bi bi-calendar-check"></i> Certification Date
+                    </div>
+                    <div class="field-item" draggable="true" data-field="ExpiryDate" data-type="date">
+                        <i class="bi bi-calendar-x"></i> Expiry Date
+                    </div>
+                    <div class="field-item" draggable="true" data-field="IsExpired" data-type="boolean">
+                        <i class="bi bi-exclamation-triangle"></i> Is Expired
+                    </div>
+                    <div class="field-item" draggable="true" data-field="DaysUntilExpiry" data-type="number">
+                        <i class="bi bi-hourglass-split"></i> Days Until Expiry
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Training Fields -->
+            <div class="field-category">
+                <div class="field-category-header" onclick="toggleCategory(this)">
+                    <span><i class="bi bi-journal-text me-1"></i> Training</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="field-list">
+                    <div class="field-item" draggable="true" data-field="TrainingName" data-type="string">
+                        <i class="bi bi-book"></i> Training Name
+                    </div>
+                    <div class="field-item" draggable="true" data-field="TrainingDate" data-type="date">
+                        <i class="bi bi-calendar-event"></i> Training Date
+                    </div>
+                    <div class="field-item" draggable="true" data-field="Trainer" data-type="string">
+                        <i class="bi bi-person-video3"></i> Trainer
+                    </div>
+                    <div class="field-item" draggable="true" data-field="TrainingResult" data-type="string">
+                        <i class="bi bi-check-circle"></i> Result
+                    </div>
+                    <div class="field-item" draggable="true" data-field="Score" data-type="number">
+                        <i class="bi bi-123"></i> Score
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Calculated Fields -->
+            <div class="field-category">
+                <div class="field-category-header" onclick="toggleCategory(this)">
+                    <span><i class="bi bi-calculator me-1"></i> Calculated</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="field-list">
+                    <div class="field-item" draggable="true" data-field="TotalSkills" data-type="number" data-calculated="true">
+                        <i class="bi bi-sigma"></i> Total Skills
+                    </div>
+                    <div class="field-item" draggable="true" data-field="ActiveSkills" data-type="number" data-calculated="true">
+                        <i class="bi bi-check-all"></i> Active Skills
+                    </div>
+                    <div class="field-item" draggable="true" data-field="ExpiredSkills" data-type="number" data-calculated="true">
+                        <i class="bi bi-x-circle"></i> Expired Skills
+                    </div>
+                    <div class="field-item" draggable="true" data-field="ExpiringSkills" data-type="number" data-calculated="true">
+                        <i class="bi bi-exclamation-circle"></i> Expiring Soon
+                    </div>
+                    <div class="field-item" draggable="true" data-field="YearsOfService" data-type="number" data-calculated="true">
+                        <i class="bi bi-clock-history"></i> Years of Service
+                    </div>
+                    <div class="field-item" draggable="true" data-field="AvgSkillLevel" data-type="number" data-calculated="true">
+                        <i class="bi bi-bar-chart-line"></i> Avg Skill Level
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Builder Area -->
+        <div class="builder-main position-relative">
+            <div class="loading-overlay hidden" id="loadingOverlay">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-2" role="status"></div>
+                    <div>Building report...</div>
+                </div>
+            </div>
+            
+            <!-- Builder Toolbar -->
+            <div class="builder-toolbar">
+                <button class="btn btn-light" onclick="runReport()">
+                    <i class="bi bi-play-fill"></i> Run Report
+                </button>
+                <button class="btn btn-light" onclick="previewReport()">
+                    <i class="bi bi-eye"></i> Preview
+                </button>
+                <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#exportModal">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                <button class="btn btn-light" onclick="clearBuilder()">
+                    <i class="bi bi-trash"></i> Clear
+                </button>
+                <div class="ms-auto d-flex align-items-center text-white">
+                    <span class="me-3"><i class="bi bi-table me-1"></i> Rows: <span id="rowCount">0</span></span>
+                    <span><i class="bi bi-columns-gap me-1"></i> Columns: <span id="colCount">0</span></span>
+                </div>
+            </div>
+            
+            <!-- Builder Tabs -->
+            <div class="builder-tabs">
+                <button class="builder-tab active" onclick="switchTab('columns', this)">
+                    <i class="bi bi-layout-three-columns me-1"></i> Columns
+                </button>
+                <button class="builder-tab" onclick="switchTab('filters', this)">
+                    <i class="bi bi-funnel me-1"></i> Filters
+                </button>
+                <button class="builder-tab" onclick="switchTab('grouping', this)">
+                    <i class="bi bi-collection me-1"></i> Grouping
+                </button>
+                <button class="builder-tab" onclick="switchTab('sorting', this)">
+                    <i class="bi bi-sort-alpha-down me-1"></i> Sorting
+                </button>
+                <button class="builder-tab" onclick="switchTab('options', this)">
+                    <i class="bi bi-sliders me-1"></i> Options
+                </button>
+            </div>
+            
+            <!-- Columns Tab -->
+            <div id="tab-columns" class="tab-content active">
+                <h6 class="mb-2">Selected Columns</h6>
+                <p class="text-muted small">Drag fields here or click to add. Drag to reorder.</p>
+                <div class="drop-zone" id="columnsDropZone" 
+                     ondrop="handleDrop(event, 'columns')" 
+                     ondragover="handleDragOver(event)" 
+                     ondragleave="handleDragLeave(event)">
+                    <div class="drop-zone-label" id="columnsPlaceholder">
+                        <i class="bi bi-plus-circle"></i>
+                        Drag fields here to add columns
+                    </div>
+                    <div id="selectedColumns"></div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mb-2">Column Aggregations</h6>
+                        <div id="columnAggregations">
+                            <p class="text-muted small">Add numeric columns to configure aggregations</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mb-2">Column Formatting</h6>
+                        <div id="columnFormatting">
+                            <p class="text-muted small">Add columns to configure formatting</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filters Tab -->
+            <div id="tab-filters" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Filter Conditions</h6>
+                    <button class="btn btn-sm btn-outline-primary" onclick="addFilter()">
+                        <i class="bi bi-plus"></i> Add Filter
+                    </button>
+                </div>
+                <div id="filterContainer">
+                    <p class="text-muted">No filters applied. Click "Add Filter" to create one.</p>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Quick Filters</h6>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small">Department</label>
+                            <select class="form-select form-select-sm" id="quickFilterDept" onchange="applyQuickFilter()">
+                                <option value="">All Departments</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Section</label>
+                            <select class="form-select form-select-sm" id="quickFilterSection" onchange="applyQuickFilter()">
+                                <option value="">All Sections</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Date Range</label>
+                            <input type="text" class="form-control form-control-sm" id="quickFilterDateRange" 
+                                   placeholder="Select date range">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Grouping Tab -->
+            <div id="tab-grouping" class="tab-content">
+                <h6 class="mb-2">Group By</h6>
+                <p class="text-muted small">Drag fields here to group data</p>
+                <div class="drop-zone" id="groupingDropZone"
+                     ondrop="handleDrop(event, 'grouping')"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <div class="drop-zone-label" id="groupingPlaceholder">
+                        <i class="bi bi-collection"></i>
+                        Drag fields here to group data
+                    </div>
+                    <div id="selectedGrouping"></div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Summary Options</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="showSubtotals" checked>
+                        <label class="form-check-label" for="showSubtotals">Show subtotals</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="showGrandTotal" checked>
+                        <label class="form-check-label" for="showGrandTotal">Show grand total</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="collapseGroups">
+                        <label class="form-check-label" for="collapseGroups">Collapse groups by default</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sorting Tab -->
+            <div id="tab-sorting" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Sort Order</h6>
+                    <button class="btn btn-sm btn-outline-primary" onclick="addSort()">
+                        <i class="bi bi-plus"></i> Add Sort
+                    </button>
+                </div>
+                <div id="sortContainer">
+                    <p class="text-muted">No sorting applied. Data will be shown in default order.</p>
+                </div>
+            </div>
+            
+            <!-- Options Tab -->
+            <div id="tab-options" class="tab-content">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Display Options</h6>
+                        <div class="mb-3">
+                            <label class="form-label small">Rows per page</label>
+                            <select class="form-select form-select-sm" id="rowsPerPage">
+                                <option value="25">25</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                                <option value="250">250</option>
+                                <option value="-1">All</option>
+                            </select>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="showRowNumbers" checked>
+                            <label class="form-check-label" for="showRowNumbers">Show row numbers</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="highlightAlternate" checked>
+                            <label class="form-check-label" for="highlightAlternate">Alternate row colors</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="freezeHeader" checked>
+                            <label class="form-check-label" for="freezeHeader">Freeze header row</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Report Info</h6>
+                        <div class="mb-2">
+                            <label class="form-label small">Report Title</label>
+                            <input type="text" class="form-control form-control-sm" id="reportTitle" 
+                                   placeholder="Enter report title">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Description</label>
+                            <textarea class="form-control form-control-sm" id="reportDescription" rows="2"
+                                      placeholder="Enter description"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preview Section -->
+            <div class="preview-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-table me-2"></i>Preview</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" onclick="setPreviewMode('table', this)">
+                            <i class="bi bi-table"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="setPreviewMode('chart', this)">
+                            <i class="bi bi-bar-chart"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="summary-stats" id="summaryStats" style="display:none;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">0</div>
+                        <div class="stat-label">Total Records</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statUnique">0</div>
+                        <div class="stat-label">Unique Employees</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statAvg">0</div>
+                        <div class="stat-label">Avg Value</div>
+                    </div>
+                </div>
+                
+                <div id="previewTable" class="preview-table-container">
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-table display-4"></i>
+                        <p class="mt-2">Configure your report and click "Run Report" to see results</p>
+                    </div>
+                </div>
+                
+                <div id="previewChart" style="display:none;">
+                    <canvas id="reportChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-download me-2"></i>Export Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <div class="export-option excel" onclick="exportReport('excel')">
+                        <i class="bi bi-file-earmark-excel"></i>
+                        <span>Excel</span>
+                    </div>
+                    <div class="export-option csv" onclick="exportReport('csv')">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>CSV</span>
+                    </div>
+                    <div class="export-option pdf" onclick="exportReport('pdf')">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        <span>PDF</span>
+                    </div>
+                    <div class="export-option json" onclick="exportReport('json')">
+                        <i class="bi bi-file-earmark-code"></i>
+                        <span>JSON</span>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="exportIncludeHeaders" checked>
+                    <label class="form-check-label" for="exportIncludeHeaders">Include column headers</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="exportIncludeSummary">
+                    <label class="form-check-label" for="exportIncludeSummary">Include summary statistics</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Report Modal -->
+<div class="modal fade" id="loadReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-open me-2"></i>Saved Reports</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="saved-reports-list" id="savedReportsList">
+                    <p class="text-muted text-center">No saved reports found</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Report Modal -->
+<div class="modal fade" id="saveReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-save me-2"></i>Save Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Report Name</label>
+                    <input type="text" class="form-control" id="saveReportName" placeholder="Enter report name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="saveReportDescription" rows="2" 
+                              placeholder="Optional description"></textarea>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="saveAsPublic">
+                    <label class="form-check-label" for="saveAsPublic">Make this report public</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmSaveReport()">Save Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Report Builder State
+    const reportState = {
+        columns: [],
+        filters: [],
+        grouping: [],
+        sorting: [],
+        options: { rowsPerPage: 50, showRowNumbers: true, showSubtotals: true, showGrandTotal: true },
+        data: []
+    };
+    
+    let reportChart = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initDragAndDrop();
+        loadDepartments();
+        loadSavedReports();
+        initDatePicker();
+    });
+    
+    function initDatePicker() {
+        flatpickr('#quickFilterDateRange', {
+            mode: 'range',
+            dateFormat: 'Y-m-d'
+        });
+    }
+    
+    function initDragAndDrop() {
+        document.querySelectorAll('.field-item').forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+            item.addEventListener('click', () => addFieldToColumns(item.dataset.field, item.dataset.type));
+        });
+    }
+    
+    function handleDragStart(e) {
+        e.target.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+            field: e.target.dataset.field,
+            type: e.target.dataset.type,
+            calculated: e.target.dataset.calculated === 'true'
+        }));
+    }
+    
+    function handleDragEnd(e) { e.target.classList.remove('dragging'); }
+    function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+    function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+    
+    function handleDrop(e, target) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (target === 'columns') addFieldToColumns(data.field, data.type);
+        else if (target === 'grouping') addFieldToGrouping(data.field);
+    }
+    
+    function addFieldToColumns(field, type) {
+        if (reportState.columns.find(c => c.field === field)) return;
+        reportState.columns.push({ field, type, aggregation: null, format: null });
+        renderSelectedColumns();
+        updateColumnCount();
+    }
+    
+    function addFieldToGrouping(field) {
+        if (reportState.grouping.includes(field)) return;
+        reportState.grouping.push(field);
+        renderSelectedGrouping();
+    }
+    
+    function renderSelectedColumns() {
+        const container = document.getElementById('selectedColumns');
+        const placeholder = document.getElementById('columnsPlaceholder');
+        
+        if (reportState.columns.length === 0) {
+            container.innerHTML = '';
+            placeholder.style.display = 'block';
+            return;
+        }
+        
+        placeholder.style.display = 'none';
+        container.innerHTML = reportState.columns.map((col, idx) => `
+            <span class="selected-field" draggable="true" data-index="${idx}">
+                ${col.field}
+                ${col.aggregation ? `<span class="agg-badge">${col.aggregation}</span>` : ''}
+                <i class="bi bi-x remove-field" onclick="removeColumn(${idx})"></i>
+            </span>
+        `).join('');
+        
+        updateAggregationOptions();
+    }
+    
+    function renderSelectedGrouping() {
+        const container = document.getElementById('selectedGrouping');
+        const placeholder = document.getElementById('groupingPlaceholder');
+        
+        if (reportState.grouping.length === 0) {
+            container.innerHTML = '';
+            placeholder.style.display = 'block';
+            return;
+        }
+        
+        placeholder.style.display = 'none';
+        container.innerHTML = reportState.grouping.map((field, idx) => `
+            <span class="selected-field">
+                ${idx + 1}. ${field}
+                <i class="bi bi-x remove-field" onclick="removeGrouping(${idx})"></i>
+            </span>
+        `).join('');
+    }
+    
+    function removeColumn(index) {
+        reportState.columns.splice(index, 1);
+        renderSelectedColumns();
+        updateColumnCount();
+    }
+    
+    function removeGrouping(index) {
+        reportState.grouping.splice(index, 1);
+        renderSelectedGrouping();
+    }
+    
+    function updateAggregationOptions() {
+        const container = document.getElementById('columnAggregations');
+        const numericColumns = reportState.columns.filter(c => c.type === 'number');
+        
+        if (numericColumns.length === 0) {
+            container.innerHTML = '<p class="text-muted small">Add numeric columns to configure aggregations</p>';
+            return;
+        }
+        
+        container.innerHTML = numericColumns.map(col => `
+            <div class="config-row">
+                <span>${col.field}</span>
+                <select onchange="setAggregation('${col.field}', this.value)">
+                    <option value="">None</option>
+                    <option value="sum" ${col.aggregation === 'sum' ? 'selected' : ''}>Sum</option>
+                    <option value="avg" ${col.aggregation === 'avg' ? 'selected' : ''}>Average</option>
+                    <option value="min" ${col.aggregation === 'min' ? 'selected' : ''}>Min</option>
+                    <option value="max" ${col.aggregation === 'max' ? 'selected' : ''}>Max</option>
+                    <option value="count" ${col.aggregation === 'count' ? 'selected' : ''}>Count</option>
+                </select>
+            </div>
+        `).join('');
+    }
+    
+    function setAggregation(field, agg) {
+        const col = reportState.columns.find(c => c.field === field);
+        if (col) {
+            col.aggregation = agg || null;
+            renderSelectedColumns();
+        }
+    }
+    
+    function updateColumnCount() {
+        document.getElementById('colCount').textContent = reportState.columns.length;
+    }
+    
+    function switchTab(tabName, btn) {
+        document.querySelectorAll('.builder-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+    
+    let filterIndex = 0;
+    
+    function addFilter() {
+        filterIndex++;
+        const container = document.getElementById('filterContainer');
+        if (container.querySelector('p')) container.innerHTML = '';
+        
+        const allFields = [
+            { field: 'EmployeeCode', type: 'string' },
+            { field: 'EmployeeName', type: 'string' },
+            { field: 'Department', type: 'string' },
+            { field: 'Section', type: 'string' },
+            { field: 'Status', type: 'string' },
+            { field: 'ProcessName', type: 'string' },
+            { field: 'SkillLevel', type: 'number' },
+            { field: 'ExpiryDate', type: 'date' }
+        ];
+        
+        const filterHtml = `
+            <div class="filter-row" id="filter-${filterIndex}">
+                <select class="filter-field" onchange="updateFilterOperators(${filterIndex})">
+                    <option value="">Select field...</option>
+                    ${allFields.map(f => `<option value="${f.field}" data-type="${f.type}">${f.field}</option>`).join('')}
+                </select>
+                <select class="filter-operator" id="operator-${filterIndex}">
+                    <option value="equals">Equals</option>
+                    <option value="contains">Contains</option>
+                    <option value="startsWith">Starts with</option>
+                </select>
+                <input type="text" class="filter-value" placeholder="Value">
+                <button class="btn btn-sm btn-outline-danger" onclick="removeFilter(${filterIndex})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        if (container.children.length > 0) {
+            container.insertAdjacentHTML('beforeend', `
+                <div class="filter-connector">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-secondary btn-sm active">AND</button>
+                        <button class="btn btn-outline-secondary btn-sm">OR</button>
+                    </div>
+                </div>
+            `);
+        }
+        
+        container.insertAdjacentHTML('beforeend', filterHtml);
+    }
+    
+    function updateFilterOperators(index) {
+        const field = document.querySelector(`#filter-${index} .filter-field`);
+        const operator = document.getElementById(`operator-${index}`);
+        const type = field.options[field.selectedIndex].dataset.type;
+        
+        let options = '';
+        if (type === 'string') {
+            options = `<option value="equals">Equals</option><option value="notEquals">Not Equals</option>
+                       <option value="contains">Contains</option><option value="startsWith">Starts with</option>`;
+        } else if (type === 'number') {
+            options = `<option value="equals">Equals</option><option value="greaterThan">Greater than</option>
+                       <option value="lessThan">Less than</option><option value="between">Between</option>`;
+        } else if (type === 'date') {
+            options = `<option value="equals">Equals</option><option value="before">Before</option>
+                       <option value="after">After</option><option value="between">Between</option>`;
+        }
+        
+        operator.innerHTML = options;
+    }
+    
+    function removeFilter(index) {
+        const filter = document.getElementById(`filter-${index}`);
+        const connector = filter.previousElementSibling;
+        if (connector && connector.classList.contains('filter-connector')) connector.remove();
+        filter.remove();
+        
+        const container = document.getElementById('filterContainer');
+        if (container.children.length === 0) {
+            container.innerHTML = '<p class="text-muted">No filters applied. Click "Add Filter" to create one.</p>';
+        }
+    }
+    
+    let sortIndex = 0;
+    
+    function addSort() {
+        sortIndex++;
+        const container = document.getElementById('sortContainer');
+        if (container.querySelector('p')) container.innerHTML = '';
+        
+        const sortHtml = `
+            <div class="config-row" id="sort-${sortIndex}">
+                <select class="sort-field">
+                    <option value="">Select field...</option>
+                    ${reportState.columns.map(c => `<option value="${c.field}">${c.field}</option>`).join('')}
+                </select>
+                <select class="sort-direction">
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                </select>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeSort(${sortIndex})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', sortHtml);
+    }
+    
+    function removeSort(index) {
+        document.getElementById(`sort-${index}`).remove();
+        const container = document.getElementById('sortContainer');
+        if (container.children.length === 0) {
+            container.innerHTML = '<p class="text-muted">No sorting applied. Data will be shown in default order.</p>';
+        }
+    }
+    
+    function toggleCategory(header) {
+        const fieldList = header.nextElementSibling;
+        const icon = header.querySelector('.bi-chevron-down, .bi-chevron-right');
+        
+        if (fieldList.style.display === 'none') {
+            fieldList.style.display = 'flex';
+            icon.classList.replace('bi-chevron-right', 'bi-chevron-down');
+        } else {
+            fieldList.style.display = 'none';
+            icon.classList.replace('bi-chevron-down', 'bi-chevron-right');
+        }
+    }
+    
+    function filterFields(query) {
+        document.querySelectorAll('.field-item').forEach(item => {
+            item.style.display = item.dataset.field.toLowerCase().includes(query.toLowerCase()) ? 'flex' : 'none';
+        });
+    }
+    
+    function loadTemplate(templateName) {
+        clearBuilder();
+        
+        const templates = {
+            'employee-skills': {
+                columns: [
+                    { field: 'EmployeeCode', type: 'string' },
+                    { field: 'EmployeeName', type: 'string' },
+                    { field: 'Department', type: 'string' },
+                    { field: 'Section', type: 'string' },
+                    { field: 'TotalSkills', type: 'number' },
+                    { field: 'ActiveSkills', type: 'number' },
+                    { field: 'ExpiredSkills', type: 'number' }
+                ],
+                grouping: [],
+                title: 'Employee Skills Summary'
+            },
+            'section-summary': {
+                columns: [
+                    { field: 'Department', type: 'string' },
+                    { field: 'Section', type: 'string' },
+                    { field: 'TotalSkills', type: 'number', aggregation: 'sum' },
+                    { field: 'ActiveSkills', type: 'number', aggregation: 'sum' }
+                ],
+                grouping: ['Department', 'Section'],
+                title: 'Section Summary Report'
+            },
+            'skill-matrix': {
+                columns: [
+                    { field: 'Department', type: 'string' },
+                    { field: 'ProcessName', type: 'string' },
+                    { field: 'SkillLevel', type: 'number', aggregation: 'avg' }
+                ],
+                grouping: ['Department'],
+                title: 'Skill Matrix Report'
+            },
+            'expiring-certs': {
+                columns: [
+                    { field: 'EmployeeCode', type: 'string' },
+                    { field: 'EmployeeName', type: 'string' },
+                    { field: 'ProcessName', type: 'string' },
+                    { field: 'ExpiryDate', type: 'date' },
+                    { field: 'DaysUntilExpiry', type: 'number' }
+                ],
+                grouping: [],
+                title: 'Expiring Certifications Report'
+            },
+            'training-progress': {
+                columns: [
+                    { field: 'EmployeeName', type: 'string' },
+                    { field: 'TrainingName', type: 'string' },
+                    { field: 'TrainingDate', type: 'date' },
+                    { field: 'TrainingResult', type: 'string' },
+                    { field: 'Score', type: 'number' }
+                ],
+                grouping: [],
+                title: 'Training Progress Report'
+            },
+            'custom': { columns: [], grouping: [], title: 'Custom Report' }
+        };
+        
+        const template = templates[templateName];
+        if (template) {
+            reportState.columns = [...template.columns];
+            reportState.grouping = [...template.grouping];
+            document.getElementById('reportTitle').value = template.title;
+            renderSelectedColumns();
+            renderSelectedGrouping();
+            updateColumnCount();
+        }
+    }
+    
+    async function runReport() {
+        if (reportState.columns.length === 0) {
+            alert('Please select at least one column');
+            return;
+        }
+        
+        document.getElementById('loadingOverlay').classList.remove('hidden');
+        
+        const filters = [];
+        document.querySelectorAll('.filter-row').forEach(row => {
+            const field = row.querySelector('.filter-field').value;
+            const operator = row.querySelector('.filter-operator').value;
+            const value = row.querySelector('.filter-value').value;
+            if (field && value) filters.push({ field, operator, value });
+        });
+        
+        const sorting = [];
+        document.querySelectorAll('.config-row[id^="sort-"]').forEach(row => {
+            const field = row.querySelector('.sort-field').value;
+            const direction = row.querySelector('.sort-direction').value;
+            if (field) sorting.push({ field, direction });
+        });
+        
+        try {
+            const response = await fetch('/Reports/ReportBuilder?handler=RunReport', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    columns: reportState.columns,
+                    filters: filters,
+                    grouping: reportState.grouping,
+                    sorting: sorting,
+                    options: {
+                        rowsPerPage: parseInt(document.getElementById('rowsPerPage').value),
+                        showSubtotals: document.getElementById('showSubtotals').checked,
+                        showGrandTotal: document.getElementById('showGrandTotal').checked
+                    }
+                })
+            });
+            
+            const result = await response.json();
+            reportState.data = result.data || [];
+            renderPreviewTable(result);
+            updateStats(result);
+        } catch (error) {
+            console.error('Error running report:', error);
+            alert('Error running report. Please try again.');
+        } finally {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+    }
+    
+    function renderPreviewTable(result) {
+        const container = document.getElementById('previewTable');
+        
+        if (!result.data || result.data.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-5">
+                <i class="bi bi-inbox display-4"></i>
+                <p class="mt-2">No data found matching your criteria</p>
+            </div>`;
+            return;
+        }
+        
+        const showRowNumbers = document.getElementById('showRowNumbers').checked;
+        
+        let html = '<table class="preview-table"><thead><tr>';
+        if (showRowNumbers) html += '<th style="width:50px">#</th>';
+        reportState.columns.forEach(col => {
+            html += `<th>${col.field}${col.aggregation ? ` (${col.aggregation})` : ''}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        result.data.forEach((row, idx) => {
+            html += '<tr>';
+            if (showRowNumbers) html += `<td>${idx + 1}</td>`;
+            reportState.columns.forEach(col => {
+                let value = row[col.field] ?? row[col.field.toLowerCase()] ?? '';
+                if (col.type === 'date' && value) value = new Date(value).toLocaleDateString();
+                else if (col.type === 'number' && value !== '') value = Number(value).toLocaleString();
+                html += `<td>${value}</td>`;
+            });
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        document.getElementById('rowCount').textContent = result.data.length;
+    }
+    
+    function updateStats(result) {
+        document.getElementById('summaryStats').style.display = 'flex';
+        document.getElementById('statTotal').textContent = result.totalRecords || result.data?.length || 0;
+        document.getElementById('statUnique').textContent = result.uniqueEmployees || 0;
+        document.getElementById('statAvg').textContent = result.avgValue?.toFixed(2) || '0';
+    }
+    
+    function setPreviewMode(mode, btn) {
+        const tableView = document.getElementById('previewTable');
+        const chartView = document.getElementById('previewChart');
+        
+        if (mode === 'table') {
+            tableView.style.display = 'block';
+            chartView.style.display = 'none';
+        } else {
+            tableView.style.display = 'none';
+            chartView.style.display = 'block';
+            renderChart();
+        }
+        
+        document.querySelectorAll('.preview-section .btn-group .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    
+    function renderChart() {
+        if (reportState.data.length === 0) return;
+        
+        const ctx = document.getElementById('reportChart').getContext('2d');
+        if (reportChart) reportChart.destroy();
+        
+        const labels = [];
+        const values = [];
+        
+        if (reportState.grouping.length > 0) {
+            const groupField = reportState.grouping[0];
+            const grouped = {};
+            reportState.data.forEach(row => {
+                const key = row[groupField] || row[groupField.toLowerCase()] || 'Unknown';
+                grouped[key] = (grouped[key] || 0) + 1;
+            });
+            Object.entries(grouped).forEach(([key, val]) => {
+                labels.push(key);
+                values.push(val);
+            });
+        } else {
+            const stringCol = reportState.columns.find(c => c.type === 'string');
+            if (stringCol) {
+                const grouped = {};
+                reportState.data.forEach(row => {
+                    const key = row[stringCol.field] || row[stringCol.field.toLowerCase()] || 'Unknown';
+                    grouped[key] = (grouped[key] || 0) + 1;
+                });
+                Object.entries(grouped).slice(0, 10).forEach(([key, val]) => {
+                    labels.push(key);
+                    values.push(val);
+                });
+            }
+        }
+        
+        reportChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Count',
+                    data: values,
+                    backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 
+                                      'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)',
+                                      'rgba(139, 92, 246, 0.8)', 'rgba(236, 72, 153, 0.8)'],
+                    borderRadius: 6
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+    
+    function clearBuilder() {
+        reportState.columns = [];
+        reportState.filters = [];
+        reportState.grouping = [];
+        reportState.sorting = [];
+        reportState.data = [];
+        
+        renderSelectedColumns();
+        renderSelectedGrouping();
+        updateColumnCount();
+        
+        document.getElementById('filterContainer').innerHTML = 
+            '<p class="text-muted">No filters applied. Click "Add Filter" to create one.</p>';
+        document.getElementById('sortContainer').innerHTML = 
+            '<p class="text-muted">No sorting applied. Data will be shown in default order.</p>';
+        document.getElementById('previewTable').innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-table display-4"></i>
+                <p class="mt-2">Configure your report and click "Run Report" to see results</p>
+            </div>
+        `;
+        document.getElementById('summaryStats').style.display = 'none';
+        document.getElementById('rowCount').textContent = '0';
+        document.getElementById('reportTitle').value = '';
+        document.getElementById('reportDescription').value = '';
+    }
+    
+    async function exportReport(format) {
+        if (reportState.data.length === 0) {
+            alert('Please run the report first');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/Reports/ReportBuilder?handler=Export&format=${format}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    columns: reportState.columns,
+                    data: reportState.data,
+                    title: document.getElementById('reportTitle').value || 'Custom Report',
+                    includeHeaders: document.getElementById('exportIncludeHeaders').checked,
+                    includeSummary: document.getElementById('exportIncludeSummary').checked
+                })
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `report_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format}`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+            
+            bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Export failed. Please try again.');
+        }
+    }
+    
+    function saveReport() {
+        if (reportState.columns.length === 0) {
+            alert('Please add at least one column before saving');
+            return;
+        }
+        new bootstrap.Modal(document.getElementById('saveReportModal')).show();
+    }
+    
+    function confirmSaveReport() {
+        const name = document.getElementById('saveReportName').value;
+        if (!name) {
+            alert('Please enter a report name');
+            return;
+        }
+        
+        const report = {
+            id: Date.now(),
+            name: name,
+            description: document.getElementById('saveReportDescription').value,
+            isPublic: document.getElementById('saveAsPublic').checked,
+            columns: reportState.columns,
+            filters: reportState.filters,
+            grouping: reportState.grouping,
+            sorting: reportState.sorting,
+            options: reportState.options,
+            createdAt: new Date().toISOString()
+        };
+        
+        const saved = JSON.parse(localStorage.getItem('savedReports') || '[]');
+        saved.push(report);
+        localStorage.setItem('savedReports', JSON.stringify(saved));
+        
+        loadSavedReports();
+        bootstrap.Modal.getInstance(document.getElementById('saveReportModal')).hide();
+        alert('Report saved successfully!');
+    }
+    
+    function loadSavedReports() {
+        const saved = JSON.parse(localStorage.getItem('savedReports') || '[]');
+        const container = document.getElementById('savedReportsList');
+        
+        if (saved.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">No saved reports found</p>';
+            return;
+        }
+        
+        container.innerHTML = saved.map(report => `
+            <div class="saved-report-item" onclick="loadReport(${report.id})">
+                <div>
+                    <strong>${report.name}</strong>
+                    <small class="d-block text-muted">${new Date(report.createdAt).toLocaleDateString()}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteReport(${report.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+    
+    function loadReport(id) {
+        const saved = JSON.parse(localStorage.getItem('savedReports') || '[]');
+        const report = saved.find(r => r.id === id);
+        
+        if (report) {
+            reportState.columns = report.columns || [];
+            reportState.filters = report.filters || [];
+            reportState.grouping = report.grouping || [];
+            reportState.sorting = report.sorting || [];
+            reportState.options = report.options || {};
+            
+            renderSelectedColumns();
+            renderSelectedGrouping();
+            updateColumnCount();
+            
+            document.getElementById('reportTitle').value = report.name;
+            document.getElementById('reportDescription').value = report.description || '';
+            
+            bootstrap.Modal.getInstance(document.getElementById('loadReportModal')).hide();
+        }
+    }
+    
+    function deleteReport(id) {
+        if (confirm('Delete this report?')) {
+            let saved = JSON.parse(localStorage.getItem('savedReports') || '[]');
+            saved = saved.filter(r => r.id !== id);
+            localStorage.setItem('savedReports', JSON.stringify(saved));
+            loadSavedReports();
+        }
+    }
+    
+    async function loadDepartments() {
+        try {
+            const response = await fetch('/api/meta/departments');
+            const departments = await response.json();
+            const select = document.getElementById('quickFilterDept');
+            departments.forEach(dept => {
+                select.insertAdjacentHTML('beforeend', `<option value="${dept}">${dept}</option>`);
+            });
+        } catch (error) {
+            console.error('Error loading departments:', error);
+        }
+    }
+    
+    function applyQuickFilter() {
+        // Quick filters integration
+    }
+    
+    function previewReport() { runReport(); }
+</script>
+}
+

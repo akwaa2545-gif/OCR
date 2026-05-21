@@ -1,0 +1,415 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.DisqualificationReportModel
+@{
+    ViewData["Title"] = "Operator Disqualification Report";
+    ViewData["ActivePage"] = "DisqualificationReport";
+}
+
+<div class="page-header">
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+            <a class="btn btn-outline-secondary" href="/Dashboard">&larr; Back to Dashboard</a>
+            <h1 class="page-title" style="margin:0">📋 Operator Disqualification (Skill)</h1>
+        </div>
+        <p class="page-subtitle">Monthly disqualification tracking by process and section</p>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-body">
+        <form method="post" id="filterForm">
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Filter by Process</label>
+                    <div class="multi-dropdown-container">
+                        <button type="button" class="multi-dropdown-toggle" id="processDropdownToggle">
+                            <span id="processSelectionText">All Processes Selected</span>
+                            <i class="bi bi-chevron-down ms-auto"></i>
+                        </button>
+                        <div class="multi-dropdown-panel" id="processDropdownPanel">
+                            <div class="multi-dropdown-actions">
+                                <button type="button" class="btn btn-sm btn-link" id="processSelectAll">Select All</button>
+                                <button type="button" class="btn btn-sm btn-link" id="processClearAll">Clear All</button>
+                            </div>
+                            <div class="multi-dropdown-items" id="processCheckboxList">
+                                @foreach (var process in Model.AvailableProcesses.OrderBy(p => p))
+                                {
+                                    var isChecked = Model.SelectedProcesses == null || !Model.SelectedProcesses.Any() || Model.SelectedProcesses.Contains(process);
+                                    <label class="multi-dropdown-item">
+                                        <input type="checkbox" name="SelectedProcesses" value="@process" 
+                                               @(isChecked ? "checked" : "") class="process-checkbox">
+                                        <span>@process</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel"></i> Apply Filter
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div style="overflow-x:auto;">
+            <table class="disqualification-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="header-cell section-col">Process</th>
+                        <th colspan="@Model.Months.Count" class="header-cell year-header">Operator disqualification (skill)</th>
+                        <th rowspan="2" class="header-cell verifier-col">Verifier</th>
+                    </tr>
+                    <tr>
+                        @foreach (var month in Model.Months)
+                        {
+                            <th class="month-header">@month</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sectionGroup in Model.ProcessGroups.OrderBy(g => g.Key))
+                    {
+                        var section = sectionGroup.Key;
+                        var processes = sectionGroup.Value;
+                        var isFirstRow = true;
+
+                        @foreach (var process in processes.OrderBy(p => p))
+                        {
+                            var key = $"{section}|{process}";
+                            var rowData = Model.DisqualificationData.ContainsKey(key) ? Model.DisqualificationData[key] : new Dictionary<string, int>();
+
+                            <tr>
+                                @if (isFirstRow)
+                                {
+                                    <td class="section-cell" rowspan="@processes.Count">@(section)</td>
+                                    isFirstRow = false;
+                                }
+                                <td class="process-cell">@process</td>
+                                @foreach (var month in Model.Months)
+                                {
+                                    var count = rowData.ContainsKey(month) ? rowData[month] : 0;
+                                    <td class="data-cell @(count > 0 ? "has-value" : "")">@(count > 0 ? count.ToString() : "")</td>
+                                }
+                                <td class="verifier-cell">-</td>
+                            </tr>
+                        }
+                    }
+                    
+                    <!-- Summary rows -->
+                    <tr class="summary-row">
+                        <td colspan="2" class="summary-label">Disqualification ( Process )</td>
+                        @foreach (var month in Model.Months)
+                        {
+                            var total = Model.MonthlyTotals.ContainsKey(month) ? Model.MonthlyTotals[month] : 0;
+                            <td class="summary-data">@total</td>
+                        }
+                        <td class="summary-data">Exclude resign & Promote</td>
+                    </tr>
+                    <tr class="summary-row">
+                        <td colspan="2" class="summary-label">Total certification ( Process )</td>
+                        @foreach (var month in Model.Months)
+                        {
+                            var total = Model.CertificationTotals.ContainsKey(month) ? Model.CertificationTotals[month] : 0;
+                            <td class="summary-data">@total</td>
+                        }
+                        <td></td>
+                    </tr>
+                    <tr class="summary-row ratio-row">
+                        <td colspan="2" class="summary-label">Disqualification ratio</td>
+                        @foreach (var month in Model.Months)
+                        {
+                            var ratio = Model.DisqualificationRatios.ContainsKey(month) ? Model.DisqualificationRatios[month] : 0;
+                            <td class="summary-data">@ratio.ToString("0.00")</td>
+                        }
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;">
+            <button class="btn btn-success" onclick="exportToExcel()">
+                <i class="bi bi-file-earmark-excel"></i> Export to Excel
+            </button>
+            <button class="btn btn-primary" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print Report
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Multi-dropdown Styles */
+    .multi-dropdown-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .multi-dropdown-toggle {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        background-color: #fff;
+        color: #495057;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .multi-dropdown-toggle:hover {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    .multi-dropdown-panel {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 0.25rem;
+        background-color: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+        z-index: 1050;
+        min-width: 320px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .multi-dropdown-panel.show {
+        display: block;
+    }
+
+    .multi-dropdown-actions {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #e9ecef;
+        background-color: #f8f9fa;
+    }
+
+    .multi-dropdown-actions .btn-link {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .multi-dropdown-items {
+        padding: 0.5rem 0;
+    }
+
+    .multi-dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        user-select: none;
+        margin: 0;
+    }
+
+    .multi-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .multi-dropdown-item input[type="checkbox"] {
+        margin-right: 0.75rem;
+        cursor: pointer;
+    }
+
+    /* Table Styles */
+    .disqualification-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .header-cell {
+        background: #3b4b87;
+        color: white;
+        padding: 0.75rem 0.5rem;
+        text-align: center;
+        font-weight: 600;
+        border: 1px solid #2d3a6b;
+    }
+
+    .year-header {
+        background: #3b4b87;
+        font-size: 1rem;
+    }
+
+    .month-header {
+        background: #4a5fa0;
+        color: white;
+        padding: 0.5rem 0.4rem;
+        text-align: center;
+        font-weight: 600;
+        border: 1px solid #3b4b87;
+        min-width: 65px;
+        font-size: 0.8rem;
+    }
+
+    .section-col {
+        min-width: 120px;
+    }
+
+    .verifier-col {
+        min-width: 100px;
+    }
+
+    .section-cell {
+        background: #f8f9fa;
+        font-weight: 600;
+        padding: 0.6rem;
+        text-align: center;
+        vertical-align: middle;
+        border: 1px solid #dee2e6;
+        color: #2c3e50;
+    }
+
+    .process-cell {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        color: #2c3e50;
+    }
+
+    .data-cell {
+        padding: 0.5rem;
+        text-align: center;
+        border: 1px solid #e9ecef;
+        background: #f8f9fa;
+        color: #6c757d;
+        min-width: 50px;
+    }
+
+    .data-cell.has-value {
+        background: #fff;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .verifier-cell {
+        padding: 0.5rem;
+        text-align: center;
+        border: 1px solid #dee2e6;
+        background: #f8f9fa;
+        color: #6c757d;
+    }
+
+    .summary-row {
+        background: #3b4b87;
+        color: white;
+        font-weight: 600;
+    }
+
+    .summary-label {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border: 1px solid #2d3a6b;
+    }
+
+    .summary-data {
+        padding: 0.75rem 0.5rem;
+        text-align: center;
+        border: 1px solid #2d3a6b;
+    }
+
+    .ratio-row {
+        background: #2d3a6b;
+    }
+
+    @@media print {
+        .btn, .page-header a {
+            display: none;
+        }
+        .disqualification-table {
+            font-size: 0.7rem;
+        }
+        .month-header {
+            font-size: 0.65rem;
+            padding: 0.3rem 0.2rem;
+        }
+    }
+</style>
+
+<script>
+    // Multi-dropdown functionality for process filter
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('processDropdownToggle');
+        const panel = document.getElementById('processDropdownPanel');
+        const selectAll = document.getElementById('processSelectAll');
+        const clearAll = document.getElementById('processClearAll');
+        const checkboxes = document.querySelectorAll('.process-checkbox');
+        const selectionText = document.getElementById('processSelectionText');
+
+        // Toggle dropdown
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            panel.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!toggle.contains(e.target) && !panel.contains(e.target)) {
+                panel.classList.remove('show');
+            }
+        });
+
+        // Select all
+        selectAll.addEventListener('click', function(e) {
+            e.preventDefault();
+            checkboxes.forEach(cb => cb.checked = true);
+            updateSelectionText();
+        });
+
+        // Clear all
+        clearAll.addEventListener('click', function(e) {
+            e.preventDefault();
+            checkboxes.forEach(cb => cb.checked = false);
+            updateSelectionText();
+        });
+
+        // Update selection text
+        function updateSelectionText() {
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            if (checked.length === 0) {
+                selectionText.textContent = 'No Processes Selected';
+            } else if (checked.length === checkboxes.length) {
+                selectionText.textContent = 'All Processes Selected';
+            } else {
+                selectionText.textContent = checked.length + ' Process(es) Selected';
+            }
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateSelectionText);
+        });
+
+        updateSelectionText();
+    });
+
+    function exportToExcel() {
+        const table = document.querySelector('.disqualification-table');
+        const html = table.outerHTML;
+        const url = 'data:application/vnd.ms-excel,' + encodeURIComponent(html);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'Disqualification_Report_' + new Date().toISOString().slice(0,10) + '.xls';
+        link.click();
+    }
+</script>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="OTD minimalist logo">
+  <!--
+    Operator's Training Database (OTD) - Minimalist Monogram Logo
+    - Flat, geometric shapes (circle + bars) suggest O, T, and D
+    - Limited palette: brand orange, dark navy, and white/transparent
+    - Clean, strong sans-serif wordmark below icon
+  -->
+
+  <!-- Color palette -->
+  <!-- Brand orange -->
+  <!-- #FF6A1A -->
+  <!-- Dark navy -->
+  <!-- #111827 -->
+
+  <!-- Centered icon group -->
+  <g transform="translate(100,96)">
+    <!-- Outer O ring -->
+    <circle cx="0" cy="0" r="70" fill="none" stroke="#FF6A1A" stroke-width="14" />
+
+    <!-- T: horizontal bar and vertical stem -->
+    <g stroke="#111827" stroke-width="14" stroke-linecap="round">
+      <!-- Top bar of T -->
+      <line x1="-36" y1="-26" x2="18" y2="-26" />
+      <!-- Vertical stem of T -->
+      <line x1="0" y1="-26" x2="0" y2="36" />
+    </g>
+
+    <!-- D: bold right-side shape -->
+    <path d="M8 -40
+             L26 -40
+             A52 52 0 0 1 26 40
+             L8 40 Z" 
+          fill="#111827" />
+
+    <!-- Certification check mark at bottom-right of ring -->
+    <g transform="translate(52,44)">
+      <circle cx="0" cy="0" r="16" fill="#ffffff" stroke="#FF6A1A" stroke-width="3" />
+      <path d="M-7,1 L-2,8 L8,-6" 
+            fill="none" 
+            stroke="#FF6A1A" 
+            stroke-width="4" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+    <g font-family="Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" 
+      font-weight="700" 
+      fill="#ffffff" 
+     text-anchor="middle">
+    <text x="100" y="180" font-size="22">OTD</text>
+  </g>
+</svg>

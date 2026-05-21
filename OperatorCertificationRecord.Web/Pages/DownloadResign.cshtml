@@ -1,0 +1,491 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.DownloadResignModel
+@{
+    ViewData["Title"] = "Resignation Report";
+    ViewData["ActivePage"] = "DownloadResign";
+}
+
+<style>
+    /* ===== Resignation Report Page ===== */
+
+    /* Hero */
+    .rs-hero {
+        background: linear-gradient(120deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        border-left: 4px solid #64748b;
+    }
+    .rs-hero-badge { display:inline-flex;align-items:center;gap:0.4rem;font-size:0.72rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.4rem; }
+    .rs-hero-title { font-size:1.6rem;font-weight:800;color:#f8fafc;margin:0 0 0.3rem;line-height:1.2; }
+    .rs-hero-sub { font-size:0.88rem;color:#94a3b8;margin:0; }
+    .rs-back-btn { display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1.1rem;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.15);border-radius:9px;color:#e2e8f0;font-weight:600;font-size:0.88rem;text-decoration:none;transition:background 0.15s,color 0.15s;white-space:nowrap; }
+    .rs-back-btn:hover { background:rgba(100,116,139,0.25);color:#cbd5e1;border-color:rgba(100,116,139,0.4); }
+
+    /* Cards */
+    .rs-card { background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.07);padding:1.5rem;border:1px solid #f1f5f9;margin-bottom:1.25rem; }
+
+    /* Section label */
+    .rs-section-label { font-size:0.7rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#475569;border-bottom:2px solid #f1f5f9;padding-bottom:0.35rem;margin-bottom:0.85rem;display:flex;align-items:center;gap:0.4rem; }
+
+    /* Filter form */
+    .rs-filter-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;align-items:end; }
+    .rs-apply-col .rs-btn { width:100%; }
+    .rs-field { display:flex;flex-direction:column;gap:0.28rem; }
+    .rs-field-label { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#64748b; }
+    .rs-input { width:100%;padding:0.48rem 0.75rem;font-size:0.91rem;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#1e293b;font-family:inherit;outline:none;transition:border-color 0.16s,box-shadow 0.16s; }
+    .rs-input:focus { border-color:#475569;box-shadow:0 0 0 3px rgba(71,85,105,0.1);background:#fff; }
+    select.rs-input { appearance: none; -webkit-appearance: none; background-color: #f8fafc; }
+    .rs-search-row { display:flex;align-items:center;gap:0.6rem;margin-top:0.85rem;flex-wrap:wrap; }
+
+    /* Buttons */
+    .rs-btn { display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;padding:0.5rem 1rem;border-radius:9px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:opacity 0.14s,transform 0.1s,box-shadow 0.14s;font-family:inherit;white-space:nowrap; }
+    .rs-btn:hover { opacity:0.85;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.12); }
+    .rs-btn-primary { background:#475569;color:#fff; }
+    .rs-btn-outline { background:transparent;color:#475569;border:1.5px solid #475569; }
+    .rs-btn-sm { padding:0.3rem 0.7rem !important;font-size:0.8rem !important; }
+
+    /* Results header */
+    .rs-results-header { display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap; }
+    .rs-count-badge { display:inline-flex;align-items:center;padding:0.28rem 0.75rem;background:#0f172a;color:#fff;border-radius:999px;font-size:0.82rem;font-weight:700; }
+
+    /* Table */
+    .rs-table-wrap { overflow:auto;max-height:65vh;border-radius:10px;border:1.5px solid #f1f5f9; }
+    .rs-table { border-collapse:collapse;width:100%;font-size:0.875rem; }
+    .rs-table thead th { position:sticky;top:0;background:#0f172a;color:#f8fafc;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:0.65rem 1rem;border-bottom:2px solid #64748b;white-space:nowrap;z-index:2; }
+    .rs-table tbody td { padding:0.65rem 1rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle; }
+    .rs-table tbody tr:hover td { background:#f8fafc !important; }
+    .rs-table tbody tr:last-child td { border-bottom:none; }
+    .rs-link { color:#475569;font-weight:700;text-decoration:none; }
+    .rs-link:hover { text-decoration:underline; }
+    .rs-date-cell { font-weight:700;color:#334155;white-space:nowrap; }
+
+    /* Empty state */
+    .rs-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1rem;gap:0.75rem;text-align:center; }
+    .rs-empty-icon { font-size:2.5rem;color:#cbd5e1; }
+    .rs-empty-title { font-size:1rem;font-weight:700;color:#1e293b; }
+    .rs-empty-text { font-size:0.88rem;color:#94a3b8; }
+
+    @@media (max-width: 768px) { .rs-filter-grid { grid-template-columns:1fr 1fr; } }
+    @@media (max-width: 480px) { .rs-filter-grid { grid-template-columns:1fr; } }
+</style>
+
+<!-- Hero -->
+<div class="rs-hero">
+    <div>
+        <div class="rs-hero-badge"><i class="bi bi-box-arrow-right"></i> Resignation Tracker</div>
+        <h1 class="rs-hero-title">Resignation Report</h1>
+        <p class="rs-hero-sub">View and export operator resignation records by date range</p>
+    </div>
+    <div>
+        <a class="rs-back-btn" href="/Dashboard"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- Filter Card -->
+<div class="rs-card">
+    <div class="rs-section-label"><i class="bi bi-funnel-fill"></i> Filters</div>
+    <form method="get">
+        <div class="rs-filter-grid">
+            <div class="rs-field">
+                <label class="rs-field-label">From Date</label>
+                <input type="date" name="start" class="rs-input" value="@Model.Start?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="rs-field">
+                <label class="rs-field-label">To Date</label>
+                <input type="date" name="end" class="rs-input" value="@Model.End?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="rs-field">
+                <label class="rs-field-label">Department</label>
+                <select name="dept" class="rs-input">
+                    <option value="">All Departments</option>
+                    @if (Model.Departments != null) {
+                        foreach (var d in Model.Departments) {
+                            <option value="@d.DeptName" selected="@(Model.Dept == d.DeptName ? "selected" : null)">@d.DeptName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="rs-field">
+                <label class="rs-field-label">Section</label>
+                <select name="sect" class="rs-input">
+                    <option value="">All Sections</option>
+                    @if (Model.Sections != null) {
+                        foreach (var s in Model.Sections) {
+                            <option value="@s.SectName" selected="@(Model.Sect == s.SectName ? "selected" : null)">@s.SectName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="rs-field rs-apply-col">
+                <label class="rs-field-label">&nbsp;</label>
+                <button type="submit" class="rs-btn rs-btn-primary"><i class="bi bi-search"></i> Apply</button>
+            </div>
+        </div>
+
+        <div class="rs-search-row">
+            <input class="rs-input" id="rsSearch" placeholder="Filter by employee ID or name…" style="flex:1;" />
+            @if (Model.Start.HasValue && Model.End.HasValue) {
+                <a class="rs-btn rs-btn-outline rs-btn-sm" href="/api/download/resign?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=xlsx"><i class="bi bi-file-earmark-excel"></i> XLSX</a>
+                <a class="rs-btn rs-btn-outline rs-btn-sm" href="/api/download/resign?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=csv"><i class="bi bi-file-earmark-text"></i> CSV</a>
+            }
+        </div>
+    </form>
+</div>
+
+<!-- Results Card -->
+<div class="rs-card">
+    <div class="rs-results-header">
+        <div class="rs-section-label" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><i class="bi bi-table"></i> Results</div>
+        <span class="rs-count-badge">@Model.ResignCount</span>
+        @if (Model.Start.HasValue && Model.End.HasValue) {
+            <div style="margin-left:auto;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <a class="rs-btn rs-btn-outline rs-btn-sm" href="/api/download/resign?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=xlsx">Export XLSX</a>
+                <a class="rs-btn rs-btn-outline rs-btn-sm" href="/api/download/resign?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=csv">Export CSV</a>
+            </div>
+        }
+    </div>
+
+    @if (!Model.Start.HasValue || !Model.End.HasValue) {
+        <div class="rs-empty">
+            <div class="rs-empty-icon"><i class="bi bi-calendar3"></i></div>
+            <div class="rs-empty-title">Select a date range to view records</div>
+            <div class="rs-empty-text">Use the filters above to set Start and End dates, then click Apply.</div>
+        </div>
+    } else if (Model.ResignList != null && Model.ResignList.Count > 0) {
+        <div class="rs-table-wrap">
+            <table class="rs-table" id="rsTable">
+                <thead>
+                    <tr>
+                        <th>EmpCode</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Section</th>
+                        <th>Process</th>
+                        <th>Resign Date</th>
+                        <th>Resigned By</th>
+                        <th style="width:100px;text-align:right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.ResignList) {
+                        <tr>
+                            <td><a class="rs-link" href="/ViewUser?empCode=@r.EmpCode">@r.EmpCode</a></td>
+                            <td>@(string.IsNullOrWhiteSpace(r.FirstNameEng) ? r.EmpCode : r.FirstNameEng + " " + r.LastNameEng)</td>
+                            <td>@r.DeptName</td>
+                            <td>@r.SectName</td>
+                            <td>@r.Process</td>
+                            <td><span class="rs-date-cell">@r.ResignDate?.ToString("dd MMM yyyy")</span></td>
+                            <td>@r.ResignBy</td>
+                            <td style="text-align:right">
+                                <a class="btn btn-sm btn-primary" href="/ViewUser?empCode=@r.EmpCode"><i class="bi bi-eye"></i> View</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    } else {
+        <div class="rs-empty">
+            <div class="rs-empty-icon"><i class="bi bi-inbox"></i></div>
+            <div class="rs-empty-title">No resignation records found</div>
+            <div class="rs-empty-text">No records match the selected date range and filters.</div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const input = document.getElementById('rsSearch');
+            const table = document.getElementById('rsTable');
+            if (!input || !table) return;
+            input.addEventListener('input', function () {
+                const q = this.value.toLowerCase();
+                for (const row of table.querySelectorAll('tbody tr')) {
+                    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+                }
+            });
+        })();
+    </script>
+}
+
+<style>
+    .resign-shell { max-width: 980px; margin: 0 auto; }
+    .resign-grid { display: grid; grid-template-columns: 1fr 340px; gap: var(--space-6); align-items: start; }
+    &#64;media (max-width: 920px) { .resign-grid { grid-template-columns: 1fr; } }
+
+    .resign-panel {
+        background: linear-gradient(180deg, var(--white), var(--gray-50));
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-xl);
+        padding: var(--space-6);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .resign-header { display:flex; align-items:flex-end; justify-content:space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+    .resign-title { margin:0; font-size: var(--font-size-2xl); font-weight: 800; color: var(--gray-900); }
+    .resign-subtitle { margin: .25rem 0 0; color: var(--gray-500); }
+
+    .resign-row { display:flex; gap: var(--space-4); align-items:flex-end; flex-wrap: wrap; }
+    .resign-field { flex: 1; min-width: 220px; }
+    .resign-field.sm { flex: 0 0 220px; }
+
+    .resign-date-grid { display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+    &#64;media (max-width: 560px) { .resign-date-grid { grid-template-columns: 1fr; } }
+
+    .resign-actions { display:flex; gap: var(--space-3); align-items:center; margin-top: var(--space-6); }
+    .resign-actions .btn, .resign-actions .dq-download { min-height: 44px; }
+
+    .resign-aside-title { font-weight: 800; color: var(--gray-700); margin-bottom: var(--space-2); }
+    .resign-aside-help { margin-top: var(--space-4); color: var(--gray-500); font-size: var(--font-size-sm); }
+
+    .month-tree { font-size: var(--font-size-sm); color: var(--gray-700); }
+    .month-tree .hint { color: var(--gray-500); font-size: var(--font-size-sm); margin-bottom: var(--space-3); display:block; }
+    .month-tree .year-row { padding: .35rem .25rem; border-radius: var(--radius-md); }
+    .month-tree .year-row:hover { background: var(--gray-100); }
+    .month-tree .month-year { display:flex; align-items:center; gap: var(--space-2); padding: .25rem 0; }
+    .month-tree .month-list { padding-left: 1.7rem; }
+    .month-tree .month-list label { display:inline-flex; align-items:center; gap: .5rem; margin-right: .9rem; margin-bottom: .35rem; cursor:pointer; }
+    .month-tree input[type="checkbox"] { width: 16px; height: 16px; }
+</style>
+
+<div class="resign-shell">
+    <div class="resign-header">
+        <div>
+            <h1 class="resign-title">Resignation Export</h1>
+            <p class="resign-subtitle">Select a range and download resignation records.</p>
+        </div>
+        <a href="/Dashboard" class="btn btn-secondary">Back</a>
+    </div>
+
+    <div class="resign-grid">
+        <div class="resign-panel">
+            <div class="resign-row" style="margin-bottom: var(--space-5)">
+                <div class="resign-field">
+                    <label for="resignFormat" class="form-label" style="font-weight:800">Format</label>
+                    <select id="resignFormat" class="form-select" aria-label="Export format">
+                        <option value="xlsx">Excel (.xlsx)</option>
+                        <option value="csv">CSV (.csv)</option>
+                    </select>
+                </div>
+                <div class="resign-field sm">
+                    <label for="presetSelect" class="form-label" style="font-weight:800">Preset</label>
+                    <select id="presetSelect" class="form-select" aria-label="Quick presets">
+                        <option value="">— Select —</option>
+                        <option value="last30">Last 30 days</option>
+                        <option value="thisyear">Year to date</option>
+                        <option value="lastyear">Last calendar year</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="resignMonthTree" class="month-tree" aria-live="polite">
+                <span class="hint">Excel export: pick months (this sets Start/End automatically).</span>
+                <div id="resignMonthList" aria-label="Month selection"></div>
+            </div>
+
+            <div id="resignDateFields" class="resign-date-grid" style="margin-top: var(--space-5)">
+                <div>
+                    <label class="form-label" for="resignStart" style="font-weight:800">Start</label>
+                    <input id="resignStart" type="date" class="filled-input" aria-label="Start date" />
+                </div>
+                <div>
+                    <label class="form-label" for="resignEnd" style="font-weight:800">End</label>
+                    <input id="resignEnd" type="date" class="filled-input" aria-label="End date" />
+                </div>
+            </div>
+
+            <div class="resign-actions">
+                <button id="previewResignBtn" class="btn btn-outline-secondary" type="button">Preview</button>
+                <button id="downloadResignBtn" type="button" class="dq-download" disabled>Download</button>
+            </div>
+        </div>
+
+        <aside class="resign-panel" aria-label="Export summary">
+            <div class="resign-aside-title">Records</div>
+            <div style="display:flex; align-items:center; gap: var(--space-3)">
+                <div id="resignCountBadge" class="dq-count" style="min-width: 72px; text-align: center">—</div>
+                <div id="resignLoading" style="display:none; color: var(--gray-500)">Checking…</div>
+            </div>
+            <div class="resign-aside-help">Run Preview to enable Download.</div>
+        </aside>
+    </div>
+
+    <script>
+    (function(){
+        const previewBtn = document.getElementById('previewResignBtn');
+        const downloadBtn = document.getElementById('downloadResignBtn');
+        const badge = document.getElementById('resignCountBadge');
+        const loading = document.getElementById('resignLoading');
+        const formatEl = document.getElementById('resignFormat');
+        const monthTreeEl = document.getElementById('resignMonthTree');
+        const monthListContainer = document.getElementById('resignMonthList');
+        const dateFieldsEl = document.getElementById('resignDateFields');
+        const startInput = document.getElementById('resignStart');
+        const endInput = document.getElementById('resignEnd');
+        const presetSelect = document.getElementById('presetSelect');
+
+        if(!previewBtn) return;
+
+        function setBadge(count){
+            badge.style.background=''; badge.style.color='';
+            if(count === null){ badge.textContent='err'; badge.style.background='var(--danger)'; badge.style.color='var(--white)'; return; }
+            badge.textContent = String(count);
+            if(count <= 0){ badge.style.background='var(--danger)'; badge.style.color='var(--white)'; }
+            else if(count <= 10){ badge.style.background='var(--accent)'; badge.style.color='var(--gray-900)'; }
+            else { badge.style.background='var(--success)'; badge.style.color='var(--white)'; }
+        }
+
+        function buildMonthTree(startYear = 2015){
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const frag = document.createDocumentFragment();
+
+            for(let y = currentYear; y >= startYear; y--){
+                const yearRow = document.createElement('div');
+                yearRow.className = 'year-row';
+                const yearId = 'yr-' + y;
+
+                const header = document.createElement('div');
+                header.className = 'month-year';
+                header.innerHTML = `<input class="year-checkbox" type="checkbox" id="${yearId}-chk" data-year="${y}" aria-label="Select all months for ${y}" /> <div style="font-weight:800">${y}</div>`;
+                yearRow.appendChild(header);
+
+                const monthList = document.createElement('div');
+                monthList.className = 'month-list';
+                monthList.setAttribute('data-year', String(y));
+                for(let m = 0; m < 12; m++){
+                    const lbl = document.createElement('label');
+                    const id = `chk-${y}-${m+1}`;
+                    lbl.innerHTML = `<input class="month-checkbox" type="checkbox" id="${id}" data-year="${y}" data-month="${m+1}" /> <span>${months[m]}</span>`;
+                    monthList.appendChild(lbl);
+                }
+                yearRow.appendChild(monthList);
+                frag.appendChild(yearRow);
+            }
+
+            monthListContainer.innerHTML = '';
+            monthListContainer.appendChild(frag);
+
+            monthListContainer.addEventListener('change', function(ev){
+                const t = ev.target;
+                if(t.classList.contains('year-checkbox')){
+                    const y = t.getAttribute('data-year');
+                    const checked = t.checked;
+                    monthListContainer.querySelectorAll(`input.month-checkbox[data-year='${y}']`).forEach(m => m.checked = checked);
+                    syncSelectedMonthsToDates();
+                    return;
+                }
+                if(t.classList.contains('month-checkbox')){
+                    const y = t.getAttribute('data-year');
+                    const all = Array.from(monthListContainer.querySelectorAll(`input.month-checkbox[data-year='${y}']`));
+                    const yearChk = monthListContainer.querySelector(`input.year-checkbox[data-year='${y}']`);
+                    if(yearChk) yearChk.checked = all.every(x => x.checked);
+                    syncSelectedMonthsToDates();
+                    return;
+                }
+            });
+        }
+
+        function syncSelectedMonthsToDates(){
+            const checked = Array.from(monthListContainer.querySelectorAll('input.month-checkbox:checked'));
+            if(checked.length === 0){ startInput.value = ''; endInput.value = ''; return; }
+            const months = checked.map(c => ({ year: Number(c.getAttribute('data-year')), month: Number(c.getAttribute('data-month')) }));
+            months.sort((a,b) => (a.year - b.year) || (a.month - b.month));
+            const first = months[0];
+            const last = months[months.length - 1];
+            const start = new Date(first.year, first.month - 1, 1);
+            const end = new Date(last.year, last.month, 0);
+            startInput.value = start.toISOString().slice(0,10);
+            endInput.value = end.toISOString().slice(0,10);
+        }
+
+        function updateFormatUI(){
+            const isXlsx = (formatEl.value === 'xlsx');
+            monthTreeEl.hidden = !isXlsx;
+            dateFieldsEl.hidden = isXlsx;
+        }
+
+        function applyPreset(key){
+            if(key === 'last30'){
+                const end = new Date();
+                const start = new Date();
+                start.setDate(end.getDate() - 29);
+                startInput.value = start.toISOString().slice(0,10);
+                endInput.value = end.toISOString().slice(0,10);
+            } else if(key === 'thisyear'){
+                const start = new Date(new Date().getFullYear(),0,1);
+                const end = new Date();
+                startInput.value = start.toISOString().slice(0,10);
+                endInput.value = end.toISOString().slice(0,10);
+            } else if(key === 'lastyear'){
+                const y = new Date().getFullYear() - 1;
+                const start = new Date(y,0,1);
+                const end = new Date(y,11,31);
+                startInput.value = start.toISOString().slice(0,10);
+                endInput.value = end.toISOString().slice(0,10);
+            }
+        }
+
+        // Initialize
+        buildMonthTree(2015);
+        updateFormatUI();
+        formatEl.addEventListener('change', updateFormatUI);
+        presetSelect.addEventListener('change', function(){ applyPreset(this.value); });
+
+        async function preview(){
+            const start = startInput.value;
+            const end = endInput.value;
+            if(!start || !end){ if(window.Toast) window.Toast.warning('Dates required','Please provide both start and end dates'); return; }
+
+            badge.textContent = '…';
+            loading.style.display = 'inline';
+            previewBtn.disabled = true;
+            try{
+                const url = '/api/download/resign/count?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end);
+                const res = await fetch(url);
+                if(!res.ok) throw new Error('Server returned ' + res.status);
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+                if (!ct.includes('application/json')) {
+                    const txt = await res.text();
+                    console.error('[Resign.preview] expected JSON but got', ct, txt.slice(0,200));
+                    throw new Error('Invalid server response (not JSON)');
+                }
+                let j;
+                try { j = await res.json(); } catch(parseErr) { console.error('Failed to parse JSON from /api/download/resign/count', parseErr); setBadge(null); downloadBtn.disabled = true; return; }
+                const cnt = j.count ?? 0;
+                setBadge(cnt);
+                downloadBtn.disabled = false;
+                if(window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' records');
+            }catch(err){
+                console.error('Preview error', err);
+                setBadge(null);
+                downloadBtn.disabled = true;
+                if(window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
+            } finally {
+                loading.style.display='none';
+                previewBtn.disabled = false;
+            }
+        }
+
+        function download(){
+            const start = startInput.value;
+            const end = endInput.value;
+            const fmt = formatEl.value || 'xlsx';
+            if(!start || !end){ if(window.Toast) window.Toast.warning('Dates required','Please provide both start and end dates'); return; }
+            if(downloadBtn.disabled){ if(window.Toast) window.Toast.warning('Preview required','Please preview count first'); return; }
+            if(window.showLoading) window.showLoading('Generating file...');
+            if(window.Toast) window.Toast.success('Download Started','Your file is being generated...');
+            const url = '/api/download/resign?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&format=' + encodeURIComponent(fmt);
+            window.location.href = url;
+        }
+
+        previewBtn.addEventListener('click', function(e){ e.preventDefault(); preview(); });
+        downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
+    })();
+    </script>
+</div>

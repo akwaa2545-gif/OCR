@@ -1,0 +1,1191 @@
+﻿@page
+@model OperatorCertificationRecord.Web.Pages.SkillMatrixModel
+@{
+    ViewData["Title"] = "Skill Matrix";
+    ViewData["ActivePage"] = "SkillMatrix";
+}
+
+@section Styles {
+<style>
+/* ------------------------------------------------------------
+   Skill Matrix - Modern UI
+   ------------------------------------------------------------ */
+
+/* ---- Filter card ---- */
+.sm-filter-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
+    border: 2px solid #e0f2fe;
+    border-radius: 18px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.sm-filter-card-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, #7c3aed 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sm-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+.sm-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex: 1 1 150px;
+    max-width: 220px;
+}
+.sm-field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #1e40af;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.sm-field select {
+    height: 42px;
+    padding: 0 0.75rem;
+    border: 2px solid #e0f2fe;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    background: linear-gradient(180deg, #f0f9ff 0%, #fff 100%);
+    color: #0f172a;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%236b7280' d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    padding-right: 2rem;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(3,102,214,0.1);
+}
+.sm-field select:hover {
+    border-color: #0284c7;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%230284c7' d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+}
+.sm-field select:focus {
+    outline: none;
+    border-color: #0284c7;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(2,132,199,0.15);
+}
+.sm-field.sm-field-required select {
+    border-color: #fb923c;
+    background-color: #fff7ed;
+}
+.sm-field.sm-field-required select:focus {
+    border-color: var(--primary);
+    background-color: #fff;
+}
+.sm-field-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+    padding-bottom: 0;
+    margin-left: auto;
+}
+.sm-btn-load {
+    height: 42px;
+    padding: 0 1.3rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f97316 100%);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 15px rgba(139,92,246,0.4);
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.sm-btn-load:hover:not(:disabled) { 
+    transform: translateY(-2px); 
+    box-shadow: 0 6px 20px rgba(139,92,246,0.5);
+}
+.sm-btn-load:active { transform: translateY(0); }
+.sm-btn-load:disabled { opacity: 0.55; cursor: not-allowed; }
+.sm-btn-clear {
+    height: 38px;
+    padding: 0 0.85rem;
+    font-size: 0.85rem;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.sm-btn-clear:hover { background: #f3f4f6; color: var(--text-primary); }
+
+/* --- Stats bar --- */â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.sm-stats-bar {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    flex-wrap: wrap;
+}
+.sm-stats-bar.visible { display: flex; }
+.sm-stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #fef08a 0%, #fcd34d 100%);
+    border: 2px solid #f59e0b;
+    border-radius: 999px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    color: #92400e;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.2);
+}
+.sm-stat-chip i { font-size: 0.9rem; color: #d97706; }
+.sm-toolbar-right {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.sm-search-box {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.sm-search-box i {
+    position: absolute;
+    left: 0.8rem;
+    color: #06b6d4;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+.sm-search-box input {
+    height: 40px;
+    padding: 0 0.9rem 0 2.3rem;
+    border: 2px solid #cffafe;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    background: linear-gradient(180deg, #f0f9ff 0%, #fff 100%);
+    color: #0f172a;
+    width: 220px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(6,182,212,0.1);
+}
+.sm-search-box input:focus {
+    outline: none;
+    border-color: #06b6d4;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(6,182,212,0.15);
+}
+.sm-btn-fit, .sm-btn-export {
+    height: 38px;
+    padding: 0 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sm-btn-fit { margin-right: 0.5rem; }
+.sm-btn-fit.active {
+    background: #111827; color: #fff; border-color: #374151;
+}
+.sm-btn-export:hover { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+.sm-btn-fit:hover { background: #f8fafc; color: var(--text-primary); border-color: #e5e7eb; }
+
+/* ---- Legend ---- */
+.sm-legend {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
+    border-radius: 12px;
+    border: 2px solid #e0f2fe;
+}
+.sm-legend.visible { display: flex; }
+.sm-legend-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #0c4a6e;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.sm-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    padding: 0.3rem 0.7rem;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+/* ---- Table wrapper ---- */
+.sm-table-card {
+    border: 2px solid #e0f2fe;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    background: #fff;
+}
+.sm-table-wrapper {
+    overflow: auto;
+    max-height: calc(100vh - 30px);
+    min-height: 200px;
+}
+
+/* Fit mode: compact rows in addition to compact headers */
+.sm-table-wrapper.sm-fit .sm-table tbody tr td {
+    height: 28px !important;
+    padding: 0.14rem 0.18rem !important;
+    font-size: 0.72rem !important;
+}
+.sm-table-wrapper.sm-fit .sm-table tbody tr td.col-emp {
+    min-width: 150px !important;
+    max-width: 200px !important;
+}
+
+/* Fit mode: compact column widths so more columns fit without horizontal scrolling */
+.sm-table-wrapper.sm-fit .sm-table { table-layout: fixed; }
+.sm-table-wrapper.sm-fit .process-header-cell {
+    min-width: 42px !important;
+    max-width: 42px !important;
+    width: 42px !important;
+    height: 120px !important;
+}
+.sm-table-wrapper.sm-fit .process-header-cell .rotate-wrap { height: 100px !important; }
+.sm-table-wrapper.sm-fit .process-header-cell .rotate-wrap span {
+    font-size: 0.64rem !important; line-height: 1 !important; padding: 0 2px !important;
+}
+.sm-table-wrapper.sm-fit .sm-table th.col-emp,
+.sm-table-wrapper.sm-fit .sm-table td.col-emp { min-width: 160px !important; max-width: 220px !important; }
+.sm-table-wrapper.sm-fit .sm-table { width: 100%; }
+.sm-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: max-content;
+    width: 100%;
+    font-size: 0.82rem;
+}
+
+/* Sticky header */
+.sm-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+    color: #fff;
+    font-weight: 700;
+    white-space: nowrap;
+    text-align: center;
+    border-bottom: 3px solid #0d9488;
+}
+
+/* Frozen first column */
+.sm-table th.col-emp,
+.sm-table td.col-emp {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: linear-gradient(90deg, #f0fdfa 0%, #f8fafc 100%);
+    min-width: 220px;
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-right: 3px solid #14b8a6;
+    padding: 0.6rem 0.75rem;
+    font-weight: 700;
+    color: #0f766e;
+    text-align: left;
+}
+.sm-table thead th.col-emp {
+    z-index: 5;
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    color: #ffffff;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.7rem 0.75rem;
+    vertical-align: bottom;
+}
+
+/* Process group header row */
+.sm-table thead tr.tr-group th {
+    background: #374151;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #4b5563;
+}
+
+/* Rotated column headers */
+.sm-table .process-header-cell {
+    /* wider for better label spacing */
+    min-width: 72px;
+    max-width: 72px;
+    width: 72px;
+    /* increase header height so rotated labels have more room */
+    height: 220px;
+    padding: 0 6px;
+    vertical-align: bottom;
+    text-align: center;
+    border-right: 1px solid #4b5563;
+    overflow: visible;
+}
+.sm-table .process-header-cell:last-child { border-right: none; }
+.sm-table .process-header-cell .rotate-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    /* match the increased header height */
+    height: 200px;
+    padding-bottom: 12px;
+}
+.sm-table .process-header-cell .rotate-wrap span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    /* allow wrapping so long labels are fully visible */
+    white-space: normal;
+    word-break: break-word;
+    font-size: 0.78rem;
+    line-height: 1.02;
+    font-weight: 600;
+    color: rgba(255,255,255,0.95);
+    padding: 0 4px;
+    max-height: 100%;
+    display: inline-block;
+    text-align: center;
+}
+
+/* Data cells */
+.sm-table tbody tr td {
+    text-align: center;
+    /* reduced padding & height so more rows fit vertically */
+    padding: 0.18rem 0.2rem;
+    border-bottom: 1px solid #f3f4f6;
+    border-right: 1px solid #f3f4f6;
+    vertical-align: middle;
+    height: 30px;
+    font-size: 0.78rem;
+}
+.sm-table tbody tr td.col-emp {
+    background: #f9fafb;
+    border-right: 2px solid #e5e7eb;
+    padding: 0.45rem 0.6rem;
+    min-width: 180px;
+    max-width: 240px;
+}
+.sm-table tbody tr:nth-child(even) td { background: #fafafa; }
+.sm-table tbody tr:nth-child(even) td.col-emp { background: #f3f4f6; }
+.sm-table tbody tr:hover td { background: #f0fdf4 !important; }
+.sm-table tbody tr:hover td.col-emp { background: #dcfce7 !important; }
+
+/* Highlight search match */
+.sm-table tbody tr.sm-row-hidden { display: none; }
+.sm-table tbody tr.sm-row-match td.col-emp { background: #fef9c3 !important; }
+
+/* Process group column separator */
+.sm-table td.col-sep,
+.sm-table th.col-sep {
+    border-right: 2px solid #374151 !important;
+    background-clip: padding-box;
+}
+.sm-table thead th.col-sep { border-right: 2px solid #111827 !important; }
+
+/* Skill-level badges */
+.skb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 22px;
+    padding: 0 5px;
+    border-radius: 5px;
+    font-weight: 700;
+    font-size: 0.74rem;
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+.skb-O  { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #065f46; border: 2px solid #10b981; font-weight: 700; }
+.skb-L  { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1e40af; border: 2px solid #3b82f6; font-weight: 700; }
+.skb-U  { background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%); color: #92400e; border: 2px solid #f59e0b; font-weight: 700; }
+.skb-N  { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); color: #9d174d; border: 2px solid #ec4899; font-weight: 700; }
+.skb-num { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); color: #5b21b6; border: 2px solid #8b5cf6; font-weight: 700; }
+.skb-tot { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); color: #fff; border: 2px solid #ea580c; font-weight: 700; }
+.skb-empty { color: #d1d5db; font-size: 0.65rem; }
+
+/* Footer totals row */
+.sm-table tfoot tr td {
+    position: sticky;
+    bottom: 0;
+    background: #1f2937;
+    color: rgba(255,255,255,0.9);
+    font-weight: 700;
+    text-align: center;
+    padding: 0.35rem 0.25rem;
+    font-size: 0.78rem;
+    border-top: 2px solid #111827;
+    z-index: 1;
+}
+.sm-table tfoot td.col-emp {
+    left: 0;
+    z-index: 2;
+    text-align: left;
+    background: #111827;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-right: 2px solid #374151 !important;
+}
+
+/* ---- Loading skeleton ---- */
+.sm-loading {
+    display: none;
+    padding: 2.5rem;
+    text-align: center;
+}
+.sm-loading.visible { display: block; }
+.sm-skeleton-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    animation: sm-pulse 1.4s ease-in-out infinite;
+}
+.sm-skeleton-cell {
+    height: 28px;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+    background-size: 200% 100%;
+    animation: sm-shimmer 1.6s infinite;
+}
+@@keyframes sm-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ---- Empty state ---- */
+.sm-empty-state {
+    padding: 4rem 2rem;
+    text-align: center;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    background: #fafafa;
+    color: var(--text-secondary);
+}
+.sm-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #fff7ed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
+    color: #fb923c;
+}
+.sm-empty-state h3 { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.4rem; }
+.sm-empty-state p  { font-size: 0.875rem; margin: 0; }
+
+/*  Multi-select dropdown  */
+.sm-multiselect { position: relative; }
+.sm-multiselect-trigger {
+    width: 100%; height: 38px;
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0 0.75rem;
+    background: #fafafa;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer; font-size: 0.85rem;
+    color: var(--text-primary); text-align: left;
+    transition: border-color 0.15s;
+    white-space: nowrap; overflow: hidden;
+}
+.sm-multiselect-trigger:focus,
+.sm-multiselect.open .sm-multiselect-trigger {
+    outline: none; border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(249,115,22,.12);
+}
+.sm-ms-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.sm-ms-chevron { font-size: 0.65rem; color: var(--text-tertiary,#9ca3af); transition: transform 0.15s; flex-shrink: 0; }
+.sm-multiselect.open .sm-ms-chevron { transform: rotate(180deg); }
+.sm-multiselect-panel {
+    display: none;
+    position: absolute; top: calc(100% + 4px); left: 0;
+    min-width: max(100%, 180px);
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+    z-index: 100; max-height: 150px; overflow-y: auto;
+}
+.sm-multiselect.open .sm-multiselect-panel { display: block; }
+.sm-ms-item {
+    display: flex; align-items: center; gap: 0.55rem;
+    padding: 0.42rem 0.75rem; cursor: pointer;
+    font-size: 0.85rem; color: var(--text-primary);
+    transition: background 0.1s; user-select: none;
+    margin: 0; font-weight: 400;
+}
+.sm-ms-item:hover { background: #fff7ed; }
+.sm-ms-item input[type="checkbox"] {
+    accent-color: var(--primary);
+    width: 14px; height: 14px; flex-shrink: 0; margin: 0;
+}
+.sm-sect-tag {
+    display: inline-block; padding: 1px 5px;
+    border-radius: 4px; font-size: 0.65rem; font-weight: 600;
+    background: #fed7aa; color: #9a3412;
+    margin-left: 5px; text-transform: uppercase;
+    letter-spacing: 0.03em; vertical-align: middle;
+}
+
+/* ---- Responsive ---- */
+@@media (max-width: 768px) {
+    .sm-filter-row { flex-direction: column; }
+    .sm-field { max-width: 100%; flex: 1 1 100%; }
+    .sm-field-actions { margin-left: 0; width: 100%; }
+    .sm-btn-load, .sm-btn-clear { flex: 1; justify-content: center; }
+    .sm-toolbar-right { margin-left: 0; width: 100%; }
+    .sm-search-box input { width: 100%; }
+}
+</style>
+}
+
+<div class="mb-3">
+    <a href="/Dashboard" class="btn btn-secondary btn-sm" style="background: #1f2937; color: #fff; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- --- Filter Card --- -->
+<div class="sm-filter-card">
+    <div class="sm-filter-card-title">
+        <i class="bi bi-sliders"></i> Filters
+    </div>
+    <div class="sm-filter-row">
+        <div class="sm-field">
+            <label><i class="bi bi-building" style="font-size:0.7rem;"></i> Section</label>
+            <div class="sm-multiselect" id="smSectMulti">
+                <button type="button" class="sm-multiselect-trigger" id="smSectBtn">
+                    <span class="sm-ms-label" id="smSectLabel">All sections</span>
+                    <i class="bi bi-chevron-down sm-ms-chevron"></i>
+                </button>
+                <div class="sm-multiselect-panel" id="smSectPanel">
+                    @foreach (var s in Model.Sections)
+                    {
+                        <label class="sm-ms-item">
+                            <input type="checkbox" value="@s.SectName"> @s.SectName
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="sm-field">
+            <label for="smWorkshopSelect"><i class="bi bi-hammer" style="font-size:0.7rem;"></i> Workshop</label>
+            <select id="smWorkshopSelect">
+                <option value="">All workshops</option>
+                @foreach (var w in Model.Workshops)
+                {
+                    <option value="@w.WorkshopName" data-wid="@w.WorkshopID">@w.WorkshopName</option>
+                }
+            </select>
+        </div>
+        <div class="sm-field">
+            <label for="smOTSelect"><i class="bi bi-mortarboard" style="font-size:0.7rem;"></i> Training Type</label>
+            <select id="smOTSelect">
+                <option value="">All types</option>
+            </select>
+        </div>
+        <div class="sm-field">
+            <label for="smProcSelect"><i class="bi bi-gear" style="font-size:0.7rem;"></i> Process</label>
+            <select id="smProcSelect">
+                <option value="">All processes</option>
+            </select>
+        </div>
+        <div class="sm-field-actions">
+            <button class="sm-btn-clear" id="smClearBtn" title="Reset filters">
+                <i class="bi bi-x-circle"></i> Reset
+            </button>
+            <button class="sm-btn-load" id="smLoadBtn">
+                <i class="bi bi-grid-3x3"></i> Show Matrix
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- --- Stats bar + toolbar --- -->
+<div class="sm-stats-bar" id="smStatsBar">
+    <div class="sm-stat-chip" id="smStatEmps">
+        <i class="bi bi-people"></i> <span>&mdash; employees</span>
+    </div>
+    <div class="sm-stat-chip" id="smStatProcs">
+        <i class="bi bi-gear"></i> <span>&mdash; processes</span>
+    </div>
+    <div class="sm-stat-chip" id="smStatCoverage">
+        <i class="bi bi-bar-chart"></i> <span>&mdash;% coverage</span>
+    </div>
+    <div class="sm-toolbar-right">
+        <div class="sm-search-box">
+            <i class="bi bi-search"></i>
+            <input type="search" id="smSearch" placeholder="Search employee..." autocomplete="off">
+        </div>
+        <button class="sm-btn-fit" id="smFitBtn" title="Fit to screen" aria-pressed="false">
+            <i class="bi bi-arrows-collapse"></i> Fit
+        </button>
+        <button class="sm-btn-export" id="smExportBtn" title="Export to Excel (.xlsx)">
+            <i class="bi bi-file-earmark-excel"></i> Export Excel
+        </button>
+    </div>
+</div>
+
+<!-- --- Legend --- -->
+<div class="sm-legend" id="smLegend">
+    <span class="sm-legend-label">Legend:</span>
+    <span class="sm-legend-item"><span class="skb skb-O">O</span> Outstanding</span>
+    <span class="sm-legend-item"><span class="skb skb-L">L</span> Low</span>
+    <span class="sm-legend-item"><span class="skb skb-U">U</span> Unsatisfactory</span>
+    <span class="sm-legend-item"><span class="skb skb-num">4</span> Numeric</span>
+    <span class="sm-legend-item"><span class="skb skb-empty">&mdash;</span> No skill</span>
+</div>
+
+<!-- --- Loading skeleton --- -->
+<div class="sm-loading" id="smLoading">
+    <div style="max-width:600px; margin: 0 auto;">
+        @for (int i = 0; i < 6; i++)
+        {
+            <div class="sm-skeleton-row">
+                <div class="sm-skeleton-cell" style="width:200px; flex-shrink:0;"></div>
+                @for (int j = 0; j < 8; j++)
+                {
+                    <div class="sm-skeleton-cell" style="width:48px; flex-shrink:0;"></div>
+                }
+            </div>
+        }
+    </div>
+    <p style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary);">Building skill matrix...</p>
+</div>
+
+<!-- --- Matrix table --- -->
+<div class="sm-table-card" id="smTableCard" style="display:none;">
+    <div class="sm-table-wrapper" id="smTableWrapper">
+        <table class="sm-table" id="smTable">
+            <thead id="smThead"></thead>
+            <tbody id="smTbody"></tbody>
+            <tfoot id="smTfoot"></tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- --- Empty state --- -->
+<div class="sm-empty-state" id="smEmptyState">
+    <div class="sm-empty-icon"><i class="bi bi-grid-3x3"></i></div>
+    <h3>Select a section to get started</h3>
+    <p>Choose a section from the filters above and click <strong>Show Matrix</strong> to view the skill grid.</p>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    /* ---- DOM refs ---- */
+    const sectMulti = document.getElementById('smSectMulti');
+    const sectBtn   = document.getElementById('smSectBtn');
+    const sectPanel = document.getElementById('smSectPanel');
+    const sectLabel = document.getElementById('smSectLabel');
+    const wsEl      = document.getElementById('smWorkshopSelect');
+    const otEl      = document.getElementById('smOTSelect');
+    const procEl    = document.getElementById('smProcSelect');
+    const loadBtn   = document.getElementById('smLoadBtn');
+    const clearBtn  = document.getElementById('smClearBtn');
+    const exportBtn = document.getElementById('smExportBtn');
+    const fitBtn     = document.getElementById('smFitBtn');
+    const searchEl   = document.getElementById('smSearch');
+    const loadingEl  = document.getElementById('smLoading');
+    const tableCard  = document.getElementById('smTableCard');
+    const wrapper    = document.getElementById('smTableWrapper');
+    const emptyEl   = document.getElementById('smEmptyState');
+    const statsBar  = document.getElementById('smStatsBar');
+    const legend    = document.getElementById('smLegend');
+    const thead     = document.getElementById('smThead');
+    const tbody     = document.getElementById('smTbody');
+    const tfoot     = document.getElementById('smTfoot');
+
+    /* cached data for export/search */
+    let _processes = [], _employees = [], _totals = {};
+
+    /* ---- Helpers ---- */
+    /* -- Multi-select helpers ---------------------------------------- */
+    function getSelectedSects() {
+        return [...sectPanel.querySelectorAll('input:checked')].map(cb => cb.value);
+    }
+    function updateSectLabel() {
+        const sel = getSelectedSects();
+        sectLabel.textContent = sel.length === 0 ? 'All sections'
+            : sel.length === 1 ? sel[0]
+            : sel[0] + ' +' + (sel.length - 1) + ' more';
+    }
+    // Toggle open/close
+    sectBtn.addEventListener('click', () => sectMulti.classList.toggle('open'));
+    document.addEventListener('click', e => {
+        if (!sectMulti.contains(e.target)) sectMulti.classList.remove('open');
+    });
+    sectPanel.querySelectorAll('input').forEach(cb => {
+        cb.addEventListener('change', () => { updateSectLabel(); refreshFilters(); });
+    });
+
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+    }
+    function skillBadge(v) {
+        if (!v || !v.trim()) return `<span class="skb skb-empty">&ndash;</span>`;
+        const u = v.trim().toUpperCase();
+        if (u === 'O') return `<span class="skb skb-O">O</span>`;
+        if (u === 'L') return `<span class="skb skb-L">L</span>`;
+        if (u === 'U') return `<span class="skb skb-U">U</span>`;
+        if (u === 'N') return `<span class="skb skb-N">N</span>`;
+        if (!isNaN(Number(v.trim()))) return `<span class="skb skb-num">${esc(v)}</span>`;
+        return `<span class="skb skb-num">${esc(v)}</span>`;
+    }
+    function setLoading(on) {
+        loadingEl.classList.toggle('visible', on);
+        loadBtn.disabled = on;
+        if (on) {
+            tableCard.style.display = 'none';
+            emptyEl.style.display = 'none';
+            statsBar.classList.remove('visible');
+            legend.classList.remove('visible');
+        }
+    }
+    function setStat(id, html) {
+        document.getElementById(id).querySelector('span').innerHTML = html;
+    }
+
+    /* Fit mode: toggle compact layout so more columns are visible */
+    function setFitMode(on) {
+        document.getElementById('smTableWrapper').classList.toggle('sm-fit', !!on);
+        const btn = document.getElementById('smFitBtn');
+        if (btn) {
+            btn.classList.toggle('active', !!on);
+            btn.setAttribute('aria-pressed', !!on ? 'true' : 'false');
+            btn.title = !!on ? 'Normal width' : 'Fit to screen';
+        }
+        try { localStorage.setItem('smFitMode', !!on ? '1' : '0'); } catch (_) {}
+    }
+
+    /* ---- Load processes filtered by workshop (mirrors AddSkill behaviour) ---- */
+    async function loadProcessesForMatrix() {
+        const opt = wsEl.options[wsEl.selectedIndex];
+        const wid = opt ? opt.getAttribute('data-wid') : '';
+        procEl.innerHTML = '<option value="">All processes</option>';
+        if (!wid) return;  // no workshop selected – keep blank
+        try {
+            const res = await fetch('/api/processes?workshopId=' + encodeURIComponent(wid));
+            if (!res.ok) return;
+            const data = await res.json();
+            (Array.isArray(data) ? data : []).forEach(p => {
+                const o = document.createElement('option');
+                o.value = o.textContent = p.processName || p.ProcessName || p.Process || p;
+                procEl.appendChild(o);
+            });
+        } catch (e) { console.error('loadProcessesForMatrix error', e); }
+    }
+
+    /* ---- Filter dropdowns refresh ---- */
+    async function refreshFilters() {
+        otEl.innerHTML   = '<option value="">All types</option>';
+        procEl.innerHTML = '<option value="">All processes</option>';
+
+        /* training types via /filters endpoint */
+        try {
+            const r = await fetch('/api/download/skillmatrix/filters');
+            if (r.ok) {
+                const meta = await r.json();
+                (meta.operatorTrainings ?? []).forEach(t => {
+                    const o = document.createElement('option');
+                    o.value = o.textContent = t;
+                    otEl.appendChild(o);
+                });
+            }
+        } catch (_) {}
+
+        /* processes for selected sections */
+        try {
+            const sects = getSelectedSects();
+            const p = new URLSearchParams();
+            sects.forEach(s => p.append('sect', s));
+            if (wsEl.value) p.set('workshop', wsEl.value);
+            const r = await fetch('/api/download/skillmatrix/data?' + p);
+            if (r.ok) {
+                const d = await r.json();
+                (d.processes ?? []).forEach(pr => {
+                    const o = document.createElement('option');
+                    o.value = o.textContent = pr;
+                    procEl.appendChild(o);
+                });
+            }
+        } catch (_) {}
+    }
+
+    /* ---- Build pivot table ---- */
+    async function loadMatrix() {
+        setLoading(true);
+        thead.innerHTML = tbody.innerHTML = tfoot.innerHTML = '';
+        searchEl.value = '';
+
+        try {
+            const sects = getSelectedSects();
+            const params = new URLSearchParams();
+            sects.forEach(s => params.append('sect', s));
+            if (wsEl.value)   params.set('workshop', wsEl.value);
+            if (otEl.value)   params.set('operatorTraining', otEl.value);
+            if (procEl.value) params.set('processName', procEl.value);
+
+            const res = await fetch('/api/download/skillmatrix/data?' + params);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error ?? `HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            _processes = data.processes ?? [];
+            _employees = data.employees ?? [];
+            _totals    = data.totals ?? {};
+
+            if (!_processes.length || !_employees.length) {
+                setLoading(false);
+                emptyEl.innerHTML = `
+                    <div class="sm-empty-icon"><i class="bi bi-inbox"></i></div>
+                    <h3>No data found</h3>
+                    <p>No skill records match the selected filters. Try broadening your selection.</p>`;
+                emptyEl.style.display = '';
+                return;
+            }
+
+            buildTable(_processes, _employees, _totals);
+
+            /* stats */
+            const totalCells    = _processes.length * _employees.length;
+            const filledCells   = _employees.reduce((s, e) => s + Object.keys(e.skills ?? {}).length, 0);
+            const coveragePct   = totalCells > 0 ? Math.round(filledCells / totalCells * 100) : 0;
+            setStat('smStatEmps',      `<strong>${_employees.length}</strong> employee${_employees.length !== 1 ? 's' : ''}`);
+            setStat('smStatProcs',     `<strong>${_processes.length}</strong> process${_processes.length !== 1 ? 'es' : ''}`);
+            setStat('smStatCoverage',  `<strong>${coveragePct}%</strong> coverage`);
+
+            tableCard.style.display = '';
+            statsBar.classList.add('visible');
+            legend.classList.add('visible');
+
+        } catch (err) {
+            emptyEl.innerHTML = `
+                <div class="sm-empty-icon" style="background:#fef2f2;"><i class="bi bi-exclamation-triangle" style="color:#ef4444;"></i></div>
+                <h3>Error loading data</h3>
+                <p>${esc(err.message)}</p>`;
+            emptyEl.style.display = '';
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function buildTable(processes, employees, totals) {
+        /* ---- HEADER ---- */
+        const trH = document.createElement('tr');
+
+        const empTh = document.createElement('th');
+        empTh.className = 'col-emp';
+        empTh.rowSpan = 1;
+        empTh.style.cssText = 'vertical-align:bottom; padding-bottom:8px;';
+        empTh.textContent = 'Employee';
+        trH.appendChild(empTh);
+
+        processes.forEach((p, i) => {
+            const th = document.createElement('th');
+            th.className = 'process-header-cell' + (i === processes.length - 1 ? ' col-sep' : '');
+            th.title = p; /* show full label on hover */
+            th.innerHTML = `<div class="rotate-wrap"><span>${esc(p)}</span></div>`;
+            trH.appendChild(th);
+        });
+        thead.appendChild(trH);
+
+        /* ---- BODY ---- */
+        employees.forEach((emp, ri) => {
+            const tr = document.createElement('tr');
+            tr.dataset.name = (emp.empCode + ' ' + emp.name).toLowerCase();
+
+            const nameTd = document.createElement('td');
+            nameTd.className = 'col-emp';
+            const multiSect = employees.some((e, _, a) => e.sect !== a[0].sect);
+            nameTd.innerHTML =
+                `<span style="display:inline-block;min-width:52px;font-size:0.7rem;color:#9ca3af;font-variant-numeric:tabular-nums;margin-right:6px;">${esc(emp.empCode)}</span>` +
+                `<span style="font-weight:600;">${esc(emp.name)}</span>` +
+                (multiSect && emp.sect ? `<span class="sm-sect-tag">${esc(emp.sect)}</span>` : '');
+            tr.appendChild(nameTd);
+
+            let empSkillCount = 0;
+            processes.forEach((p, pi) => {
+                const level = emp.skills && emp.skills[p] ? emp.skills[p] : '';
+                if (level) empSkillCount++;
+                const td = document.createElement('td');
+                td.className = pi === processes.length - 1 ? 'col-sep' : '';
+                td.innerHTML = skillBadge(level);
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+
+        /* ---- FOOTER ---- */
+        const ftTr = document.createElement('tr');
+        const ftEmp = document.createElement('td');
+        ftEmp.className = 'col-emp';
+        ftEmp.textContent = `Qualified count  ·  ${employees.length} employee${employees.length !== 1 ? 's' : ''}`;
+        ftTr.appendChild(ftEmp);
+
+        processes.forEach((p, pi) => {
+            const cnt = totals[p] ?? 0;
+            const td = document.createElement('td');
+            td.className = pi === processes.length - 1 ? 'col-sep' : '';
+            td.innerHTML = cnt > 0 ? `<span class="skb skb-tot">${cnt}</span>` : `<span style="color:#6b7280;font-size:0.75rem;">0</span>`;
+            ftTr.appendChild(td);
+        });
+        tfoot.appendChild(ftTr);
+    }
+
+    /* ---- Search / filter rows ---- */
+    function applySearch() {
+        const q = searchEl.value.trim().toLowerCase();
+        let shown = 0;
+        tbody.querySelectorAll('tr').forEach(tr => {
+            const match = !q || (tr.dataset.name ?? '').includes(q);
+            tr.classList.toggle('sm-row-hidden', !match);
+            tr.classList.toggle('sm-row-match', !!q && match);
+            if (match) shown++;
+        });
+        setStat('smStatEmps', q
+            ? `<strong>${shown}</strong> of ${_employees.length} employee${_employees.length !== 1 ? 's' : ''}`
+            : `<strong>${_employees.length}</strong> employee${_employees.length !== 1 ? 's' : ''}`);
+    }
+
+    /* ---- Excel export ---- */
+    
+    /*  XLSX export  */
+    async function exportXlsx() {
+        if (!_processes.length) return;
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting';
+        try {
+            // Determine which extra columns to include based on current filter state
+            const allSects     = getSelectedSects().length === 0;
+            const allWorkshops = (document.getElementById('smWorkshop')?.value || '') === '';
+
+            // Fixed columns: always EmpCode + Name, then Section if all-sect, Workshop if all-workshop
+            const fixedCols = [{ key: 'c', width: 12 }, { key: 'n', width: 28 }];
+            const fixedHdr  = ['Emp Code', 'Employee Name'];
+            if (allSects)     { fixedCols.push({ key: 's', width: 14 }); fixedHdr.push('Section'); }
+            if (allWorkshops) { fixedCols.push({ key: 'w', width: 16 }); fixedHdr.push('Workshop'); }
+            const fixedCount = fixedCols.length; // 2, 3, or 4
+
+            const wb  = new ExcelJS.Workbook();
+            wb.creator = 'OCR Skill Matrix'; wb.created = new Date();
+            const topLeft = String.fromCharCode(64 + fixedCount + 1) + '2'; // e.g. C2, D2, E2
+            const ws = wb.addWorksheet('Skill Matrix', {
+                views: [{ state: 'frozen', xSplit: fixedCount, ySplit: 1, topLeftCell: topLeft }]
+            });
+            ws.columns = [...fixedCols, ..._processes.map(() => ({ width: 11 }))];
+
+            // Header row
+            const hdrRow = ws.addRow([...fixedHdr, ..._processes]);
+            hdrRow.height = 120;
+            hdrRow.eachCell((cell, col) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } };
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9, name: 'Calibri' };
+                cell.alignment = { horizontal: col <= fixedCount ? 'left' : 'center',
+                    vertical: col <= fixedCount ? 'middle' : 'bottom',
+                    textRotation: col > fixedCount ? 90 : 0, wrapText: col <= fixedCount };
+                cell.border = {
+                    bottom: { style: 'medium', color: { argb: 'FF374151' } },
+                    right:  { style: col === fixedCount ? 'medium' : 'thin', color: { argb: 'FF374151' } }
+                };
+            });
+            // AutoFilter only when Section or Workshop column is included (allows filtering in Excel)
+            if (allSects || allWorkshops) {
+                ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: fixedCount + _processes.length } };
+            }
+
+            // Skill color map
+            function skStyle(v) {
+                if (!v || !v.trim()) return { bg: 'FFFFFFFF', fg: 'FFD1D5DB', val: '' };
+                const u = v.trim().toUpperCase();
+                if (u === 'O') return { bg: 'FFD1FAE5', fg: 'FF065F46', val: 'O' };
+                if (u === 'L') return { bg: 'FFDBEAFE', fg: 'FF1E40AF', val: 'L' };
+                if (u === 'U') return { bg: 'FFFEF3C7', fg: 'FF92400E', val: 'U' };
+                if (u === 'N') return { bg: 'FFFCE7F3', fg: 'FF9D174D', val: 'N' };
+                return { bg: 'FFEDE9FE', fg: 'FF5B21B6', val: v.trim() };
+            }
+        
+            // Data rows
+            _employees.forEach((emp, ri) => {
+                const bg = ri % 2 === 0 ? 'FFF9FAFB' : 'FFF3F4F6';
+                const rowData = [emp.empCode, emp.name];
+                if (allSects)     rowData.push(emp.sect || '');
+                if (allWorkshops) rowData.push(emp.workshop || '');
+                rowData.push(..._processes.map(() => ''));
+                const row = ws.addRow(rowData);
+                row.height = 17;
+                const cCell = row.getCell(1);
+                cCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+                cCell.font = { size: 8, color: { argb: 'FF6B7280' }, name: 'Calibri' };
+                cCell.alignment = { horizontal: 'left', vertical: 'middle' };
+                cCell.border = { right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+                const nCell = row.getCell(2);
+                nCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+                nCell.font = { bold: true, size: 9, name: 'Calibri' };
+                nCell.alignment = { horizontal: 'left', vertical: 'middle' };
+                nCell.border = { right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+                if (allSects) {
+                    const sCell = row.getCell(3);
+                    sCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+                    sCell.font = { size: 8, color: { argb: 'FF374151' }, name: 'Calibri' };
+                    sCell.alignment = { horizontal: 'left', vertical: 'middle' };
+                    sCell.border = { right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+                }
+                if (allWorkshops) {
+                    const wIdx  = allSects ? 4 : 3;
+                    const wCell = row.getCell(wIdx);
+                    wCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+                    wCell.font = { size: 8, color: { argb: 'FF374151' }, name: 'Calibri' };
+                    wCell.alignment = { horizontal: 'left', vertical: 'middle' };
+                    wCell.border = { right: { style: 'medium', color: { argb: 'FFE5E7EB' } } };
+                }
+                _processes.forEach((p, pi) => {
+                    const s    = skStyle((emp.skills && emp.skills[p]) ? emp.skills[p] : '');
+                    const cell = row.getCell(pi + fixedCount + 1);
+                    cell.value = s.val;
+                    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.bg } };
+                    cell.font  = { bold: true, size: 9, color: { argb: s.fg }, name: 'Calibri' };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = {
+                        bottom: { style: 'thin', color: { argb: 'FFF3F4F6' } },
+                        right:  { style: 'thin', color: { argb: 'FFF3F4F6' } }
+                    };
+                });
+            });
+
+            // Totals row
+            const totData = ['', 'Qualified Count'];
+            if (allSects)     totData.push('');
+            if (allWorkshops) totData.push('');
+            totData.push(..._processes.map(p => _totals[p] ?? 0));
+            const totRow = ws.addRow(totData);
+            totRow.height = 20;
+            totRow.eachCell((cell, col) => {
+                const cnt   = Number(cell.value ?? 0);
+                const isNum = col > fixedCount;
+                cell.fill  = { type: 'pattern', pattern: 'solid',
+                    fgColor: { argb: isNum && cnt > 0 ? 'FFF97316' : 'FF1F2937' } };
+                cell.font  = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9, name: 'Calibri' };
+                cell.alignment = { horizontal: isNum ? 'center' : 'left', vertical: 'middle' };
+                cell.border = { top: { style: 'medium', color: { argb: 'FF111827' } } };
+            });
+
+            //  Write & download 
+            const buf  = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const a    = document.createElement('a');
+            a.href     = URL.createObjectURL(blob);
+            const sectNamesExp = getSelectedSects();
+            const sectPart = sectNamesExp.length === 0 ? 'All' : sectNamesExp.join('-');
+            a.download = `SkillMatrix_${sectPart}_${new Date().toISOString().slice(0,10)}.xlsx`;
+            a.click();
+        } finally {
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Export Excel';
+        }
+    }
+
+    /*  Reset  */
+    function clearFilters() {
+        sectPanel.querySelectorAll('input').forEach(cb => cb.checked = false);
+        updateSectLabel();
+        wsEl.value = otEl.value = procEl.value = '';
+        otEl.innerHTML   = '<option value="">All types</option>';
+        procEl.innerHTML = '<option value="">All processes</option>';
+        tableCard.style.display = 'none';
+        statsBar.classList.remove('visible');
+        legend.classList.remove('visible');
+        emptyEl.innerHTML = `
+            <div class="sm-empty-icon"><i class="bi bi-grid-3x3"></i></div>
+            <h3>Ready to explore</h3>
+            <p>Choose filters above (section is optional) and click <strong>Show Matrix</strong> to view the skill grid.</p>`;
+        emptyEl.style.display = '';
+        _processes = []; _employees = []; _totals = {};
+    }
+    
+
+    /*   Events  */
+    wsEl.addEventListener('change', () => {
+        loadProcessesForMatrix();
+        if (tableCard.style.display !== 'none') loadMatrix();
+    });
+    procEl.addEventListener('change', () => {
+        if (tableCard.style.display !== 'none') loadMatrix();
+    });
+    otEl.addEventListener('change', () => {
+        if (tableCard.style.display !== 'none') loadMatrix();
+    });
+    loadBtn.addEventListener('click', loadMatrix);
+    clearBtn.addEventListener('click', clearFilters);
+    exportBtn.addEventListener('click', exportXlsx);
+    if (fitBtn) fitBtn.addEventListener('click', () => setFitMode(!fitBtn.classList.contains('active')));
+    searchEl.addEventListener('input', applySearch);
+    [wsEl, otEl, procEl].forEach(el =>
+        el.addEventListener('keydown', e => { if (e.key === 'Enter') loadMatrix(); })
+    );
+
+    /* restore persisted fit preference */
+    try { if (localStorage.getItem('smFitMode') === '1') setFitMode(true); } catch (_) {}
+    
+    
+    CONSOLE.LOG('Skill Matrix script loaded');
+    
+   
+})();
+</script>
+}

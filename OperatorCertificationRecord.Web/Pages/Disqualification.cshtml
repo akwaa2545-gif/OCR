@@ -1,0 +1,93 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.DisqualificationModel
+@{
+    ViewData["Title"] = "Disqualification";
+    ViewData["ActivePage"] = "Disqualification";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Disqualify Operator Skill</h1>
+        <p class="page-subtitle">Remove skill certification from an employee</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger")">
+        <i class="bi bi-@(Model.MessageType == "success" ? "check-circle" : "exclamation-circle")"></i>
+        @Model.Message
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Model.FoundSkill)
+        {
+            <!-- Skill Information - Compact Layout -->
+            <div class="form-grid-3 mb-6">
+                <div class="form-inline-group">
+                    <label class="form-label">Employee Code</label>
+                    <div class="form-value" style="font-weight: 600;">@Model.EmpCode</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Process</label>
+                    <div class="form-value" style="font-weight: 600;">@Model.ProcessName</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Expiry Date</label>
+                    <div class="form-value">@Model.ExpiryDate?.ToString("dd MMM yyyy")</div>
+                </div>
+            </div>
+
+            <form method="post">
+                <input type="hidden" name="EmpCode" value="@Model.EmpCode" />
+                <input type="hidden" name="ProcessName" value="@Model.ProcessName" />
+
+                <div class="section-title">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Select Disqualification Reason
+                </div>
+                
+                <div class="form-group mb-6">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="DisqualificationReason" value="Failed the retest" id="reason1" required>
+                        <label class="form-check-label" for="reason1">Failed the retest</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="DisqualificationReason" value="Retirement" id="reason2">
+                        <label class="form-check-label" for="reason2">Retirement</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="DisqualificationReason" value="Layoff" id="reason3">
+                        <label class="form-check-label" for="reason3">Layoff</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="DisqualificationReason" value="Other" id="reason4">
+                        <label class="form-check-label" for="reason4">Other</label>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4" style="border-top: 1px solid var(--gray-200);">
+                    <button type="submit" class="btn btn-danger btn-lg">
+                        <i class="bi bi-x-circle"></i> Disqualify
+                    </button>
+                    <a href="/Dashboard" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-clipboard-x empty-state-icon"></i>
+                <h3 class="empty-state-title">No Skill Record Found</h3>
+                <p class="empty-state-text">There is no skill record available to disqualify.</p>
+                <a href="/Dashboard" class="btn btn-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        }
+    </div>
+</div>

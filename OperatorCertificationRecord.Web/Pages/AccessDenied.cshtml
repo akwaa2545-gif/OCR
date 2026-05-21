@@ -1,0 +1,24 @@
+@page
+@model AccessDeniedModel
+
+<div class="d-flex justify-content-center align-items-center" style="min-height:60vh;padding:2rem;">
+	<div class="card shadow-sm" style="max-width:720px; width:100%; border-radius:12px;">
+		<div class="card-body text-center p-5">
+			<div class="mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="text-warning" style="color:#f0ad4e;">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 11c1.657 0 3-1.343 3-3V6a3 3 0 10-6 0v2c0 1.657 1.343 3 3 3z" />
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 11h14a1 1 0 011 1v7a2 2 0 01-2 2H6a2 2 0 01-2-2v-7a1 1 0 011-1z" />
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 16h6m-3-3v6" />
+				</svg>
+			</div>
+
+			<h1 class="h3 fw-bold mb-2">Access denied</h1>
+			<p class="text-muted mb-4">You do not have permission to access this page.</p>
+
+			<div class="d-flex justify-content-center gap-2">
+				<a class="btn btn-primary" asp-page="/Dashboard">Go to Dashboard</a>
+				<a class="btn btn-outline-secondary" href="javascript:history.back()">Go back</a>
+			</div>
+		</div>
+	</div>
+</div>

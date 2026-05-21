@@ -1,0 +1,167 @@
+
+<style>
+/* Taller fancy-select list inside this modal only */
+#skillInventoryModal .fancy-select-list {
+    max-height: 600px;
+}
+#skillInventoryModal .fancy-select-item {
+    padding: 0.72rem 0.9rem;
+}
+</style>
+
+<div class="modal fade" id="skillInventoryModal" tabindex="-1" aria-labelledby="skillInventoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content dm-modal-content" style="--dm-color:#1d4ed8;--dm-light:#eff6ff;">
+      <div class="dm-header">
+        <div class="dm-hdr-icon"><i class="bi bi-layers-fill"></i></div>
+        <div class="dm-hdr-text">
+          <div class="dm-hdr-title" id="skillInventoryModalLabel">Skill Inventory</div>
+          <div class="dm-hdr-sub">Download skill inventory by section</div>
+        </div>
+        <button type="button" class="dm-close" data-bs-dismiss="modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="dm-body">
+        <div class="dm-section-lbl"><i class="bi bi-funnel-fill"></i> Filter</div>
+        <div class="dm-field">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+            <label class="dm-label" for="skInvSectionModal">Section</label>
+            <label style="font-weight:600;font-size:0.85rem;color:#64748b;display:flex;align-items:center;gap:0.4rem;text-transform:none;letter-spacing:0;">
+              <input id="skInvAllDeptModal" type="checkbox" /> All Departments
+            </label>
+          </div>
+          <select id="skInvSectionModal" class="dm-input" style="margin-top:0.35rem;">
+            <option value="">— Select section —</option>
+          </select>
+        </div>
+        <div class="dm-summary">
+          <div class="dm-field dm-format-field">
+            <label class="dm-label">Format</label>
+            <select id="skInvFormatModal" class="dm-input">
+              <option value="xlsx">Excel (.xlsx)</option>
+              <option value="csv">CSV (.csv)</option>
+            </select>
+          </div>
+          <button id="skInvPreviewBtn" type="button" class="dm-preview-btn">
+            <i class="bi bi-search"></i> Preview
+          </button>
+          <div class="dm-count-wrap">
+            <div class="dm-count-lbl">Records</div>
+            <div id="skInvCountBadge" class="dm-count-badge">—</div>
+            <div id="skInvLoading" style="display:none" class="dm-loading"><i class="bi bi-hourglass-split"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="dm-footer">
+        <button type="button" class="dm-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+        <button id="skInvDownloadBtn" type="button" class="dm-btn-dl dl-pending">
+          <i class="bi bi-download"></i> Download
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const previewBtn  = document.getElementById('skInvPreviewBtn');
+  const downloadBtn = document.getElementById('skInvDownloadBtn');
+  const badge       = document.getElementById('skInvCountBadge');
+  const loading     = document.getElementById('skInvLoading');
+  const sectionEl   = document.getElementById('skInvSectionModal');
+  const allDeptEl   = document.getElementById('skInvAllDeptModal');
+
+  if (!previewBtn) return;
+
+  let previewDone = false, timer = null;
+  function scheduleAutoPreview(){ if(timer) clearTimeout(timer); timer = setTimeout(() => preview(), 600); }
+
+  function setBadge(count){
+    badge.style.removeProperty('background'); badge.style.removeProperty('color');
+    if (count === null){ badge.style.background='#ef4444'; badge.style.color='#fff'; badge.textContent='Err'; return; }
+    badge.textContent = String(count);
+    if(count <= 0){ badge.style.background='#ef4444'; badge.style.color='#fff'; }
+    else if(count <= 10){ badge.style.background='#f59e0b'; badge.style.color='#111827'; }
+    else { badge.style.background='#10b981'; badge.style.color='#fff'; }
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+  async function preview(){
+    const section = sectionEl.value;
+    const allDept = allDeptEl.checked;
+    if (!section && !allDept){
+      if(window.Toast) window.Toast.warning('No Selection','Please select a section or tick All Departments');
+      return;
+    }
+    badge.textContent = '…'; loading.style.display = 'inline'; previewBtn.disabled = true;
+    try{
+      const params = [];
+      if (!allDept && section) params.push('section=' + encodeURIComponent(section));
+      const url = '/api/download/skillinventory/count' + (params.length ? '?' + params.join('&') : '');
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Server ' + res.status);
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (!ct.includes('application/json')) throw new Error('Invalid server response (not JSON)');
+      const j = await res.json();
+      const cnt = j.count ?? 0;
+      setBadge(cnt);
+      previewDone = true;
+      downloadBtn.classList.remove('dl-pending');
+      if(window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' records');
+      return true;
+    }catch(err){
+      console.error('[SkillInventory] Preview error', err);
+      setBadge(null);
+      previewDone = false;
+      downloadBtn.classList.add('dl-pending');
+      if(window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
+      return false;
+    }finally{
+      loading.style.display = 'none';
+      previewBtn.disabled = false;
+    }
+  }
+
+  async function download(){
+    if (downloadBtn.classList.contains('dl-pending')){ const ok = await preview(); if (!ok || downloadBtn.classList.contains('dl-pending')) return; }
+    const section = sectionEl.value;
+    const allDept = allDeptEl.checked;
+    if (!section && !allDept){ if(window.Toast) window.Toast.warning('No Selection','Please select a section or tick All Departments'); return; }
+    const fmt = encodeURIComponent((document.getElementById('skInvFormatModal')?.value) || 'xlsx');
+    const params = [];
+    if (!allDept && section) params.push('section=' + encodeURIComponent(section));
+    params.push('format=' + fmt);
+    window.location.href = '/Download/SkillInventory?' + params.join('&');
+  }
+
+  previewBtn.addEventListener('click',  function(e){ e.preventDefault(); preview(); });
+  downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
+
+  if (allDeptEl) allDeptEl.addEventListener('change', function(){
+    if (this.checked){ sectionEl.value = ''; sectionEl.disabled = true; preview(); }
+    else { sectionEl.disabled = false; setBadge('—'); downloadBtn.classList.add('dl-pending'); previewDone = false; }
+  });
+
+  // Load sections via AJAX when modal opens
+  document.getElementById('skillInventoryModal').addEventListener('shown.bs.modal', async function(){
+    badge.textContent = '—'; downloadBtn.classList.add('dl-pending'); previewDone = false;
+    allDeptEl.checked = false; sectionEl.disabled = false;
+    try{
+      const res = await fetch('/api/download/meta/disqualified');
+      if (!res.ok) { if(window.Toast) window.Toast.warning('Data unavailable','Unable to load section list'); return; }
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (!ct.includes('application/json')) return;
+      const j = await res.json();
+      if (Array.isArray(j.sections)){
+        sectionEl.innerHTML = '<option value="">— Select section —</option>' +
+          j.sections.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+      }
+      if (allDeptEl.checked) preview();
+    }catch(err){
+      console.error('[SkillInventory] Failed to load sections', err);
+      if(window.Toast) window.Toast.error('Network error','Failed to load section list');
+    }
+  });
+ })
+})();
+</script>

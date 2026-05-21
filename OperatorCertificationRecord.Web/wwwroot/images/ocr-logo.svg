@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="OTD logo">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="20" fill="url(#g)" />
+  <g fill="#fff" font-family="Segoe UI, Roboto, Arial, sans-serif" font-weight="700">
+    <text x="50%" y="45%" font-size="46" text-anchor="middle">OTD</text>
+    <text x="50%" y="70%" font-size="14" text-anchor="middle">Operator Cert.</text>
+  </g>
+</svg>

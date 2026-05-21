@@ -1,0 +1,466 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.Automation.MultiSkillRatioModel
+@{
+    ViewData["Title"] = "Multi-skill Ratio";
+    ViewData["ActivePage"] = "MultiSkillRatio";
+    int totNone = Model.Rows.Sum(r => r.NoneSkill);
+    int totOne = Model.Rows.Sum(r => r.OneSkill);
+    int totTwo = Model.Rows.Sum(r => r.TwoSkillUp);
+    int totAll = totNone + totOne + totTwo;
+    double totRatio = totAll > 0 ? Math.Round((double)totTwo / totAll * 100, 2) : 0;
+}
+
+@section Styles {
+<style>
+    /* ── Resizable column handles ── */
+    .ra-table th, .msr-pivot th {
+        position: relative;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .col-resizer {
+        position: absolute;
+        right: 0; top: 0;
+        height: 100%; width: 6px;
+        cursor: col-resize;
+        z-index: 1;
+        background: transparent;
+        transition: background 0.15s;
+    }
+    .col-resizer:hover, .col-resizer.resizing {
+        background: #3b82f6;
+        opacity: 0.55;
+        border-radius: 3px;
+    }
+    body.col-resizing * {
+        cursor: col-resize !important;
+        user-select: none !important;
+    }
+</style>
+}
+
+<!-- Hero -->
+<div class="ra-hero">
+    <div class="ra-hero-info">
+        <div class="ra-hero-badge"><i class="bi bi-graph-up-arrow"></i> Report Automation</div>
+        <h1 class="ra-hero-title">Multi-skill Ratio</h1>
+        <p class="ra-hero-sub">Operator count bucketed by skill count (None / 1-Skill / 2+ Skill Up) per workshop.</p>
+    </div>
+    <form method="post" asp-page-handler="Download">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="ra-btn ra-btn-primary">
+            <i class="bi bi-file-earmark-excel"></i> Download Excel
+        </button>
+    </form>
+</div>
+
+@if (!Model.Rows.Any())
+{
+    <div class="ra-empty"><i class="bi bi-inbox"></i><p>No data found.</p></div>
+}
+else
+{
+    <!-- Summary chips -->
+    <div class="ra-stat-strip">
+        <div class="ra-stat-chip"><i class="bi bi-people-fill"></i><span class="rc-val">@totAll</span><span class="rc-lbl">Total Operators</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-dash-circle"></i><span class="rc-val">@totNone</span><span class="rc-lbl">None Skill</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-1-circle-fill"></i><span class="rc-val">@totOne</span><span class="rc-lbl">1 Skill</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-bar-chart-steps"></i><span class="rc-val">@totTwo</span><span class="rc-lbl">2+ Skill Up</span></div>
+        <div class="ra-stat-chip"><i class="bi bi-percent"></i><span class="rc-val">@totRatio%</span><span class="rc-lbl">Ratio 2+</span></div>
+    </div>
+
+    <!-- Chart + distribution card -->
+    <div class="ra-card" style="margin-bottom:1.25rem;">
+        <div class="ra-card-header"><i class="bi bi-bar-chart-line-fill"></i> Multi skill operator (2 skill up &amp; ratio trend)</div>
+        <div style="padding:1rem 1.25rem 0;">
+            <canvas id="msrChart" style="width:100%;height:300px;"></canvas>
+        </div>
+        <div style="padding:.75rem 1.25rem 1rem;">
+            @if (totAll > 0)
+            {
+                double pNone = Math.Round((double)totNone / totAll * 100, 1);
+                double pOne = Math.Round((double)totOne / totAll * 100, 1);
+                double pTwo = Math.Round((double)totTwo / totAll * 100, 1);
+                <div class="ra-stacked-bar" style="margin-top:.5rem;">
+                    <div class="ra-bar-seg ra-bar-none" style="width:@pNone%" title="None Skill: @totNone (@pNone%)"></div>
+                    <div class="ra-bar-seg ra-bar-one" style="width:@pOne%" title="1 Skill: @totOne (@pOne%)"></div>
+                    <div class="ra-bar-seg ra-bar-two" style="width:@pTwo%" title="2+ Skill: @totTwo (@pTwo%)"></div>
+                </div>
+                <div class="ra-bar-legend">
+                    <span class="ra-legend-dot" style="background:#d1d5db"></span>None: @totNone (@pNone%)
+                    <span class="ra-legend-dot" style="background:#fbbf24;margin-left:1rem;"></span>1-Skill: @totOne (@pOne%)
+                    <span class="ra-legend-dot" style="background:#34d399;margin-left:1rem;"></span>2+ Skill Up: @totTwo (@pTwo%)
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="ra-card">
+        <div style="overflow-x:auto;">
+            <table class="ra-table">
+                <thead>
+                    <tr>
+                        <th style="min-width:160px;">Workshop / Area</th>
+                        <th style="text-align:center;">None Skill</th>
+                        <th style="text-align:center;">1 - Skill</th>
+                        <th style="text-align:center;background:#1f2937;">2+ Skill Up</th>
+                        <th style="text-align:center;">Total Operator</th>
+                        <th style="text-align:center;background:#1f2937;">Ratio 2+ (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        double rowRatio = r.TotalOperator > 0 ? Math.Round((double)r.TwoSkillUp / r.TotalOperator * 100, 1) : 0;
+                        <tr>
+                            <td class="ra-td-workshop">@r.WorkshopName</td>
+                            <td class="ra-td-num" style="color:#9ca3af;">@r.NoneSkill</td>
+                            <td class="ra-td-num"><span class="ra-skb ra-skb-U">@r.OneSkill</span></td>
+                            <td class="ra-td-num ra-uo-sum"><span class="ra-skb ra-skb-O">@r.TwoSkillUp</span></td>
+                            <td class="ra-td-num">@r.TotalOperator</td>
+                            <td class="ra-td-num ra-uo-sum">
+                                @r.RatioTwoUp
+                                <div class="ra-mini-bar"><div style="width:@(Math.Min(rowRatio,100))%;background:#34d399;height:100%;border-radius:2px;"></div></div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="ra-total-row">
+                        <td><strong>Total</strong></td>
+                        <td>@totNone</td>
+                        <td>@totOne</td>
+                        <td>@totTwo</td>
+                        <td>@totAll</td>
+                        <td>@totRatio</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.MonthRows.Any())
+{
+    var monthCols    = Model.MonthRows.Select(r => (r.MonthSort, r.MonthLabel))
+                           .Distinct().OrderBy(m => m.MonthSort).ToList();
+    var workshopKeys = Model.MonthRows.Select(r => r.WorkshopName)
+                            .Distinct().OrderBy(x => x).ToList();
+    var lookup       = Model.MonthRows.GroupBy(r => (r.WorkshopName, r.MonthSort)).ToDictionary(g => g.Key, g => g.First());
+    int latestSort   = monthCols.Last().MonthSort;
+
+    // Pre-compute footer totals
+    var fNone  = monthCols.Select(mc => Model.MonthRows.Where(r => r.MonthSort == mc.MonthSort).Sum(r => r.NoneSkill)).ToList();
+    var fOne   = monthCols.Select(mc => Model.MonthRows.Where(r => r.MonthSort == mc.MonthSort).Sum(r => r.OneSkill)).ToList();
+    var fTwo   = monthCols.Select(mc => Model.MonthRows.Where(r => r.MonthSort == mc.MonthSort).Sum(r => r.TwoSkillUp)).ToList();
+    var fOps   = monthCols.Select((_, i) => fNone[i] + fOne[i] + fTwo[i]).ToList();
+    const double plan = 85.0;
+
+    <div class="msr-pivot-card" style="margin-top:1.5rem;">
+        <div class="msr-pivot-header">
+            <span><i class="bi bi-calendar3"></i>&nbsp; Multi-skill Ratio &mdash; Monthly Trend</span>
+            <span class="msr-pivot-badge">@monthCols.Count months &bull; @workshopKeys.Count workshops</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="msr-pivot">
+                <thead>
+                    <tr class="msr-head-top">
+                        <th rowspan="2" class="msr-th-ws">Workshop / Area</th>
+                        <th rowspan="2" class="msr-th-item">Item</th>
+                        @foreach (var (ms, lbl) in monthCols)
+                        {
+                            <th class="msr-th-month @(ms == latestSort ? "msr-col-cur" : "")" colspan="1">
+                                @lbl
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var wsName in workshopKeys)
+                    {
+                        <!-- None skill -->
+                        <tr class="msr-row-none">
+                            <td rowspan="3" class="msr-ws-cell">
+                                <span class="msr-ws-accent"></span>
+                                <span class="msr-ws-name">@wsName</span>
+                            </td>
+                            <td class="msr-item-lbl msr-lbl-none"><i class="bi bi-dash-circle"></i> None skill</td>
+                            @foreach (var (sort, _) in monthCols)
+                            {
+                                int v = lookup.TryGetValue((wsName, sort), out var mr0) ? mr0.NoneSkill : 0;
+                                <td class="msr-num @(sort == latestSort ? "msr-col-cur" : "") msr-none-val">@v</td>
+                            }
+                        </tr>
+                        <!-- 1 Skill -->
+                        <tr class="msr-row-one">
+                            <td class="msr-item-lbl msr-lbl-one"><i class="bi bi-1-circle"></i> 1 - Skill</td>
+                            @foreach (var (sort, _) in monthCols)
+                            {
+                                int v = lookup.TryGetValue((wsName, sort), out var mr1) ? mr1.OneSkill : 0;
+                                <td class="msr-num @(sort == latestSort ? "msr-col-cur" : "")">
+                                    <span class="msr-badge msr-badge-one">@v</span>
+                                </td>
+                            }
+                        </tr>
+                        <!-- 2+ Skill up -->
+                        <tr class="msr-row-two msr-ws-end">
+                            <td class="msr-item-lbl msr-lbl-two"><i class="bi bi-star-fill"></i> 2 - Skill up</td>
+                            @foreach (var (sort, _) in monthCols)
+                            {
+                                int v = lookup.TryGetValue((wsName, sort), out var mr2) ? mr2.TwoSkillUp : 0;
+                                <td class="msr-num @(sort == latestSort ? "msr-col-cur" : "")">
+                                    <span class="msr-badge msr-badge-two">@v</span>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <!-- Total sub-rows -->
+                    <tr class="msr-row-none msr-ft-start">
+                        <td rowspan="3" class="msr-ft-label">Total</td>
+                        <td class="msr-item-lbl msr-lbl-none"><i class="bi bi-dash-circle"></i> None skill</td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            <td class="msr-num msr-none-val @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "")">@fNone[i]</td>
+                        }
+                    </tr>
+                    <tr class="msr-row-one">
+                        <td class="msr-item-lbl msr-lbl-one"><i class="bi bi-1-circle"></i> 1 - Skill</td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            <td class="msr-num @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "")">
+                                <span class="msr-badge msr-badge-one">@fOne[i]</span>
+                            </td>
+                        }
+                    </tr>
+                    <tr class="msr-row-two">
+                        <td class="msr-item-lbl msr-lbl-two"><i class="bi bi-star-fill"></i> 2 - Skill up</td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            <td class="msr-num @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "")">
+                                <span class="msr-badge msr-badge-two">@fTwo[i]</span>
+                            </td>
+                        }
+                    </tr>
+                    <!-- Total operator -->
+                    <tr class="msr-ft-ops">
+                        <td colspan="2"><i class="bi bi-people-fill"></i>&nbsp; Total operator</td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            <td class="msr-num @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "")">@fOps[i]</td>
+                        }
+                    </tr>
+                    <!-- Multi-skill ratio Plan -->
+                    <tr class="msr-ft-plan">
+                        <td rowspan="2" class="msr-ft-ratio-lbl"><i class="bi bi-graph-up-arrow"></i><br/>Multi-skill<br/>ratio</td>
+                        <td><i class="bi bi-bullseye"></i>&nbsp; Plan (%)</td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            <td class="msr-num @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "")">
+                                @plan.ToString("F2")
+                            </td>
+                        }
+                    </tr>
+                    <!-- Multi-skill ratio Actual -->
+                    <tr class="msr-ft-actual">
+                        <td><i class="bi bi-bar-chart-fill"></i>&nbsp; Actual</td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            double actual = fOps[i] > 0 ? Math.Round((double)fTwo[i] / fOps[i] * 100, 2) : 0;
+                            bool ok = actual >= plan;
+                            <td class="msr-num @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "") @(ok ? "msr-ok" : "msr-fail")">
+                                @actual.ToString("F2")
+                                <div class="msr-bar"><div style="width:@(Math.Min(actual,100).ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;background:@(ok ? "#34d399" : "#f87171");"></div></div>
+                            </td>
+                        }
+                    </tr>
+                    <!-- Operator out of control -->
+                    <tr class="msr-ft-ooc">
+                        <td colspan="2"><i class="bi bi-exclamation-triangle-fill"></i>&nbsp; Operator out of control <small>(No skill count)</small></td>
+                        @for (int i = 0; i < monthCols.Count; i++)
+                        {
+                            <td class="msr-num @(monthCols[i].MonthSort == latestSort ? "msr-col-cur" : "")">@fNone[i]</td>
+                        }
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Resizable column headers for both tables ──
+(function () {
+    function initResizable(table) {
+        if (!table) return;
+        table.style.tableLayout = 'fixed';
+        var ths = table.querySelectorAll('thead tr:first-child th');
+        ths.forEach(function (th) {
+            th.style.width = th.offsetWidth + 'px';
+            th.style.overflow = 'hidden';
+            th.style.textOverflow = 'ellipsis';
+            if (!th.title) th.title = th.textContent.trim();
+
+            var resizer = document.createElement('span');
+            resizer.className = 'col-resizer';
+            th.appendChild(resizer);
+
+            var startX = 0, startW = 0;
+            resizer.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                startX = e.clientX;
+                startW = th.offsetWidth;
+                resizer.classList.add('resizing');
+                document.body.classList.add('col-resizing');
+                function onMove(ev) {
+                    th.style.width = Math.max(40, startW + (ev.clientX - startX)) + 'px';
+                }
+                function onUp() {
+                    resizer.classList.remove('resizing');
+                    document.body.classList.remove('col-resizing');
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+
+            // Double-click: auto-fit to widest content
+            resizer.addEventListener('dblclick', function (e) {
+                e.stopPropagation();
+                var colIndex = Array.from(th.parentElement.children).indexOf(th);
+                var maxW = 0;
+                var tmp = document.createElement('canvas');
+                var ctx = tmp.getContext('2d');
+                if (ctx) {
+                    var cs = window.getComputedStyle(th);
+                    ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+                    var headerText = Array.from(th.childNodes)
+                        .filter(function(n){ return n.nodeType === Node.TEXT_NODE; })
+                        .map(function(n){ return n.textContent; }).join('').trim() ||
+                        th.textContent.replace(th.querySelector('.col-resizer')?.textContent||'','').trim();
+                    maxW = Math.max(maxW, ctx.measureText(headerText).width + 24);
+                    table.querySelectorAll('tbody tr').forEach(function (row) {
+                        var cell = row.cells[colIndex];
+                        if (cell) maxW = Math.max(maxW, ctx.measureText(cell.textContent.trim()).width + 20);
+                    });
+                }
+                if (maxW > 0) th.style.width = Math.min(maxW, 400) + 'px';
+            });
+        });
+    }
+
+    // DOM is already ready (scripts section renders at bottom of body)
+    document.querySelectorAll('.ra-table, .msr-pivot').forEach(initResizable);
+})();
+</script>
+@if (Model.MonthRows.Any())
+{
+    var chartMonths = Model.MonthRows.Select(r => (r.MonthSort, r.MonthLabel))
+                           .Distinct().OrderBy(m => m.MonthSort).ToList();
+    var chartOps    = chartMonths.Select(m => Model.MonthRows.Where(r => r.MonthSort == m.MonthSort).Sum(r => r.NoneSkill + r.OneSkill + r.TwoSkillUp)).ToList();
+    var chartTwo    = chartMonths.Select(m => Model.MonthRows.Where(r => r.MonthSort == m.MonthSort).Sum(r => r.TwoSkillUp)).ToList();
+    int nowSort     = DateTime.Now.Year * 100 + DateTime.Now.Month;
+    var chartActual = chartMonths.Select((m, i) => m.MonthSort > nowSort ? 0.0 : chartOps[i] > 0 ? Math.Round((double)chartTwo[i] / chartOps[i] * 100, 2) : 0.0).ToList();
+
+    var labelsJson  = "[" + string.Join(",", chartMonths.Select(m => $"\"{m.MonthLabel}\"")) + "]";
+    var opsJson     = "[" + string.Join(",", chartOps) + "]";
+    var actualJson  = "[" + string.Join(",", chartActual.Select(v => v.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))) + "]";
+    var planJson    = "[" + string.Join(",", chartMonths.Select(_ => "85")) + "]";
+    var barColors   = "[" + string.Join(",", chartMonths.Select(m => m.MonthSort == nowSort ? "\"rgba(236,72,153,.75)\"" : m.MonthSort < nowSort ? "\"rgba(59,130,246,.75)\"" : "\"rgba(147,197,253,.55)\"")) + "]";
+    var barBorders  = "[" + string.Join(",", chartMonths.Select(m => m.MonthSort == nowSort ? "\"#db2777\"" : m.MonthSort < nowSort ? "\"#1d4ed8\"" : "\"#93c5fd\"")) + "]";
+
+<script>
+(function(){
+    const ctx = document.getElementById('msrChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+        data: {
+            labels: @Html.Raw(labelsJson),
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Total operator',
+                    data: @Html.Raw(opsJson),
+                    backgroundColor: @Html.Raw(barColors),
+                    borderColor: @Html.Raw(barBorders),
+                    borderWidth: 1.5,
+                    borderRadius: 3,
+                    yAxisID: 'yLeft',
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: 'Plan (%)',
+                    data: @Html.Raw(planJson),
+                    borderColor: '#ef4444',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    borderDash: [6,3],
+                    pointStyle: 'rectRot',
+                    pointRadius: 4,
+                    pointBackgroundColor: '#ef4444',
+                    yAxisID: 'yRight',
+                    order: 1
+                },
+                {
+                    type: 'line',
+                    label: 'Actual',
+                    data: @Html.Raw(actualJson),
+                    borderColor: '#22c55e',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    pointStyle: 'triangle',
+                    pointRadius: 5,
+                    pointBackgroundColor: '#22c55e',
+                    yAxisID: 'yRight',
+                    order: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode:'index', intersect:false },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth:12, font:{size:11}, padding:16 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(c) {
+                            if (c.datasetIndex === 0) return ' Total: ' + c.parsed.y.toLocaleString();
+                            return ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                yLeft: {
+                    type: 'linear', position: 'left',
+                    title: { display:true, text:'Person', font:{size:11} },
+                    grid: { color:'rgba(0,0,0,.06)' },
+                    ticks: { font:{size:10} }
+                },
+                yRight: {
+                    type: 'linear', position: 'right',
+                    title: { display:true, text:'Ratio (%)', font:{size:11} },
+                    min: 0, max: 100,
+                    grid: { drawOnChartArea:false },
+                    ticks: { font:{size:10}, callback: function(v){ return v.toFixed(0) + '%'; } }
+                },
+                x: {
+                    grid: { color:'rgba(0,0,0,.04)' },
+                    ticks: { font:{size:10}, maxRotation:45 }
+                }
+            }
+        }
+    });
+})();
+</script>
+}
+}

@@ -1,0 +1,1769 @@
+﻿@page
+@model OperatorCertificationRecord.Web.Pages.Reports.AnalyzerModel
+@{
+    ViewData["Title"] = "Report Analyzer";
+    ViewData["ActivePage"] = "Analyzer";
+}
+
+<!-- Hero Banner -->
+<div class="anlz-hero">
+    <div class="anlz-hero-info">
+        <div class="anlz-hero-badge"><i class="bi bi-bar-chart-fill"></i> Report Analyzer</div>
+        <h1 class="anlz-hero-title">Advanced Report Analyzer</h1>
+        <p class="anlz-hero-sub">Interactive data analysis with multiple chart types, trends, and real-time insights</p>
+    </div>
+    <div class="anlz-hero-actions">
+        <a class="anlz-back-btn" href="/Dashboard"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- KPI Summary Cards -->
+<div class="anlz-kpi-row" id="kpiSummary">
+    <div class="anlz-kpi-card anlz-kpi-primary">
+        <div class="anlz-kpi-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="anlz-kpi-content">
+            <div class="anlz-kpi-value" id="kpiTotalEmployees">--</div>
+            <div class="anlz-kpi-label">Total Employees</div>
+        </div>
+        <div class="kpi-trend kpi-trend-up" id="kpiTrendEmployees" style="display:none">
+            <i class="bi bi-arrow-up"></i> <span>0%</span>
+        </div>
+    </div>
+    <div class="anlz-kpi-card anlz-kpi-success">
+        <div class="anlz-kpi-icon"><i class="bi bi-award-fill"></i></div>
+        <div class="anlz-kpi-content">
+            <div class="anlz-kpi-value" id="kpiCertified">--</div>
+            <div class="anlz-kpi-label">Certified Records</div>
+        </div>
+        <div class="kpi-trend kpi-trend-up" id="kpiTrendCertified" style="display:none">
+            <i class="bi bi-arrow-up"></i> <span>0%</span>
+        </div>
+    </div>
+    <div class="anlz-kpi-card anlz-kpi-warning">
+        <div class="anlz-kpi-icon"><i class="bi bi-clock-fill"></i></div>
+        <div class="anlz-kpi-content">
+            <div class="anlz-kpi-value" id="kpiExpiring">--</div>
+            <div class="anlz-kpi-label">Expiring (30 days)</div>
+        </div>
+        <div class="kpi-badge">Attention</div>
+    </div>
+    <div class="anlz-kpi-card anlz-kpi-danger">
+        <div class="anlz-kpi-icon"><i class="bi bi-x-circle-fill"></i></div>
+        <div class="anlz-kpi-content">
+            <div class="anlz-kpi-value" id="kpiDisqualified">--</div>
+            <div class="anlz-kpi-label">Disqualified</div>
+        </div>
+        <div class="kpi-trend kpi-trend-down" id="kpiTrendDisqualified" style="display:none">
+            <i class="bi bi-arrow-down"></i> <span>0%</span>
+        </div>
+    </div>
+</div>
+
+<div class="anlz-layout" style="display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;gap:1.25rem;align-items:flex-start;width:100%;">
+    <!-- LEFT: Config Panel -->
+    <div class="anlz-panel anlz-panel-left" style="flex:1 1 0 !important;min-width:0 !important;">
+        @if(TempData["Message"] != null){
+            <div class="alert alert-@(TempData["MessageType"] ?? "info") mb-3" role="alert">@TempData["Message"]</div>
+        }
+        @using (Html.BeginForm(null, null, FormMethod.Post, new { id = "analyzerForm" }))
+        {
+            @Html.AntiForgeryToken()
+
+            <div class="anlz-section-label"><i class="bi bi-sliders"></i> Analysis Configuration</div>
+
+            <div class="anlz-field-grid" style="grid-template-columns:1fr 1fr;">
+                        <div>
+                            <label class="form-label">Group By (multi)</label>
+                            <div class="multi-dropdown" data-target="groupby">
+                                <div class="multi-dropdown-header" role="button" tabindex="0">
+                                    <span class="label">Select grouping</span>
+                                    <span class="summary">Month</span>
+                                    <span class="caret">▾</span>
+                                </div>
+                                <div class="multi-dropdown-panel" style="display:none;">
+                                    <div style="padding:0.25rem 0.5rem;border-bottom:1px solid #eef2f7;display:flex;gap:0.5rem;align-items:center;">
+                                        <button type="button" class="btn btn-sm btn-link select-all">Select all</button>
+                                        <button type="button" class="btn btn-sm btn-link clear-all">Clear</button>
+                                    </div>
+                                    <div class="multiselect-list" style="padding:0.5rem;max-height:240px;overflow:auto;">
+                                        <div class="category"><strong>Time Period</strong></div>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Month" @Html.Raw(Model.GroupBy?.Contains("Month") == true ? "checked" : "") /> <span>Month</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Week" @Html.Raw(Model.GroupBy?.Contains("Week") == true ? "checked" : "") /> <span>Week</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Day" @Html.Raw(Model.GroupBy?.Contains("Day") == true ? "checked" : "") /> <span>Day</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Quarter" @Html.Raw(Model.GroupBy?.Contains("Quarter") == true ? "checked" : "") /> <span>Quarter</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Year" @Html.Raw(Model.GroupBy?.Contains("Year") == true ? "checked" : "") /> <span>Year</span></label>
+                                        <div class="category"><strong>Organization</strong></div>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Department" @Html.Raw(Model.GroupBy?.Contains("Department") == true ? "checked" : "") /> <span>Department</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Section" @Html.Raw(Model.GroupBy?.Contains("Section") == true ? "checked" : "") /> <span>Section</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Workshop" @Html.Raw(Model.GroupBy?.Contains("Workshop") == true ? "checked" : "") /> <span>Workshop</span></label>
+                                        <div class="category"><strong>Employee</strong></div>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="JobGrade" @Html.Raw(Model.GroupBy?.Contains("JobGrade") == true ? "checked" : "") /> <span>Job Grade</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Shift" @Html.Raw(Model.GroupBy?.Contains("Shift") == true ? "checked" : "") /> <span>Shift</span></label>
+                                        <label class="list-item"><input type="checkbox" name="GroupBy" value="Process" @Html.Raw(Model.GroupBy?.Contains("Process") == true ? "checked" : "") /> <span>Process</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="anlz-field-label">Metric</label>
+                            <select class="anlz-input" name="Metric" id="selMetric">
+                                <optgroup label="Basic">
+                                    <option value="Count" selected>Total Count</option>
+                                    <option value="DistinctEmployees">Distinct Employees</option>
+                                </optgroup>
+                                <optgroup label="Certification">
+                                    <option value="CertifiedCount">Certified Count</option>
+                                    <option value="CertifiedRatio">Certified Ratio (%)</option>
+                                </optgroup>
+                                <optgroup label="Disqualification">
+                                    <option value="DisqualifiedCount">Disqualified Count</option>
+                                    <option value="DisqualifiedRatio">Disqualified Ratio (%)</option>
+                                </optgroup>
+                                <optgroup label="Expiry">
+                                    <option value="ExpiringCount">Expiring Soon (30 days)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+
+            <div class="anlz-field-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:0.85rem;">
+                        <div>
+                            <label class="anlz-field-label" id="lblStartDate">Start Date</label>
+                            <input type="date" class="anlz-input" name="StartDate" id="txtStartDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div>
+                            <label class="anlz-field-label" id="lblEndDate">End Date</label>
+                            <input type="date" class="anlz-input" name="EndDate" id="txtEndDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div>
+                            <label class="anlz-field-label">Date Field</label>
+                            <select class="anlz-input" name="DateField" id="selDateField">
+                                <option value="CertifiedDate">Certified date</option>
+                                <option value="DisqualifiedDate">Disqualified date</option>
+                                <option value="ExpiryDate">Expiry date</option>
+                            </select>
+                        </div>
+                    </div>
+
+            <div class="anlz-section-label" style="margin-top:1.25rem"><i class="bi bi-funnel-fill"></i> Filters</div>
+            <div class="anlz-field-grid" style="grid-template-columns:1fr 1fr;">
+                        <div>
+                            <label class="anlz-field-label">Departments</label>
+                            <div class="multi-dropdown" data-target="departments">
+                                <div class="multi-dropdown-header" role="button" tabindex="0">
+                                    <span class="label">Select departments</span>
+                                    <span class="summary">-- Any --</span>
+                                    <span class="caret">▾</span>
+                                </div>
+                                <div class="multi-dropdown-panel" style="display:none;">
+                                    <div style="padding:0.25rem 0.5rem;border-bottom:1px solid #eef2f7;display:flex;gap:0.5rem;align-items:center;">
+                                        <button type="button" class="btn btn-sm btn-link select-all">Select all</button>
+                                        <button type="button" class="btn btn-sm btn-link clear-all">Clear</button>
+                                    </div>
+                                    <div class="multiselect-list" style="padding:0.5rem;max-height:200px;overflow:auto;">
+                                        @foreach(var d in Model.Departments)
+                                        {
+                                            var id = "dept_" + d?.GetHashCode();
+                                            <label class="list-item">
+                                                <input type="checkbox" name="SelectedDepartments" value="@d" id="@id" @Html.Raw(Model.SelectedDepartments?.Contains(d) == true ? "checked" : "") />
+                                                <span>@d</span>
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="anlz-field-label">Sections</label>
+                            <div class="multi-dropdown" data-target="sections">
+                                <div class="multi-dropdown-header" role="button" tabindex="0">
+                                    <span class="label">Select sections</span>
+                                    <span class="summary">-- Any --</span>
+                                    <span class="caret">▾</span>
+                                </div>
+                                <div class="multi-dropdown-panel" style="display:none;">
+                                    <div style="padding:0.25rem 0.5rem;border-bottom:1px solid #eef2f7;display:flex;gap:0.5rem;align-items:center;">
+                                        <button type="button" class="btn btn-sm btn-link select-all">Select all</button>
+                                        <button type="button" class="btn btn-sm btn-link clear-all">Clear</button>
+                                    </div>
+                                    <div class="multiselect-list" style="padding:0.5rem;max-height:200px;overflow:auto;">
+                                        @foreach(var s in Model.Sections)
+                                        {
+                                            var id = "sect_" + s?.GetHashCode();
+                                            <label class="list-item">
+                                                <input type="checkbox" name="SelectedSections" value="@s" id="@id" @Html.Raw(Model.SelectedSections?.Contains(s) == true ? "checked" : "") />
+                                                <span>@s</span>
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+            </div>
+
+            <div class="anlz-field-grid" style="grid-template-columns:1fr 1fr;margin-top:0.85rem;">
+                        <div>
+                            <label class="anlz-field-label">Top N Results</label>
+                            <input type="number" class="anlz-input" name="TopN" id="txtTopN" value="20" min="5" max="100" />
+                        </div>
+                        <div>
+                            <label class="anlz-field-label">Chart Type</label>
+                            <select class="anlz-input" name="ChartType" id="selChartType">
+                                <optgroup label="Standard Charts">
+                                    <option value="bar" selected>📊 Bar Chart</option>
+                                    <option value="line">📈 Line Chart</option>
+                                    <option value="stackedBar">📊 Stacked Bar</option>
+                                    <option value="horizontalBar">📊 Horizontal Bar</option>
+                                </optgroup>
+                                <optgroup label="Circular Charts">
+                                    <option value="pie">🥧 Pie Chart</option>
+                                    <option value="doughnut">🍩 Doughnut Chart</option>
+                                    <option value="polarArea">🎯 Polar Area</option>
+                                </optgroup>
+                                <optgroup label="Advanced Charts">
+                                    <option value="radar">🕸️ Radar Chart</option>
+                                    <option value="scatter">⚫ Scatter Plot</option>
+                                    <option value="bubble">🫧 Bubble Chart</option>
+                                    <option value="area">📈 Area Chart</option>
+                                    <option value="mixedBarLine">📊📈 Mixed Bar-Line</option>
+                                </optgroup>
+                                <optgroup label="Engineering Charts">
+                                    <option value="pareto">📉 Pareto Chart</option>
+                                    <option value="waterfall">🌊 Waterfall Chart</option>
+                                    <option value="boxplot">📦 Box Plot (Simulated)</option>
+                                    <option value="control">📊 Control Chart</option>
+                                </optgroup>
+                            </select>
+                            <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.4rem;">
+                                <label class="anlz-check-row"><input type="checkbox" id="chkSeparateCharts" style="width:15px;height:15px;margin:0;accent-color:#ea580c;" /><span style="font-size:0.88rem;color:#475569;">Separate charts per series</span></label>
+                                <label class="anlz-check-row"><input type="checkbox" id="chkShowDataLabels" checked style="width:15px;height:15px;margin:0;accent-color:#ea580c;" /><span style="font-size:0.88rem;color:#475569;">Show data labels</span></label>
+                                <label class="anlz-check-row"><input type="checkbox" id="chkEnableAnimation" checked style="width:15px;height:15px;margin:0;accent-color:#ea580c;" /><span style="font-size:0.88rem;color:#475569;">Enable animations</span></label>
+                            </div>
+                        </div>
+                    </div>
+
+            <div class="anlz-section-label" style="margin-top:1.25rem"><i class="bi bi-gear-fill"></i> Advanced Display Options</div>
+            <div class="anlz-field-grid" style="grid-template-columns:1fr 1fr;">
+                        <div>
+                            <label class="anlz-field-label">Color Scheme</label>
+                            <select class="anlz-input" id="selColorScheme">
+                                <option value="default">🎨 Default</option>
+                                <option value="ocean">🌊 Ocean Blue</option>
+                                <option value="forest">🌲 Forest Green</option>
+                                <option value="sunset">🌅 Sunset Orange</option>
+                                <option value="royal">👑 Royal Purple</option>
+                                <option value="rainbow">🌈 Rainbow</option>
+                                <option value="pastel">🎀 Pastel</option>
+                                <option value="neon">💡 Neon</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="anlz-field-label">Legend Position</label>
+                            <select class="anlz-input" id="selLegendPosition">
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                                <option value="none">Hidden</option>
+                            </select>
+                        </div>
+            </div>
+            <div class="anlz-field-grid" style="grid-template-columns:1fr 1fr;margin-top:0.75rem;">
+                        <div>
+                            <label class="anlz-field-label">Comparison Mode</label>
+                            <select class="anlz-input" id="selComparisonMode">
+                                <option value="none">No Comparison</option>
+                                <option value="previous_period">Previous Period</option>
+                                <option value="year_over_year">Year over Year</option>
+                                <option value="benchmark">Against Benchmark</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="anlz-field-label">Trend Line</label>
+                            <select class="anlz-input" id="selTrendLine">
+                                <option value="none">No Trend Line</option>
+                                <option value="linear">Linear</option>
+                                <option value="movingAvg">Moving Average (3)</option>
+                                <option value="movingAvg5">Moving Average (5)</option>
+                            </select>
+                        </div>
+                    </div>
+
+            <div class="anlz-section-label" style="margin-top:1.25rem"><i class="bi bi-table"></i> Table View</div>
+            <div style="display:grid;grid-template-columns:1fr;gap:0.5rem;margin-bottom:0.75rem;">
+                        <label class="anlz-field-label">Columns</label>
+                        <div class="multi-dropdown" data-target="columns">
+                            <div class="multi-dropdown-header" role="button" tabindex="0">
+                                <span class="label">Select columns</span>
+                                <span class="summary">Dept, Sect, Process, CertifiedDate</span>
+                                <span class="caret">▾</span>
+                            </div>
+                            <div class="multi-dropdown-panel" style="display:none;">
+                                <div style="padding:0.25rem 0.5rem;border-bottom:1px solid #eef2f7;display:flex;gap:0.5rem;align-items:center;">
+                                    <button type="button" class="btn btn-sm btn-link select-all">Select all</button>
+                                    <button type="button" class="btn btn-sm btn-link clear-all">Clear</button>
+                                </div>
+                                <div class="multiselect-list" style="padding:0.5rem;max-height:240px;overflow:auto;">
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="DeptName" @Html.Raw(Model.SelectedColumns?.Contains("DeptName") == true ? "checked" : "") /> <span>DeptName</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="SectName" @Html.Raw(Model.SelectedColumns?.Contains("SectName") == true ? "checked" : "") /> <span>SectName</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="WorkshopName" @Html.Raw(Model.SelectedColumns?.Contains("WorkshopName") == true ? "checked" : "") /> <span>WorkshopName</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="Shift" @Html.Raw(Model.SelectedColumns?.Contains("Shift") == true ? "checked" : "") /> <span>Shift</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="ProcessName" @Html.Raw(Model.SelectedColumns?.Contains("ProcessName") == true ? "checked" : "") /> <span>ProcessName</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="OperatorTraining" @Html.Raw(Model.SelectedColumns?.Contains("OperatorTraining") == true ? "checked" : "") /> <span>OperatorTraining</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="CertifiedDate" @Html.Raw(Model.SelectedColumns?.Contains("CertifiedDate") == true ? "checked" : "") /> <span>CertifiedDate</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="ExpiryDate" @Html.Raw(Model.SelectedColumns?.Contains("ExpiryDate") == true ? "checked" : "") /> <span>ExpiryDate</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="Verifier" @Html.Raw(Model.SelectedColumns?.Contains("Verifier") == true ? "checked" : "") /> <span>Verifier</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="DisQualifiedDate" @Html.Raw(Model.SelectedColumns?.Contains("DisQualifiedDate") == true ? "checked" : "") /> <span>DisQualifiedDate</span></label>
+                                    <label class="list-item"><input type="checkbox" name="SelectedColumns" value="DisQualifiedBy" @Html.Raw(Model.SelectedColumns?.Contains("DisQualifiedBy") == true ? "checked" : "") /> <span>DisQualifiedBy</span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <label class="anlz-check-row" style="margin-top:0.4rem;"><input type="checkbox" name="OnlyDisqualified" id="chkOnlyDisqualified" @Html.Raw(Model.OnlyDisqualified ? "checked" : "") style="width:15px;height:15px;margin:0;accent-color:#ea580c;" /><span style="font-size:0.88rem;color:#475569;">Only Disqualified</span></label>
+                    </div>
+        }
+
+    </div><!-- /LEFT panel -->
+
+    <!-- RIGHT: Actions Panel -->
+    <div class="anlz-panel anlz-panel-right" style="flex:0 0 290px !important;width:290px !important;min-width:290px !important;max-width:290px !important;box-sizing:border-box;position:relative !important;">
+        <div class="anlz-section-label"><i class="bi bi-play-circle-fill"></i> Actions</div>
+        <div class="anlz-actions">
+            <button type="button" id="btnAnalyze" class="anlz-btn anlz-btn-primary"><i class="bi bi-bar-chart-fill"></i> Run Analysis</button>
+            <button type="button" id="btnExport" class="anlz-btn anlz-btn-success"><i class="bi bi-download"></i> Export CSV</button>
+            <button type="button" id="btnShowTable" class="anlz-btn anlz-btn-outline"><i class="bi bi-table"></i> Show Table</button>
+            <button type="button" id="btnExportTable" class="anlz-btn anlz-btn-ghost"><i class="bi bi-file-earmark-text"></i> Export Table CSV</button>
+        </div>
+
+        <div style="margin-top:0.75rem;">
+            <label class="anlz-field-label">Template Name</label>
+            <input type="text" class="anlz-input" name="TemplateName" id="txtTemplateName" placeholder="Save as template (optional)" />
+        </div>
+        <div style="margin-top:0.5rem;">
+            <button type="button" id="btnSaveTemplate" class="anlz-btn anlz-btn-outline" style="width:100%;"><i class="bi bi-bookmark-fill"></i> Save Template</button>
+        </div>
+
+        <div class="anlz-section-label" style="margin-top:1.4rem"><i class="bi bi-bookmark-star"></i> Saved Templates</div>
+        <div class="anlz-templates-list">
+            @if(Model.Templates == null || !Model.Templates.Any()){
+                <div class="anlz-empty"><i class="bi bi-inbox"></i> No saved templates</div>
+            } else {
+                @for(int i=0;i<Model.Templates.Count;i++){
+                    var t = Model.Templates[i];
+                    <div class="anlz-template-row">
+                        <div class="anlz-template-info">
+                            <span class="anlz-template-name">@t.Name</span>
+                            <span class="anlz-template-meta">@string.Join(", ", t.GroupBy)</span>
+                        </div>
+                        <div class="anlz-template-btns">
+                            <button type="button" data-template-idx="@i" class="anlz-btn anlz-btn-xs anlz-btn-outline load-template">Load</button>
+                            <form method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" formaction="?handler=DeleteTemplate" name="templateIndex" value="@i" class="anlz-btn anlz-btn-xs anlz-btn-danger">Del</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div><!-- /RIGHT panel -->
+</div><!-- /anlz-layout -->
+
+<!-- Results area (full width below layout) -->
+<div id="resultsArea" style="margin-top:1.25rem;display:none;">
+    <div class="anlz-panel" style="margin-bottom:1.25rem;">
+    <div class="anlz-results-header">
+        <div class="anlz-section-label" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><i class="bi bi-graph-up"></i> Analysis Results</div>
+                <div class="chart-toolbar">
+                    <button type="button" class="anlz-btn anlz-btn-xs anlz-btn-ghost" id="btnZoomIn" title="Zoom In"><i class="bi bi-zoom-in"></i></button>
+                    <button type="button" class="anlz-btn anlz-btn-xs anlz-btn-ghost" id="btnZoomOut" title="Zoom Out"><i class="bi bi-zoom-out"></i></button>
+                    <button type="button" class="anlz-btn anlz-btn-xs anlz-btn-ghost" id="btnResetZoom" title="Reset"><i class="bi bi-arrows-angle-expand"></i></button>
+                    <button type="button" class="anlz-btn anlz-btn-xs anlz-btn-ghost" id="btnFullscreen" title="Fullscreen"><i class="bi bi-fullscreen"></i></button>
+                    <button type="button" class="anlz-btn anlz-btn-xs anlz-btn-outline" id="btnDownloadChart" title="Download PNG"><i class="bi bi-download"></i></button>
+                </div>
+    </div>
+            
+    <!-- Statistics Summary -->
+    <div class="anlz-stats-summary" id="statsSummary" style="display:none;">
+    <div class="anlz-stat-item">
+                    <span class="anlz-stat-label">Total</span>
+                    <span class="anlz-stat-value" id="statTotal">--</span>
+                </div>
+                <div class="anlz-stat-item">
+                    <span class="anlz-stat-label">Average</span>
+                    <span class="anlz-stat-value" id="statAverage">--</span>
+                </div>
+                <div class="anlz-stat-item">
+                    <span class="anlz-stat-label">Maximum</span>
+                    <span class="anlz-stat-value" id="statMax">--</span>
+                </div>
+                <div class="anlz-stat-item">
+                    <span class="anlz-stat-label">Minimum</span>
+                    <span class="anlz-stat-value" id="statMin">--</span>
+                </div>
+                <div class="anlz-stat-item">
+                    <span class="anlz-stat-label">Median</span>
+                    <span class="anlz-stat-value" id="statMedian">--</span>
+                </div>
+                <div class="anlz-stat-item">
+                    <span class="anlz-stat-label">Std Dev</span>
+                    <span class="anlz-stat-value" id="statStdDev">--</span>
+                </div>
+    </div>
+            
+    <div class="anlz-chart-wrap" id="chartWrapper">
+                <div style="background:#fff;padding:1rem;border-radius:12px;border:1px solid #f1f5f9;position:relative;min-height:550px;">
+                    <div class="chart-loading" id="chartLoading" style="display:none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span>Generating chart...</span>
+                    </div>
+                    <canvas id="analysisChart" style="min-height:500px;max-height:700px;"></canvas>
+                    <div id="analysisChartsGrid" class="charts-grid" style="display:none;margin-top:1rem;"></div>
+                    
+                    <!-- Comparison Chart -->
+                    <div id="comparisonChartArea" style="display:none;margin-top:1.5rem;padding-top:1rem;border-top:1px dashed #e5e7eb;">
+                    <h6 style="color:#94a3b8;font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.6rem;"><i class="bi bi-arrow-left-right"></i> Comparison View</h6>
+                        <canvas id="comparisonChart" style="min-height:350px;max-height:450px;"></canvas>
+                    </div>
+                </div>
+            </div>
+    </div>
+    </div>
+
+    <div id="dataTable" style="margin-top:1rem;max-height:400px;overflow:auto;"></div>
+    </div><!-- /anlz-panel results -->
+</div><!-- /resultsArea -->
+
+<div id="tableArea" style="margin-top:1.25rem;display:none;">
+    <div class="anlz-panel">
+        <div class="anlz-section-label"><i class="bi bi-table"></i> Table Results</div>
+        <div style="overflow:auto;">
+            <div id="tableContainer"></div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="tableModal" tabindex="-1" aria-labelledby="tableModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tableModalLabel"><i class="bi bi-table"></i> Table Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="tableContainerModal" style="max-height:70vh;overflow:auto;"></div>
+            </div>
+            <dive class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="btnExportTableModal" class="btn btn-primary"><i class="bi bi-file-earmark-text"></i> Export CSV</button>
+        </div>
+    </div>
+
+
+<style>
+    /* ===== Report Analyzer Page ===== */
+
+    /* Hero */
+    .anlz-hero { background:linear-gradient(120deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);border-radius:16px;padding:1.75rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-left:4px solid #ea580c; }
+    .anlz-hero-badge { display:inline-flex;align-items:center;gap:0.4rem;font-size:0.72rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#fb923c;margin-bottom:0.4rem; }
+    .anlz-hero-title { font-size:1.6rem;font-weight:800;color:#f8fafc;margin:0 0 0.3rem;line-height:1.2; }
+    .anlz-hero-sub { font-size:0.88rem;color:#94a3b8;margin:0; }
+    .anlz-back-btn { display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1.1rem;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.15);border-radius:9px;color:#e2e8f0;font-weight:600;font-size:0.88rem;text-decoration:none;transition:background 0.15s,color 0.15s;white-space:nowrap; }
+    .anlz-back-btn:hover { background:rgba(234,88,12,0.18);color:#fb923c;border-color:rgba(234,88,12,0.4); }
+
+    /* KPI row */
+    .anlz-kpi-row { display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.25rem; }
+    @@media (max-width:900px) { .anlz-kpi-row { grid-template-columns:repeat(2,1fr); } }
+    @@media (max-width:480px) { .anlz-kpi-row { grid-template-columns:1fr; } }
+
+    .anlz-kpi-card { background:#fff;border-radius:14px;padding:1.25rem;display:flex;align-items:center;gap:1rem;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #f1f5f9;position:relative;transition:transform 0.18s,box-shadow 0.18s; }
+    .anlz-kpi-card:hover { transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.1); }
+    .anlz-kpi-icon { width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0; }
+    .anlz-kpi-primary .anlz-kpi-icon { background:rgba(59,130,246,0.1);color:#3b82f6; }
+    .anlz-kpi-success .anlz-kpi-icon { background:rgba(34,197,94,0.1);color:#22c55e; }
+    .anlz-kpi-warning .anlz-kpi-icon { background:rgba(234,179,8,0.1);color:#eab308; }
+    .anlz-kpi-danger  .anlz-kpi-icon { background:rgba(239,68,68,0.1);color:#ef4444; }
+    .anlz-kpi-content { flex:1; }
+    .anlz-kpi-value { font-size:1.75rem;font-weight:800;color:#1e293b;line-height:1.2; }
+    .anlz-kpi-label { font-size:0.82rem;color:#94a3b8;margin-top:0.2rem; }
+    /* keep JS-referenced classes working */
+    .kpi-trend { position:absolute;top:0.75rem;right:0.75rem;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:5px; }
+    .kpi-trend-up { background:rgba(34,197,94,0.1);color:#22c55e; }
+    .kpi-trend-down { background:rgba(239,68,68,0.1);color:#ef4444; }
+    .kpi-badge { position:absolute;top:0.75rem;right:0.75rem;font-size:0.7rem;padding:0.2rem 0.5rem;border-radius:5px;background:rgba(234,179,8,0.15);color:#b45309;font-weight:600; }
+
+    /* Two-panel layout */
+    .anlz-layout { display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;gap:1.25rem;align-items:flex-start;width:100%; }
+
+    /* Panels */
+    .anlz-panel { background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.07);padding:1.5rem;border:1px solid #f1f5f9;box-sizing:border-box; }
+    .anlz-panel-left { flex:1 1 0 !important;min-width:0 !important;overflow:hidden; }
+    .anlz-panel-right { flex:0 0 290px !important;width:290px !important;max-width:290px !important;min-width:290px !important;box-sizing:border-box;position:relative !important; }
+
+    /* Section label */
+    .anlz-section-label { font-size:0.7rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#ea580c;border-bottom:2px solid #fff7ed;padding-bottom:0.35rem;margin-bottom:0.85rem;display:flex;align-items:center;gap:0.4rem; }
+
+    /* Field grid */
+    .anlz-field-grid { display:grid;gap:0.75rem;margin-bottom:0.75rem; }
+    .anlz-field-label { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;display:block;margin-bottom:0.28rem; }
+    .anlz-input { width:100%;padding:0.48rem 0.75rem;font-size:0.9rem;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#1e293b;font-family:inherit;outline:none;transition:border-color 0.16s,box-shadow 0.16s; }
+    .anlz-input:focus { border-color:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.1);background:#fff; }
+    select.anlz-input { appearance:auto; }
+
+    /* Checkbox rows */
+    .anlz-check-row { display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem; }
+    .anlz-check-row label { font-size:0.88rem;color:#475569;cursor:pointer; }
+    .anlz-check-row input[type="checkbox"] { width:15px;height:15px;margin:0;accent-color:#ea580c; }
+
+    /* Action buttons */
+    .anlz-actions { display:flex;flex-direction:column;gap:0.45rem; }
+    .anlz-btn { display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;padding:0.5rem 1rem;border-radius:9px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:opacity 0.14s,transform 0.1s,box-shadow 0.14s;font-family:inherit;white-space:nowrap; }
+    .anlz-btn:hover { opacity:0.85;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.12); }
+    .anlz-btn-primary { background:#ea580c;color:#fff;width:100%; }
+    .anlz-btn-success { background:#059669;color:#fff;width:100%; }
+    .anlz-btn-outline { background:transparent;color:#ea580c;border:1.5px solid #ea580c;width:100%; }
+    .anlz-btn-ghost { background:#f1f5f9;color:#475569;width:100%; }
+    .anlz-btn-danger { background:transparent;color:#dc2626;border:1.5px solid #fca5a5; }
+    .anlz-btn-xs { padding:0.28rem 0.65rem !important;font-size:0.78rem !important;width:auto !important; }
+
+    /* Templates list */
+    .anlz-templates-list { max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:0.4rem; }
+    .anlz-template-row { display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.55rem 0.7rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;transition:border-color 0.14s; }
+    .anlz-template-row:hover { border-color:#fb923c;background:#fff7ed; }
+    .anlz-template-info { display:flex;flex-direction:column;gap:0.08rem;min-width:0; }
+    .anlz-template-name { font-weight:700;font-size:0.87rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .anlz-template-meta { font-size:0.74rem;color:#94a3b8; }
+    .anlz-template-btns { display:flex;gap:0.3rem;flex-shrink:0; }
+    .anlz-empty { color:#94a3b8;font-size:0.88rem;padding:0.75rem;text-align:center;display:flex;align-items:center;justify-content:center;gap:0.4rem; }
+
+    /* Results area */
+    .anlz-results-header { display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem;flex-wrap:wrap; }
+    .anlz-stats-summary { display:flex;gap:1.25rem;padding:0.85rem 1rem;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-radius:10px;margin-bottom:1rem;flex-wrap:wrap;border:1.5px solid #e2e8f0; }
+    .anlz-stat-item { display:flex;flex-direction:column;align-items:center;min-width:72px; }
+    .anlz-stat-label { font-size:0.68rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700; }
+    .anlz-stat-value { font-size:1.2rem;font-weight:800;color:#1e293b; }
+    .anlz-chart-wrap > div { min-height:550px; }
+    .anlz-chart-wrap.fullscreen { position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#fff;padding:2rem;overflow:auto; }
+    .anlz-chart-wrap.fullscreen canvas { max-height:calc(100vh - 120px) !important;min-height:calc(100vh - 150px) !important; }
+
+    /* Chart toolbar */
+    .chart-toolbar { display:flex;gap:0.3rem;margin-left:auto; }
+
+    /* multi-dropdown */
+    .multi-dropdown { position:relative; }
+    .multi-dropdown-header { display:flex;align-items:center;justify-content:space-between;padding:0.48rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;background:#f8fafc;transition:border-color 0.15s; }
+    .multi-dropdown-header:hover { border-color:#ea580c;background:#fff7ed; }
+    .multi-dropdown-header .summary { color:#94a3b8;font-size:0.88rem;margin-left:0.4rem;flex:1;text-align:left; }
+    .multi-dropdown-header .caret { margin-left:0.4rem;color:#94a3b8; }
+    .multi-dropdown-panel { position:absolute;left:0;right:0;z-index:80;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;margin-top:6px;box-shadow:0 12px 28px rgba(0,0,0,0.1);max-height:60vh;overflow:auto;min-width:280px;width:max(280px,100%);padding:0.35rem; }
+    @@media (max-width:900px) { .multi-dropdown .multi-dropdown-panel { min-width:auto;width:100%; } }
+    .multi-dropdown .multiselect-list { padding:0.5rem;font-size:0.92rem; }
+    .multi-dropdown .multiselect-list label { display:flex;align-items:center;gap:0.5rem;padding:0.28rem 0.5rem;border-radius:5px; }
+    .multi-dropdown .multiselect-list label:hover { background:#fff7ed;cursor:pointer; }
+    .multi-dropdown .multiselect-list input[type="checkbox"] { width:15px;height:15px;margin:0;accent-color:#ea580c; }
+    .multi-dropdown .multiselect-list input[type="checkbox"]:checked + span { font-weight:700;color:#ea580c; }
+    .multi-dropdown-panel.up { bottom:calc(100% + 6px);top:auto;margin-top:0;margin-bottom:6px; }
+    .list-item { display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0.35rem;border-radius:4px; }
+    .list-item:hover { background:rgba(234,88,12,0.04);cursor:pointer; }
+    .category { font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;padding:0.4rem 0.5rem 0.2rem;margin-top:0.25rem; }
+
+    /* Separate charts grid */
+    .charts-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem; }
+    .chart-card { background:#fff;padding:0.5rem;border-radius:10px;border:1px solid #f1f5f9;height:320px;display:flex;flex-direction:column; }
+    .chart-card .chart-title { font-size:0.88rem;margin-bottom:0.5rem;font-weight:700;color:#94a3b8; }
+
+    /* Chart loading */
+    .chart-loading { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:0.5rem;z-index:10;background:rgba(255,255,255,0.9);padding:2rem;border-radius:10px; }
+
+    /* Preview table */
+    #dataTable table { border-collapse:collapse;width:100%;font-size:0.85rem; }
+    #dataTable table thead th { background:#0f172a;color:#f8fafc;font-size:0.72rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:0.55rem 0.75rem;border-bottom:2px solid #ea580c;white-space:nowrap; }
+    #dataTable table tbody td { padding:0.45rem 0.75rem;border-bottom:1px solid #f1f5f9;color:#374151; }
+    #dataTable table tbody tr:hover td { background:#fff7ed; }
+    #tableContainer table { border-collapse:collapse;width:100%;font-size:0.85rem; }
+    #tableContainer table thead th { background:#0f172a;color:#f8fafc;font-size:0.72rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:0.55rem 0.75rem;border-bottom:2px solid #ea580c;white-space:nowrap;position:sticky;top:0;z-index:1; }
+    #tableContainer table tbody td { padding:0.45rem 0.75rem;border-bottom:1px solid #f1f5f9;color:#374151; }
+    #tableContainer table tbody tr:hover td { background:#fff7ed; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+    // Register the datalabels plugin
+    Chart.register(ChartDataLabels);
+
+    let analysisChart = null;
+    let comparisonChart = null;
+    let currentZoom = 1;
+    // stores the last returned analysis JSON so Show Table / Export can use it
+    window.lastAnalysisResult = null;
+
+    // Color schemes
+    const colorSchemes = {
+        default: ['rgba(59, 130, 246, 0.7)', 'rgba(34, 197, 94, 0.7)', 'rgba(234, 179, 8, 0.7)', 'rgba(239, 68, 68, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(236, 72, 153, 0.7)', 'rgba(6, 182, 212, 0.7)', 'rgba(249, 115, 22, 0.7)'],
+        ocean: ['rgba(0, 119, 182, 0.7)', 'rgba(0, 150, 199, 0.7)', 'rgba(0, 180, 216, 0.7)', 'rgba(72, 202, 228, 0.7)', 'rgba(144, 224, 239, 0.7)', 'rgba(173, 232, 244, 0.7)', 'rgba(202, 240, 248, 0.7)'],
+        forest: ['rgba(27, 67, 50, 0.7)', 'rgba(45, 106, 79, 0.7)', 'rgba(64, 145, 108, 0.7)', 'rgba(82, 183, 136, 0.7)', 'rgba(116, 198, 157, 0.7)', 'rgba(149, 213, 178, 0.7)', 'rgba(183, 228, 199, 0.7)'],
+        sunset: ['rgba(249, 65, 68, 0.7)', 'rgba(243, 114, 44, 0.7)', 'rgba(248, 150, 30, 0.7)', 'rgba(249, 199, 79, 0.7)', 'rgba(144, 190, 109, 0.7)', 'rgba(67, 170, 139, 0.7)', 'rgba(87, 117, 144, 0.7)'],
+        royal: ['rgba(88, 24, 69, 0.7)', 'rgba(144, 12, 63, 0.7)', 'rgba(199, 0, 57, 0.7)', 'rgba(255, 87, 51, 0.7)', 'rgba(255, 195, 0, 0.7)', 'rgba(88, 24, 69, 0.7)'],
+        rainbow: ['rgba(255, 0, 0, 0.7)', 'rgba(255, 127, 0, 0.7)', 'rgba(255, 255, 0, 0.7)', 'rgba(0, 255, 0, 0.7)', 'rgba(0, 0, 255, 0.7)', 'rgba(75, 0, 130, 0.7)', 'rgba(148, 0, 211, 0.7)'],
+        pastel: ['rgba(255, 173, 173, 0.7)', 'rgba(255, 214, 165, 0.7)', 'rgba(253, 255, 182, 0.7)', 'rgba(202, 255, 191, 0.7)', 'rgba(155, 246, 255, 0.7)', 'rgba(160, 196, 255, 0.7)', 'rgba(189, 178, 255, 0.7)'],
+        neon: ['rgba(57, 255, 20, 0.7)', 'rgba(255, 20, 147, 0.7)', 'rgba(0, 255, 255, 0.7)', 'rgba(255, 255, 0, 0.7)', 'rgba(255, 0, 255, 0.7)', 'rgba(0, 255, 127, 0.7)', 'rgba(255, 105, 180, 0.7)']
+    };
+
+    function getColorScheme() {
+        const scheme = document.getElementById('selColorScheme').value;
+        return colorSchemes[scheme] || colorSchemes.default;
+    }
+
+    function getColor(index, alpha = 0.7) {
+        const colors = getColorScheme();
+        const baseColor = colors[index % colors.length];
+        return baseColor.replace(/[\d.]+\)$/, alpha + ')');
+    }
+
+    function getLegendPosition() {
+        const pos = document.getElementById('selLegendPosition').value;
+        return pos === 'none' ? false : pos;
+    }
+
+    function getAnimationDuration() {
+        return document.getElementById('chkEnableAnimation').checked ? 750 : 0;
+    }
+
+    function showDataLabels() {
+        return document.getElementById('chkShowDataLabels').checked;
+    }
+
+    // Calculate statistics
+    function calculateStats(values) {
+        if (!values || values.length === 0) return null;
+        const nums = values.map(v => Number(v) || 0);
+        const sum = nums.reduce((a, b) => a + b, 0);
+        const avg = sum / nums.length;
+        const sorted = [...nums].sort((a, b) => a - b);
+        const median = nums.length % 2 === 0 
+            ? (sorted[nums.length/2 - 1] + sorted[nums.length/2]) / 2 
+            : sorted[Math.floor(nums.length/2)];
+        const variance = nums.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / nums.length;
+        const stdDev = Math.sqrt(variance);
+        return {
+            total: sum,
+            average: avg,
+            max: Math.max(...nums),
+            min: Math.min(...nums),
+            median: median,
+            stdDev: stdDev
+        };
+    }
+
+    function computeBoxStats(vals) {
+        const nums = vals.map(v => Number(v)).filter(v => !isNaN(v));
+        if (nums.length === 0) return null;
+        const sorted = [...nums].sort((a, b) => a - b);
+        const n = sorted.length;
+        const interp = p => {
+            const idx = p * (n - 1);
+            const lo = Math.floor(idx), hi = Math.ceil(idx);
+            return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+        };
+        return { min: sorted[0], q1: interp(0.25), median: interp(0.5), q3: interp(0.75), max: sorted[n - 1] };
+    }
+
+    function updateStatsDisplay(values) {
+        const stats = calculateStats(values);
+        if (!stats) {
+            document.getElementById('statsSummary').style.display = 'none';
+            return;
+        }
+        document.getElementById('statsSummary').style.display = 'flex';
+        document.getElementById('statTotal').textContent = stats.total.toLocaleString();
+        document.getElementById('statAverage').textContent = stats.average.toFixed(1);
+        document.getElementById('statMax').textContent = stats.max.toLocaleString();
+        document.getElementById('statMin').textContent = stats.min.toLocaleString();
+        document.getElementById('statMedian').textContent = stats.median.toFixed(1);
+        document.getElementById('statStdDev').textContent = stats.stdDev.toFixed(2);
+    }
+
+    // Trend line calculation  
+    function calculateTrendLine(data, type = 'linear') {
+        if (!data || data.length < 2) return null;
+        
+        if (type === 'movingAvg' || type === 'movingAvg5') {
+            const window = type === 'movingAvg5' ? 5 : 3;
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                const start = Math.max(0, i - Math.floor(window/2));
+                const end = Math.min(data.length, i + Math.ceil(window/2));
+                const slice = data.slice(start, end);
+                result.push(slice.reduce((a, b) => a + b, 0) / slice.length);
+            }
+            return result;
+        }
+        
+        // Linear regression
+        const n = data.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        for (let i = 0; i < n; i++) {
+            sumX += i;
+            sumY += data[i];
+            sumXY += i * data[i];
+            sumXX += i * i;
+        }
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        return data.map((_, i) => slope * i + intercept);
+    }
+
+    // Load KPI data on page load
+    async function loadKPIData() {
+        try {
+            const resp = await fetch(window.location.pathname + '?handler=KPISummary', { 
+                method: 'GET', 
+                credentials: 'same-origin' 
+            });
+            const json = await resp.json();
+            if (json && json.success) {
+                document.getElementById('kpiTotalEmployees').textContent = (json.totalEmployees || 0).toLocaleString();
+                document.getElementById('kpiCertified').textContent = (json.certifiedCount || 0).toLocaleString();
+                document.getElementById('kpiExpiring').textContent = (json.expiringCount || 0).toLocaleString();
+                document.getElementById('kpiDisqualified').textContent = (json.disqualifiedCount || 0).toLocaleString();
+                
+                // Show trends if available
+                if (json.employeeTrend) {
+                    const trend = document.getElementById('kpiTrendEmployees');
+                    trend.querySelector('span').textContent = Math.abs(json.employeeTrend).toFixed(1) + '%';
+                    trend.className = 'kpi-trend ' + (json.employeeTrend >= 0 ? 'kpi-trend-up' : 'kpi-trend-down');
+                    trend.querySelector('i').className = 'bi bi-arrow-' + (json.employeeTrend >= 0 ? 'up' : 'down');
+                    trend.style.display = 'block';
+                }
+            }
+        } catch (e) {
+            console.log('KPI load error:', e);
+        }
+    }
+    
+    // Call on page load
+    document.addEventListener('DOMContentLoaded', loadKPIData);
+
+    // Multi-dropdown behavior
+    (function(){
+        function updateSummary(container){
+            const checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(x => x.nextElementSibling?.textContent || x.value);
+            const header = container.querySelector('.multi-dropdown-header .summary');
+            if(!header) return;
+            if(checked.length === 0) header.textContent = '-- Any --';
+            else if(checked.length === 1) header.textContent = checked[0];
+            else header.textContent = checked[0] + ' (+ ' + (checked.length - 1) + ')';
+        }
+
+        document.querySelectorAll('.multi-dropdown').forEach(function(drop){
+            const header = drop.querySelector('.multi-dropdown-header');
+            const panel = drop.querySelector('.multi-dropdown-panel');
+            const list = drop.querySelector('.multiselect-list');
+
+            header.addEventListener('click', function(e){
+                e.stopPropagation();
+                document.querySelectorAll('.multi-dropdown-panel').forEach(p => { if(p !== panel) p.style.display = 'none'; p.classList.remove('up'); });
+                const isOpen = panel.style.display === 'block';
+                panel.style.display = isOpen ? 'none' : 'block';
+                if(!isOpen){
+                    const rect = panel.getBoundingClientRect();
+                    const headerRect = header.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - headerRect.bottom;
+                    const spaceAbove = headerRect.top;
+                    let panelHeight = panel.offsetHeight;
+                    if(!panelHeight){
+                        panel.style.visibility = 'hidden'; panel.style.display = 'block'; panelHeight = panel.offsetHeight; panel.style.display = 'none'; panel.style.visibility = '';
+                    }
+                    if(panelHeight > spaceBelow && spaceAbove > spaceBelow){
+                        panel.classList.add('up');
+                    } else {
+                        panel.classList.remove('up');
+                    }
+                    const panelRectAfter = panel.getBoundingClientRect();
+                    if(panelRectAfter.right > window.innerWidth){
+                        panel.style.left = 'auto'; panel.style.right = '0px';
+                    } else { panel.style.left = '0px'; panel.style.right = 'auto'; }
+                }
+            });
+
+            header.addEventListener('keydown', function(e){ if(e.key === 'Escape') panel.style.display = 'none'; if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); header.click(); } });
+            document.addEventListener('click', function(e){ if(!drop.contains(e.target)) panel.style.display = 'none'; });
+            window.addEventListener('resize', function(){ panel.style.display = 'none'; });
+            window.addEventListener('scroll', function(e){ if(drop.contains(e.target)) return; panel.style.display = 'none'; }, true);
+
+            drop.querySelectorAll('.select-all').forEach(btn => btn.addEventListener('click', function(){ list.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.checked = true); updateSummary(drop); }));
+            drop.querySelectorAll('.clear-all').forEach(btn => btn.addEventListener('click', function(){ list.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.checked = false); updateSummary(drop); }));
+
+            list.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.addEventListener('change', function(){ updateSummary(drop); }));
+
+            updateSummary(drop);
+        });
+    })();
+
+    // Run Analysis
+    document.getElementById('btnAnalyze').addEventListener('click', async function(){
+        const btn = this;
+        btn.disabled = true; btn.textContent = 'Analyzing...';
+
+        const form = document.getElementById('analyzerForm');
+        const formData = new FormData();
+        const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+        if(token) formData.append('__RequestVerificationToken', token);
+
+        // GroupBy multi
+        document.querySelectorAll('input[name="GroupBy"]:checked').forEach(ch => formData.append('GroupBy', ch.value));
+        formData.append('Metric', document.getElementById('selMetric').value);
+        formData.append('TopN', document.getElementById('txtTopN').value);
+        formData.append('ChartType', document.getElementById('selChartType').value);
+        if(document.getElementById('txtStartDate').value) formData.append('StartDate', document.getElementById('txtStartDate').value);
+        if(document.getElementById('txtEndDate').value) formData.append('EndDate', document.getElementById('txtEndDate').value);
+        // date field used for grouping/filters
+        formData.append('DateField', document.getElementById('selDateField').value);
+
+        document.querySelectorAll('input[name="SelectedDepartments"]:checked').forEach(ch => formData.append('SelectedDepartments', ch.value));
+        document.querySelectorAll('input[name="SelectedSections"]:checked').forEach(ch => formData.append('SelectedSections', ch.value));
+
+
+        try{
+            const resp = await fetch(window.location.pathname + '?handler=Analyze', { method: 'POST', credentials: 'same-origin', body: formData });
+            const json = await resp.json();
+
+            if(json && json.success){
+                // store for table/export use
+                window.lastAnalysisResult = json;
+
+                if(json.multi){
+                    // render separate charts per series if user checked the option
+                    const useSeparate = document.getElementById('chkSeparateCharts') && document.getElementById('chkSeparateCharts').checked;
+                    if(useSeparate){
+                        renderSeparateCharts(json.labels, json.series);
+                    } else {
+                        renderMultiChart(json.labels, json.series);
+                    }
+                    renderMultiTable(json.labels, json.series);
+                } else {
+                    // single-series chart should also ensure separate charts removed
+                    destroySeparateCharts();
+                    renderChart(json.labels, json.values);
+                    renderTable(json.labels, json.values);
+                }
+                document.getElementById('resultsArea').style.display = 'block';
+            } else {
+                alert('Analysis failed: ' + (json.message || 'Unknown error'));
+            }
+        } catch(err){
+            alert('Analysis failed: ' + err.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '🔍 Run Analysis';
+        }
+    });
+
+    // Multi-group rendering
+    function renderMultiChart(labels, series){
+        // ensure separate charts are removed and show main canvas
+        destroySeparateCharts();
+        const grid = document.getElementById('analysisChartsGrid'); if(grid) grid.style.display = 'none';
+        const canvas = document.getElementById('analysisChart'); if(canvas) canvas.style.display = '';
+        const ctx = document.getElementById('analysisChart').getContext('2d');
+        const chartType = document.getElementById('selChartType').value;
+        const trendType = document.getElementById('selTrendLine').value;
+        const legendPos = getLegendPosition();
+
+        if(analysisChart) analysisChart.destroy();
+
+        // Collect all values for stats
+        const allValues = series.flatMap(s => s.data);
+        updateStatsDisplay(allValues);
+
+        const datasets = series.map((s, idx) => {
+            const color = getColor(idx);
+            const borderColor = getColor(idx, 1);
+            
+            const dataset = {
+                label: s.label,
+                data: s.data,
+                backgroundColor: ['line', 'area', 'control'].includes(chartType) ? getColor(idx, 0.2) : color,
+                borderColor: borderColor,
+                borderWidth: chartType === 'radar' ? 2 : 1,
+                fill: chartType === 'area' || chartType === 'radar',
+                tension: 0.3
+            };
+            
+            if (chartType === 'bubble') {
+                const maxVal = Math.max(...s.data);
+                dataset.data = s.data.map((v, i) => ({ x: i, y: v, r: Math.max(3, (v / maxVal) * 15) }));
+            } else if (chartType === 'waterfall') {
+                let current = 0;
+                dataset.data = s.data.map(v => {
+                    const start = current;
+                    current += v;
+                    return [start, current];
+                });
+                dataset.backgroundColor = s.data.map(v => v >= 0 ? getColor(idx, 0.7) : 'rgba(239, 68, 68, 0.7)');
+                dataset.borderColor = s.data.map(v => v >= 0 ? getColor(idx, 1) : 'rgba(239, 68, 68, 1)');
+            } else if (chartType === 'boxplot') {
+                // raw data kept; will be rebuilt into a 3-layer box plot after the switch
+                dataset.data = s.data;
+            }
+            
+            return dataset;
+        });
+
+        const useStack = chartType === 'stackedBar';
+
+        // Determine chart configuration
+        let chartTypeForJs = 'bar';
+        let indexAxis = undefined;
+        let cutout = undefined;
+        
+        switch(chartType) {
+            case 'line':
+            case 'area':
+            case 'control':
+                chartTypeForJs = 'line';
+                break;
+            case 'horizontalBar':
+                chartTypeForJs = 'bar';
+                indexAxis = 'y';
+                break;
+            case 'pie':
+                chartTypeForJs = 'pie';
+                break;
+            case 'doughnut':
+                chartTypeForJs = 'doughnut';
+                cutout = '50%';
+                break;
+            case 'polarArea':
+                chartTypeForJs = 'polarArea';
+                break;
+            case 'radar':
+                chartTypeForJs = 'radar';
+                break;
+            case 'scatter':
+                chartTypeForJs = 'scatter';
+                break;
+            case 'bubble':
+                chartTypeForJs = 'bubble';
+                break;
+            case 'mixedBarLine':
+            case 'pareto':
+                chartTypeForJs = 'bar';
+                // Add line versions of each dataset
+                const lineDatasets = series.map((s, idx) => ({
+                    label: s.label + ' (Line)',
+                    data: s.data,
+                    type: 'line',
+                    borderColor: getColor(idx + series.length, 1),
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    tension: 0.3
+                }));
+                datasets.push(...lineDatasets);
+                break;
+        }
+
+        if (chartType === 'boxplot') {
+            // Rebuild datasets as a proper 3-layer statistical box plot
+            const boxStatsList = labels.map((_, i) => {
+                const vals = series.map(s => s.data[i]).filter(v => v != null && !isNaN(Number(v))).map(Number);
+                return computeBoxStats(vals);
+            });
+            datasets.splice(0, datasets.length,
+                {
+                    type: 'bar',
+                    label: 'Range (Min – Max)',
+                    data: boxStatsList.map(s => s ? [s.min, s.max] : null),
+                    backgroundColor: 'rgba(148, 163, 184, 0.22)',
+                    borderColor: 'rgba(100, 116, 139, 0.55)',
+                    borderWidth: 1,
+                    barPercentage: 0.32,
+                    categoryPercentage: 0.9,
+                    borderSkipped: false,
+                    order: 3
+                },
+                {
+                    type: 'bar',
+                    label: 'IQR (Q1 – Q3)',
+                    data: boxStatsList.map(s => s ? [s.q1, s.q3] : null),
+                    backgroundColor: 'rgba(59, 130, 246, 0.55)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 2,
+                    barPercentage: 0.62,
+                    categoryPercentage: 0.9,
+                    borderSkipped: false,
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: 'Median',
+                    data: boxStatsList.map(s => s ? s.median : null),
+                    borderColor: 'rgba(15, 23, 42, 0.85)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    pointRadius: 7,
+                    pointStyle: 'crossRot',
+                    pointBorderWidth: 2.5,
+                    fill: false,
+                    tension: 0,
+                    order: 1
+                }
+            );
+            chartTypeForJs = 'bar';
+        }
+
+        if (chartType === 'control') {
+            series.forEach((s, idx) => {
+                const stats = calculateStats(s.data);
+                if (stats) {
+                    datasets.push({
+                        label: s.label + ' Mean', data: Array(s.data.length).fill(stats.average), type: 'line', borderColor: getColor(idx, 1), borderWidth: 2, borderDash: [5, 5], pointRadius: 0, fill: false
+                    });
+                    datasets.push({
+                        label: s.label + ' UCL', data: Array(s.data.length).fill(stats.average + 3 * stats.stdDev), type: 'line', borderColor: 'rgba(239, 68, 68, 0.5)', borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false
+                    });
+                    datasets.push({
+                        label: s.label + ' LCL', data: Array(s.data.length).fill(Math.max(0, stats.average - 3 * stats.stdDev)), type: 'line', borderColor: 'rgba(239, 68, 68, 0.5)', borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false
+                    });
+                }
+            });
+        }
+
+        // Add trend lines if requested
+        if (trendType !== 'none' && ['bar', 'line', 'area', 'stackedBar'].includes(chartType)) {
+            series.forEach((s, idx) => {
+                const trendData = calculateTrendLine(s.data, trendType);
+                if (trendData) {
+                    datasets.push({
+                        label: s.label + ' Trend',
+                        data: trendData,
+                        type: 'line',
+                        borderColor: getColor(idx, 0.5),
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        tension: 0.3
+                    });
+                }
+            });
+        }
+
+        const chartConfig = {
+            type: chartTypeForJs,
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: indexAxis,
+                cutout: cutout,
+                animation: { duration: getAnimationDuration() },
+                scales: !['pie', 'doughnut', 'polarArea', 'radar'].includes(chartType) ? {
+                    x: { stacked: useStack },
+                    y: { stacked: useStack, beginAtZero: true }
+                } : undefined,
+                plugins: { 
+                    legend: legendPos ? { display: true, position: legendPos } : { display: false },
+                    datalabels: {
+                        display: showDataLabels() && !['scatter', 'bubble', 'radar'].includes(chartType),
+                        color: '#333',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (value) => {
+                            if (typeof value === 'object') return value.y?.toLocaleString() || '';
+                            return value?.toLocaleString() || '';
+                        }
+                    }
+                }
+            }
+        };
+
+        analysisChart = new Chart(ctx, chartConfig);
+    }
+
+    function renderMultiTable(labels, series){
+        const container = document.getElementById('dataTable');
+        let html = '<table class="table table-sm table-striped"><thead><tr><th>Category</th>';
+        series.forEach(s => { html += `<th>${s.label}</th>`; });
+        html += '</tr></thead><tbody>';
+        for(let i=0;i<labels.length;i++){
+            html += `<tr><td>${labels[i]}</td>`;
+            series.forEach(s => { html += `<td>${s.data[i] ?? 0}</td>`; });
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    // Separate-chart helpers
+    let separateCharts = [];
+    function destroySeparateCharts(){
+        try{
+            if(Array.isArray(separateCharts)){
+                separateCharts.forEach(c => { try{ c.destroy(); } catch(e){} });
+            }
+        } catch(e){}
+        separateCharts = [];
+        const grid = document.getElementById('analysisChartsGrid');
+        if(grid){ grid.innerHTML = ''; grid.style.display = 'none'; }
+        const canvas = document.getElementById('analysisChart'); if(canvas) canvas.style.display = '';
+    }
+
+    function renderSeparateCharts(labels, series){
+        destroySeparateCharts();
+        const grid = document.getElementById('analysisChartsGrid');
+        if(!grid) return;
+        // keep main combined canvas visible for comparison (do not hide it)
+        // add a small label to indicate this is the comparison chart
+        const canvasWrapper = document.getElementById('analysisChart');
+        if(canvasWrapper && !canvasWrapper.dataset._comparisonLabelAdded){
+            const label = document.createElement('div'); label.textContent = 'Combined chart (for comparison)'; label.style.fontSize = '0.9rem'; label.style.fontWeight = '600'; label.style.marginBottom = '0.5rem';
+            canvasWrapper.parentNode.insertBefore(label, canvasWrapper);
+            canvasWrapper.dataset._comparisonLabelAdded = '1';
+        }
+        grid.style.display = 'grid';
+        const chartType = document.getElementById('selChartType').value;
+        series.forEach(s => {
+            const card = document.createElement('div'); card.className = 'chart-card';
+            const title = document.createElement('div'); title.className = 'chart-title'; title.textContent = s.label;
+            const canvasEl = document.createElement('canvas'); canvasEl.style.flex = '1 1 auto'; canvasEl.style.width = '100%'; canvasEl.style.height = '100%';
+            card.appendChild(title); card.appendChild(canvasEl); grid.appendChild(card);
+            const ctx = canvasEl.getContext('2d');
+            const dataset = { label: s.label, data: s.data, backgroundColor: getRandomColor(0.7), borderColor: 'rgba(0,0,0,0.06)', borderWidth: 1, fill: chartType === 'line' };
+            const cfg = { type: chartType === 'line' ? 'line' : 'bar', data: { labels: labels, datasets: [dataset] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: false }, y: { beginAtZero: true } }, plugins: { legend: { display: false } } } };
+            const ch = new Chart(ctx, cfg);
+            separateCharts.push(ch);
+        });
+    }
+
+    // Render analysis result into the table area (used by 'Show Table')
+    function renderAnalysisTableFromResult(json){
+        const container = document.getElementById('tableContainer');
+        let html = '';
+        if(json.multi){
+            const labels = json.labels || [];
+            const series = json.series || [];
+            html = '<table class="table table-sm table-striped table-condensed"><thead><tr><th>Category</th>';
+            series.forEach(s => { html += `<th>${s.label}</th>`; });
+            html += '</tr></thead><tbody>';
+            for(let i=0;i<labels.length;i++){
+                html += `<tr><td>${labels[i]}</td>`;
+                series.forEach(s => { html += `<td>${(s.data && s.data[i]) ? s.data[i] : 0}</td>`; });
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+        } else {
+            const labels = json.labels || [];
+            const values = json.values || [];
+            html = '<table class="table table-sm table-striped table-condensed"><thead><tr><th>Category</th><th>Value</th></tr></thead><tbody>';
+            for(let i=0;i<labels.length;i++){
+                html += `<tr><td>${labels[i]}</td><td>${values[i] ?? 0}</td></tr>`;
+            }
+            html += '</tbody></table>';
+        }
+        container.innerHTML = html;
+        document.getElementById('tableArea').style.display = 'block';
+        // scroll into view
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function exportAnalysisCSV(json){
+        let csv = '';
+        if(json.multi){
+            const labels = json.labels || [];
+            const series = json.series || [];
+            const header = ['Category'].concat(series.map(s => s.label));
+            csv += header.map(h => '"' + h.replace(/"/g, '""') + '"').join(',') + '\n';
+            for(let i=0;i<labels.length;i++){
+                const row = [ labels[i] ];
+                series.forEach(s => row.push((s.data && s.data[i]) ? s.data[i] : 0));
+                csv += row.map(v => '"' + (v === null || v === undefined ? '' : String(v).replace(/"/g, '""')) + '"').join(',') + '\n';
+            }
+        } else {
+            csv += '"Category","Value"\n';
+            const labels = json.labels || [];
+            const values = json.values || [];
+            for(let i=0;i<labels.length;i++){
+                csv += '"' + (labels[i] || '') + '","' + (values[i] ?? 0) + '"\n';
+            }
+        }
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        const now = new Date().toISOString().slice(0,19).replace(/[:T]/g,'');
+        link.href = url;
+        link.download = 'analysis_export_' + now + '.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+    function getRandomColor(alpha){
+        const r = Math.floor(Math.random()*150)+50;
+        const g = Math.floor(Math.random()*150)+50;
+        const b = Math.floor(Math.random()*150)+50;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function renderChart(labels, values){
+        const ctx = document.getElementById('analysisChart').getContext('2d');
+        const chartType = document.getElementById('selChartType').value;
+        const metric = document.getElementById('selMetric').value;
+        const trendType = document.getElementById('selTrendLine').value;
+        const legendPos = getLegendPosition();
+
+        if(analysisChart) analysisChart.destroy();
+
+        // Update statistics display
+        updateStatsDisplay(values);
+
+        const stacked = chartType === 'stackedBar';
+        const colors = labels.map((_, i) => getColor(i));
+        const borderColors = labels.map((_, i) => getColor(i, 1));
+
+        // Determine Chart.js chart type and configuration
+        let chartConfig = { type: 'bar', data: {}, options: {} };
+        const datasets = [];
+
+        // Main dataset
+        const mainDataset = {
+            label: metric,
+            data: values,
+            backgroundColor: chartType === 'line' || chartType === 'area' ? getColor(0, 0.2) : colors,
+            borderColor: chartType === 'line' || chartType === 'area' ? getColor(0, 1) : borderColors,
+            borderWidth: 2,
+            fill: chartType === 'area',
+            tension: 0.3
+        };
+
+        // Configure based on chart type
+        switch(chartType) {
+            case 'line':
+            case 'area':
+                chartConfig.type = 'line';
+                mainDataset.fill = chartType === 'area';
+                mainDataset.pointRadius = 4;
+                mainDataset.pointHoverRadius = 6;
+                break;
+            case 'horizontalBar':
+                chartConfig.type = 'bar';
+                chartConfig.options.indexAxis = 'y';
+                break;
+            case 'pie':
+                chartConfig.type = 'pie';
+                break;
+            case 'doughnut':
+                chartConfig.type = 'doughnut';
+                chartConfig.options.cutout = '50%';
+                break;
+            case 'polarArea':
+                chartConfig.type = 'polarArea';
+                break;
+            case 'radar':
+                chartConfig.type = 'radar';
+                mainDataset.fill = true;
+                mainDataset.backgroundColor = getColor(0, 0.3);
+                break;
+            case 'scatter':
+                chartConfig.type = 'scatter';
+                mainDataset.data = labels.map((_, i) => ({ x: i, y: values[i] }));
+                mainDataset.pointRadius = 6;
+                mainDataset.pointHoverRadius = 8;
+                break;
+            case 'bubble':
+                chartConfig.type = 'bubble';
+                const maxVal = Math.max(...values);
+                mainDataset.data = labels.map((_, i) => ({ 
+                    x: i, 
+                    y: values[i], 
+                    r: Math.max(5, (values[i] / maxVal) * 25)
+                }));
+                break;
+            case 'mixedBarLine':
+                chartConfig.type = 'bar';
+                mainDataset.type = 'bar';
+                datasets.push(mainDataset);
+                // Add line overlay
+                datasets.push({
+                    label: metric + ' (Trend)',
+                    data: values,
+                    type: 'line',
+                    borderColor: getColor(1, 1),
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    tension: 0.3,
+                    yAxisID: 'y'
+                });
+                break;
+            case 'pareto':
+                chartConfig.type = 'bar';
+                // Sort data descending
+                const paretoData = labels.map((l, i) => ({ label: l, value: values[i] })).sort((a, b) => b.value - a.value);
+                const sortedLabels = paretoData.map(d => d.label);
+                const sortedValues = paretoData.map(d => d.value);
+                
+                const total = sortedValues.reduce((a, b) => a + b, 0);
+                let cumulative = 0;
+                const cumulativePercentages = sortedValues.map(v => {
+                    cumulative += v;
+                    return (cumulative / total) * 100;
+                });
+
+                labels.splice(0, labels.length, ...sortedLabels); // Update labels array in place
+                mainDataset.data = sortedValues;
+                mainDataset.type = 'bar';
+                mainDataset.yAxisID = 'y';
+                datasets.push(mainDataset);
+                
+                datasets.push({
+                    label: 'Cumulative %',
+                    data: cumulativePercentages,
+                    type: 'line',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    tension: 0.1,
+                    yAxisID: 'y1'
+                });
+                
+                chartConfig.options.scales = {
+                    x: { grid: { display: false } },
+                    y: { type: 'linear', display: true, position: 'left', beginAtZero: true },
+                    y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, max: 100, grid: { drawOnChartArea: false } }
+                };
+                break;
+            case 'waterfall':
+                chartConfig.type = 'bar';
+                let current = 0;
+                const waterfallData = values.map(v => {
+                    const start = current;
+                    current += v;
+                    return [start, current];
+                });
+                mainDataset.data = waterfallData;
+                mainDataset.backgroundColor = values.map(v => v >= 0 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+                mainDataset.borderColor = values.map(v => v >= 0 ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)');
+                datasets.push(mainDataset);
+                break;
+            case 'boxplot': {
+                chartConfig.type = 'bar';
+                // Color bars by quartile position; overlay Q1/Median/Q3 reference lines
+                const bpStats = computeBoxStats(values);
+                if (bpStats) {
+                    mainDataset.data = values;
+                    mainDataset.backgroundColor = values.map(v => {
+                        if (v <= bpStats.q1)     return 'rgba(148, 163, 184, 0.65)';
+                        if (v <= bpStats.median) return 'rgba(59, 130, 246, 0.55)';
+                        if (v <= bpStats.q3)     return 'rgba(59, 130, 246, 0.85)';
+                        return 'rgba(37, 99, 235, 1.0)';
+                    });
+                    mainDataset.borderColor = 'rgba(59, 130, 246, 1)';
+                    mainDataset.borderWidth = 1;
+                    datasets.push(mainDataset);
+                    datasets.push({ label: 'Q1',     data: Array(values.length).fill(bpStats.q1),     type: 'line', borderColor: 'rgba(234, 179, 8, 0.9)',  borderWidth: 2, borderDash: [4, 4], pointRadius: 0, fill: false });
+                    datasets.push({ label: 'Median', data: Array(values.length).fill(bpStats.median), type: 'line', borderColor: 'rgba(34, 197, 94, 1)',    borderWidth: 2, borderDash: [6, 3], pointRadius: 0, fill: false });
+                    datasets.push({ label: 'Q3',     data: Array(values.length).fill(bpStats.q3),     type: 'line', borderColor: 'rgba(234, 179, 8, 0.9)',  borderWidth: 2, borderDash: [4, 4], pointRadius: 0, fill: false });
+                } else {
+                    mainDataset.data = values;
+                    datasets.push(mainDataset);
+                }
+                break;
+            }
+            case 'control':
+                chartConfig.type = 'line';
+                mainDataset.type = 'line';
+                mainDataset.pointRadius = 4;
+                datasets.push(mainDataset);
+                
+                const stats = calculateStats(values);
+                if (stats) {
+                    const meanData = Array(values.length).fill(stats.average);
+                    const uclData = Array(values.length).fill(stats.average + 3 * stats.stdDev);
+                    const lclData = Array(values.length).fill(Math.max(0, stats.average - 3 * stats.stdDev));
+                    
+                    datasets.push({
+                        label: 'Mean', data: meanData, type: 'line', borderColor: 'rgba(34, 197, 94, 1)', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, fill: false
+                    });
+                    datasets.push({
+                        label: 'UCL (+3σ)', data: uclData, type: 'line', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false
+                    });
+                    datasets.push({
+                        label: 'LCL (-3σ)', data: lclData, type: 'line', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false
+                    });
+                }
+                break;
+            case 'stackedBar':
+            case 'bar':
+            default:
+                chartConfig.type = 'bar';
+                break;
+        }
+
+        if (!['mixedBarLine', 'pareto', 'waterfall', 'boxplot', 'control'].includes(chartType)) {
+            datasets.push(mainDataset);
+        }
+
+        // Add trend line if requested
+        if (trendType !== 'none' && ['bar', 'line', 'area', 'stackedBar', 'horizontalBar'].includes(chartType)) {
+            const trendData = calculateTrendLine(values, trendType);
+            if (trendData) {
+                datasets.push({
+                    label: trendType === 'linear' ? 'Trend (Linear)' : 'Moving Average',
+                    data: trendData,
+                    type: 'line',
+                    borderColor: 'rgba(255, 99, 132, 0.8)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    tension: 0.3
+                });
+            }
+        }
+
+        chartConfig.data = { labels: labels, datasets: datasets };
+
+        // Common options
+        chartConfig.options = {
+            ...chartConfig.options,
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: getAnimationDuration() },
+            plugins: {
+                legend: legendPos ? { display: true, position: legendPos } : { display: false },
+                datalabels: {
+                    display: showDataLabels() && !['scatter', 'bubble'].includes(chartType),
+                    color: '#333',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: (value) => {
+                        if (typeof value === 'object') return value.y?.toLocaleString() || '';
+                        return value?.toLocaleString() || '';
+                    },
+                    anchor: ['pie', 'doughnut', 'polarArea'].includes(chartType) ? 'center' : 'end',
+                    align: ['pie', 'doughnut', 'polarArea'].includes(chartType) ? 'center' : 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed?.y ?? context.parsed ?? context.raw?.y ?? context.raw;
+                            return `${label}: ${typeof value === 'number' ? value.toLocaleString() : value}`;
+                        }
+                    }
+                }
+            }
+        };
+
+        // Add scales for appropriate chart types
+        if (!['pie', 'doughnut', 'polarArea', 'radar'].includes(chartType)) {
+            chartConfig.options.scales = {
+                x: { 
+                    stacked: stacked,
+                    grid: { display: chartType !== 'scatter' && chartType !== 'bubble' }
+                },
+                y: { 
+                    stacked: stacked, 
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                }
+            };
+        }
+
+        analysisChart = new Chart(ctx, chartConfig);
+    }
+
+    function renderTable(labels, values){
+        const container = document.getElementById('dataTable');
+        let html = '<table class="table table-sm table-striped"><thead><tr><th>Category</th><th>Value</th></tr></thead><tbody>';
+        for(let i=0; i<labels.length; i++){
+            html += `<tr><td>${labels[i]}</td><td>${values[i]}</td></tr>`;
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    // Export CSV
+    document.getElementById('btnExport').addEventListener('click', function(){
+        const form = document.getElementById('analyzerForm');
+        form.action = '?handler=Export';
+        form.submit();
+        form.action = '';
+    });
+
+    // Save Template
+    document.getElementById('btnSaveTemplate').addEventListener('click', async function(){
+        const name = document.getElementById('txtTemplateName').value;
+        if(!name || !name.trim()){ alert('Please enter a template name'); return; }
+
+        const form = document.getElementById('analyzerForm');
+        const formData = new FormData();
+        const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+        if(token) formData.append('__RequestVerificationToken', token);
+
+        formData.append('TemplateName', name);
+        document.querySelectorAll('input[name="GroupBy"]:checked').forEach(ch => formData.append('GroupBy', ch.value));
+        document.querySelectorAll('input[name="SelectedColumns"]:checked').forEach(ch => formData.append('SelectedColumns', ch.value));
+        formData.append('OnlyDisqualified', document.getElementById('chkOnlyDisqualified').checked ? 'true' : 'false');
+        formData.append('Metric', document.getElementById('selMetric').value);
+        formData.append('TopN', document.getElementById('txtTopN').value);
+        formData.append('ChartType', document.getElementById('selChartType').value);
+        if(document.getElementById('txtStartDate').value) formData.append('StartDate', document.getElementById('txtStartDate').value);
+        if(document.getElementById('txtEndDate').value) formData.append('EndDate', document.getElementById('txtEndDate').value);
+        // persist which date field
+        formData.append('DateField', document.getElementById('selDateField').value);
+
+        document.querySelectorAll('input[name="SelectedDepartments"]:checked').forEach(ch => formData.append('SelectedDepartments', ch.value));
+        document.querySelectorAll('input[name="SelectedSections"]:checked').forEach(ch => formData.append('SelectedSections', ch.value));
+
+        try{
+            const resp = await fetch(window.location.pathname + '?handler=SaveTemplate', { method: 'POST', credentials: 'same-origin', body: formData });
+            const json = await resp.json();
+            if(json && json.success){
+                alert('Template saved successfully');
+                location.reload();
+            } else {
+                alert('Failed to save template: ' + (json.message || 'Unknown error'));
+            }
+        } catch(err){
+            alert('Failed to save template: ' + err.message);
+        }
+    });
+
+    // Load Template
+    document.querySelectorAll('.load-template').forEach(btn => {
+        btn.addEventListener('click', async function(){
+            const idx = this.getAttribute('data-template-idx');
+            const form = document.getElementById('analyzerForm');
+            const formData = new FormData();
+            const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+            if(token) formData.append('__RequestVerificationToken', token);
+            formData.append('templateIndex', idx);
+
+            try{
+                const resp = await fetch(window.location.pathname + '?handler=LoadTemplate', { method: 'POST', credentials: 'same-origin', body: formData });
+                const json = await resp.json();
+                if(json && json.success && json.template){
+                    const t = json.template;
+                    // restore GroupBy checkboxes
+                    document.querySelectorAll('input[name="GroupBy"]').forEach(ch => ch.checked = false);
+                    if(t.GroupBy && Array.isArray(t.GroupBy)){
+                        t.GroupBy.forEach(g => {
+                            const el = document.querySelector(`input[name="GroupBy"][value="${g}"]`);
+                            if(el) el.checked = true;
+                        });
+                    }
+
+                    // restore SelectedColumns and OnlyDisqualified
+                    document.querySelectorAll('input[name="SelectedColumns"]').forEach(ch => ch.checked = false);
+                    if(t.SelectedColumns && Array.isArray(t.SelectedColumns)){
+                        t.SelectedColumns.forEach(c => {
+                            const el = document.querySelector(`input[name="SelectedColumns"][value="${c}"]`);
+                            if(el) el.checked = true;
+                        });
+                    }
+
+
+
+                    document.getElementById('chkOnlyDisqualified').checked = !!t.OnlyDisqualified;
+
+                    document.getElementById('selMetric').value = t.Metric || 'Count';
+                    document.getElementById('txtTopN').value = t.TopN || 20;
+                    document.getElementById('selChartType').value = t.ChartType || 'bar';
+                            if(t.StartDate) document.getElementById('txtStartDate').value = t.StartDate.substring(0, 10);
+                    if(t.EndDate) document.getElementById('txtEndDate').value = t.EndDate.substring(0, 10);
+                    // restore Date field
+                    if(t.DateField){
+                        document.getElementById('selDateField').value = t.DateField;
+                        // trigger change so labels and months refresh
+                        document.getElementById('selDateField').dispatchEvent(new Event('change'));
+                    }
+                    // TODO: restore checkboxes for departments/sections
+                    // update summaries for multi-dropdowns by triggering change events (existing handlers will refresh headers)
+                    document.querySelectorAll('.multi-dropdown').forEach(d => { const evt = new Event('change'); d.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.dispatchEvent(evt)); });
+                    alert('Template loaded');
+                } else {
+                    alert('Failed to load template');
+                }
+            } catch(err){
+                alert('Failed to load template: ' + err.message);
+            }
+        });
+    });
+
+    // Show Table (use raw DB columns selected in SelectedColumns)
+    document.getElementById('btnShowTable').addEventListener('click', async function(){
+        const btn = this; btn.disabled = true; btn.textContent = 'Loading...';
+        try{
+            const form = document.getElementById('analyzerForm');
+            const formData = new FormData();
+            const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+            if(token) formData.append('__RequestVerificationToken', token);
+
+            // include SelectedColumns and other filters (including DateField)
+            document.querySelectorAll('input[name="SelectedColumns"]:checked').forEach(ch => formData.append('SelectedColumns', ch.value));
+            formData.append('OnlyDisqualified', document.getElementById('chkOnlyDisqualified').checked ? 'true' : 'false');
+            if(document.getElementById('txtStartDate').value) formData.append('StartDate', document.getElementById('txtStartDate').value);
+            if(document.getElementById('txtEndDate').value) formData.append('EndDate', document.getElementById('txtEndDate').value);
+            // ensure DateField is sent so server-side date filters use the selected field
+            formData.append('DateField', document.getElementById('selDateField').value);
+            document.querySelectorAll('input[name="SelectedDepartments"]:checked').forEach(ch => formData.append('SelectedDepartments', ch.value));
+            document.querySelectorAll('input[name="SelectedSections"]:checked').forEach(ch => formData.append('SelectedSections', ch.value));
+
+            formData.append('TopN', document.getElementById('txtTopN').value);
+
+            const resp = await fetch(window.location.pathname + '?handler=Table', { method: 'POST', credentials: 'same-origin', body: formData });
+            const json = await resp.json();
+            if(json && json.success){
+                const cols = json.columns;
+                const rows = json.rows;
+                let html = '<table class="table table-sm table-striped table-condensed"><thead><tr>';
+                cols.forEach(c => { html += `<th>${c}</th>`; });
+                html += '</tr></thead><tbody>';
+                rows.forEach(r => { html += '<tr>'; r.forEach(v => { html += `<td>${v}</td>`; }); html += '</tr>'; });
+                html += '</tbody></table>';
+                document.getElementById('tableContainer').innerHTML = html;
+                document.getElementById('tableArea').style.display = 'block';
+            } else {
+                alert('Failed to load table: ' + (json.message || 'Unknown error'));
+            }
+        } catch(err){
+            alert('Failed to load table: ' + err.message);
+        } finally { btn.disabled = false; btn.textContent = '📋 Show Table'; }
+    });
+
+    // Export Table CSV (use raw DB columns selected in SelectedColumns)
+    document.getElementById('btnExportTable').addEventListener('click', function(){
+        const form = document.getElementById('analyzerForm');
+        // ensure SelectedColumns are present on form
+        document.querySelectorAll('input[name="SelectedColumns"]').forEach(ch => { if(ch.checked){ const input = document.createElement('input'); input.type='hidden'; input.name='SelectedColumns'; input.value = ch.value; form.appendChild(input); } });
+
+        const only = document.getElementById('chkOnlyDisqualified').checked ? 'true' : 'false';
+        const hidden = document.createElement('input'); hidden.type='hidden'; hidden.name='OnlyDisqualified'; hidden.value = only; form.appendChild(hidden);
+        // include DateField
+        const df = document.createElement('input'); df.type='hidden'; df.name='DateField'; df.value = document.getElementById('selDateField').value; form.appendChild(df);
+        form.action = '?handler=TableExport';
+        form.submit();
+        form.action = '';
+    });
+
+    // When DateField changes, update Start/End labels and reload AvailableMonths
+    document.getElementById('selDateField').addEventListener('change', function(){
+        const sel = this;
+        const labelText = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sel.value;
+        const lblStart = document.getElementById('lblStartDate');
+        const lblEnd = document.getElementById('lblEndDate');
+        if(lblStart) lblStart.textContent = 'Start ' + labelText;
+        if(lblEnd) lblEnd.textContent = 'End ' + labelText;
+    });
+
+    // restore server-side selected DateField on load and trigger change to update labels/months
+    document.addEventListener('DOMContentLoaded', function(){
+        try{
+            var sel = document.getElementById('selDateField');
+            if(sel){ sel.value = '@(Model.DateField ?? "CertifiedDate")'; sel.dispatchEvent(new Event('change')); }
+        } catch(e){ console.error(e); }
+    });
+
+    // Chart Toolbar Functions
+    document.getElementById('btnZoomIn').addEventListener('click', function() {
+        const wrapper = document.getElementById('chartWrapper');
+        currentZoom = Math.min(currentZoom + 0.25, 2);
+        const canvas = document.getElementById('analysisChart');
+        if (canvas) {
+            canvas.style.transform = `scale(${currentZoom})`;
+            canvas.style.transformOrigin = 'top left';
+        }
+    });
+
+    document.getElementById('btnZoomOut').addEventListener('click', function() {
+        currentZoom = Math.max(currentZoom - 0.25, 0.5);
+        const canvas = document.getElementById('analysisChart');
+        if (canvas) {
+            canvas.style.transform = `scale(${currentZoom})`;
+            canvas.style.transformOrigin = 'top left';
+        }
+    });
+
+    document.getElementById('btnResetZoom').addEventListener('click', function() {
+        currentZoom = 1;
+        const canvas = document.getElementById('analysisChart');
+        if (canvas) {
+            canvas.style.transform = 'scale(1)';
+        }
+    });
+
+    document.getElementById('btnFullscreen').addEventListener('click', function() {
+        const wrapper = document.getElementById('chartWrapper');
+        wrapper.classList.toggle('fullscreen');
+        const icon = this.querySelector('i');
+        if (wrapper.classList.contains('fullscreen')) {
+            icon.className = 'bi bi-fullscreen-exit';
+            // Resize chart for fullscreen
+            if (analysisChart) {
+                analysisChart.resize();
+            }
+        } else {
+            icon.className = 'bi bi-fullscreen';
+            if (analysisChart) {
+                analysisChart.resize();
+            }
+        }
+    });
+
+    // Close fullscreen on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const wrapper = document.getElementById('chartWrapper');
+            if (wrapper.classList.contains('fullscreen')) {
+                wrapper.classList.remove('fullscreen');
+                document.querySelector('#btnFullscreen i').className = 'bi bi-fullscreen';
+                if (analysisChart) analysisChart.resize();
+            }
+        }
+    });
+
+    document.getElementById('btnDownloadChart').addEventListener('click', function() {
+        const canvas = document.getElementById('analysisChart');
+        if (canvas && analysisChart) {
+            const link = document.createElement('a');
+            link.download = 'analysis_chart_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'') + '.png';
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+        }
+    });
+
+-
+
+
+    // Re-render chart when display options change
+    ['selColorScheme', 'selLegendPosition', 'chkShowDataLabels', 'chkEnableAnimation', 'selTrendLine'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', function() {
+                if (window.lastAnalysisResult) {
+                    const json = window.lastAnalysisResult;
+                    if (json.multi) {
+                        const useSeparate = document.getElementById('chkSeparateCharts')?.checked;
+                        if (useSeparate) {
+                            renderSeparateCharts(json.labels, json.series);
+                        } else {
+                            renderMultiChart(json.labels, json.series);
+                        }
+                    } else {
+                        renderChart(json.labels, json.values);
+
+                    }
+                }
+            });
+    
+        }
+    });
+</script>

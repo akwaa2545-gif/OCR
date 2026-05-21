@@ -1,0 +1,507 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AdminsModel
+@{
+    ViewData["Title"] = "Admin Management";
+    ViewData["ActivePage"] = "Admins";
+    int adminCount = Model.AdminsWithNames.Count;
+    bool hasStatus = !string.IsNullOrEmpty(Model.StatusMessage);
+    bool isSuccess = hasStatus && (Model.StatusMessage!.StartsWith("Added") || Model.StatusMessage.StartsWith("Removed"));
+}
+
+@section Styles {
+<style>
+    /* ── Hero – orange / black / white / gray theme ── */
+    .adm-hero {
+        background: linear-gradient(135deg, #fff7ed 0%, #fef9f6 55%, #fff 100%);
+        border: 1px solid #fed7aa;
+        border-left: 5px solid #f97316;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 2px 12px rgba(249,115,22,0.10);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .adm-hero::after {
+        content: '';
+        position: absolute;
+        right: -40px; top: -40px;
+        width: 160px; height: 160px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .adm-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: #ea580c;
+        background: #ffedd5;
+        border: 1px solid #fed7aa;
+        border-radius: 999px;
+        padding: 0.18rem 0.6rem;
+        margin-bottom: 0.45rem;
+    }
+    .adm-hero-title {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #111827;
+        margin: 0 0 0.25rem;
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+    }
+    .adm-hero-sub {
+        font-size: 0.82rem;
+        color: #6b7280;
+        margin: 0;
+        max-width: 460px;
+    }
+    /* ── Stat chip ── */
+    .adm-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: #fff;
+        border: 1px solid #fed7aa;
+        border-radius: var(--radius-lg);
+        padding: 0.75rem 1.25rem;
+        box-shadow: 0 1px 6px rgba(249,115,22,0.10);
+    }
+    .adm-stat-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    .adm-stat-val { font-size: 1.6rem; font-weight: 800; color: #111827; line-height: 1; }
+    .adm-stat-lbl { font-size: 0.73rem; color: #6b7280; font-weight: 500; }
+    /* ── Toast notification ── */
+    .adm-toast {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1.1rem;
+        margin-bottom: 1.1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        animation: toastIn 0.3s ease;
+    }
+    @@keyframes toastIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+    .adm-toast-success { background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; }
+    .adm-toast-info    { background: #f9fafb; border: 1px solid #d1d5db; color: #374151; }
+    .adm-toast i { font-size: 1.1rem; flex-shrink: 0; }
+    /* ── Add admin card ── */
+    .adm-add-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    .adm-add-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #374151;
+        margin-bottom: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .adm-add-title i { color: #f97316; }
+    .adm-input-wrap {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .adm-input {
+        flex: 1;
+        min-width: 180px;
+        height: 40px;
+        padding: 0 0.85rem;
+        border: 1.5px solid #d1d5db;
+        border-radius: var(--radius-md);
+        font-size: 0.88rem;
+        color: #111827;
+        background: #fafafa;
+        outline: none;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    .adm-input:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.12); background: #fff; }
+    .adm-btn-add {
+        height: 40px;
+        padding: 0 1.3rem;
+        border: none;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all .18s;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(249,115,22,0.35);
+    }
+    .adm-btn-add:hover {
+        background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+        box-shadow: 0 4px 14px rgba(249,115,22,0.45);
+        transform: translateY(-1px);
+    }
+    .adm-btn-add:active { transform: scale(0.96); }
+    /* ── Admin list card ── */
+    .adm-list-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+    .adm-list-header {
+        background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
+        color: rgba(255,255,255,0.92);
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        padding: 0.65rem 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .adm-list-header-left { display: flex; align-items: center; gap: 0.5rem; }
+    .adm-count-pill {
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.1rem 0.55rem;
+    }
+    .adm-table { width: 100%; border-collapse: collapse; }
+    .adm-table thead tr {
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+    .adm-table thead th {
+        font-size: 0.73rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: #6b7280;
+        padding: 0.6rem 1rem;
+    }
+    .adm-table tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+        transition: background .12s;
+    }
+    .adm-table tbody tr:last-child { border-bottom: none; }
+    .adm-table tbody tr:hover { background: #fff7ed; }
+    .adm-table td { padding: 0.75rem 1rem; vertical-align: middle; }
+    /* ── Avatar ── */
+    .adm-avatar {
+        width: 38px; height: 38px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        letter-spacing: .02em;
+        box-shadow: 0 2px 6px rgba(249,115,22,0.30);
+    }
+    .adm-name-block { display: flex; align-items: center; gap: 0.65rem; }
+    .adm-name { font-size: 0.88rem; font-weight: 600; color: #111827; }
+    .adm-code-badge {
+        display: inline-flex;
+        align-items: center;
+        background: #f3f4f6;
+        color: #1f2937;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        letter-spacing: .04em;
+        font-variant-numeric: tabular-nums;
+    }
+    .adm-role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: #ffedd5;
+        color: #c2410c;
+        border: 1px solid #fdba74;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.2rem 0.6rem;
+    }
+    .adm-role-badge i { font-size: 0.75rem; }
+    /* ── Remove button ── */
+    .adm-btn-remove {
+        height: 32px;
+        padding: 0 0.85rem;
+        border: 1.5px solid #fca5a5;
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: #dc2626;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        transition: all .15s;
+        white-space: nowrap;
+    }
+    .adm-btn-remove:hover { background: #fef2f2; border-color: #f87171; box-shadow: 0 2px 8px rgba(220,38,38,0.15); }
+    .adm-btn-remove:active { transform: scale(0.95); }
+    /* ── Empty state ── */
+    .adm-empty {
+        padding: 2.5rem 1rem;
+        text-align: center;
+        color: #9ca3af;
+    }
+    .adm-empty i { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
+    .adm-empty p { font-size: 0.88rem; margin: 0; }
+    /* ── Confirm modal overlay ── */
+    .adm-modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,42,0.45);
+        z-index: 1050;
+        align-items: center;
+        justify-content: center;
+    }
+    .adm-modal-backdrop.open { display: flex; }
+    .adm-modal {
+        background: #fff;
+        border-radius: var(--radius-lg);
+        padding: 1.75rem 1.75rem 1.5rem;
+        max-width: 380px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+        animation: modalIn 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @@keyframes modalIn { from { opacity:0; transform:scale(0.88); } to { opacity:1; transform:none; } }
+    .adm-modal-icon {
+        width: 52px; height: 52px;
+        border-radius: 50%;
+        background: #fef2f2;
+        border: 2px solid #fca5a5;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 1rem;
+        color: #dc2626;
+        font-size: 1.4rem;
+    }
+    .adm-modal-title { font-size: 1.05rem; font-weight: 700; color: #111827; text-align: center; margin-bottom: 0.4rem; }
+    .adm-modal-body  { font-size: 0.85rem; color: #6b7280; text-align: center; margin-bottom: 1.4rem; }
+    .adm-modal-body strong { color: #111827; }
+    .adm-modal-actions { display: flex; gap: 0.6rem; justify-content: center; }
+    .adm-modal-cancel {
+        flex: 1;
+        height: 38px;
+        border: 1.5px solid #d1d5db;
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: #374151;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s;
+    }
+    .adm-modal-cancel:hover { background: #f9fafb; }
+    .adm-modal-confirm {
+        flex: 1;
+        height: 38px;
+        border: none;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(220,38,38,0.30);
+        transition: all .15s;
+    }
+    .adm-modal-confirm:hover { background: linear-gradient(135deg, #b91c1c, #dc2626); }
+</style>
+}
+
+<!-- Hero -->
+<div class="adm-hero">
+    <div>
+        <div class="adm-hero-badge"><i class="bi bi-shield-lock-fill"></i> System</div>
+        <h1 class="adm-hero-title">Admin Management</h1>
+        <p class="adm-hero-sub">Grant or revoke administrator privileges. Admins can access all management features and reports.</p>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon"><i class="bi bi-shield-check"></i></div>
+        <div>
+            <div class="adm-stat-val">@adminCount</div>
+            <div class="adm-stat-lbl">Active @(adminCount == 1 ? "Admin" : "Admins")</div>
+        </div>
+    </div>
+</div>
+
+@if (hasStatus)
+{
+    <div class="adm-toast @(isSuccess ? "adm-toast-success" : "adm-toast-info")">
+        <i class="bi @(isSuccess ? "bi-check-circle-fill" : "bi-info-circle-fill")"></i>
+        @Model.StatusMessage
+    </div>
+}
+
+<!-- Add Admin -->
+<div class="adm-add-card">
+    <div class="adm-add-title">
+        <i class="bi bi-person-plus-fill"></i> Grant Admin Privileges
+    </div>
+    <form method="post" asp-page-handler="Add">
+        <div class="adm-input-wrap">
+            <input asp-for="NewEmpCode"
+                   class="adm-input"
+                   placeholder="Employee code  (e.g. E123456)"
+                   autocomplete="off"
+                   autofocus />
+            <button type="submit" class="adm-btn-add">
+                <i class="bi bi-shield-plus"></i> Add Admin
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Admin list -->
+<div class="adm-list-card">
+    <div class="adm-list-header">
+        <div class="adm-list-header-left">
+            <i class="bi bi-people-fill"></i>
+            Current Administrators
+            <span class="adm-count-pill">@adminCount</span>
+        </div>
+    </div>
+
+    @if (!Model.AdminsWithNames.Any())
+    {
+        <div class="adm-empty">
+            <i class="bi bi-inbox"></i>
+            <p>No administrators configured yet.</p>
+        </div>
+    }
+    else
+    {
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th style="width:50%">Administrator</th>
+                    <th>Employee Code</th>
+                    <th>Role</th>
+                    <th style="text-align:right;padding-right:1.25rem;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model.AdminsWithNames)
+                {
+                    var initials = string.Join("",
+                        (a.FullName ?? a.EmpCode)
+                            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries)
+                            .Take(2)
+                            .Select(w => w[0].ToString().ToUpper()));
+                    <tr>
+                        <td>
+                            <div class="adm-name-block">
+                                <div class="adm-avatar" data-ini="@initials">
+                                    @if (!string.IsNullOrEmpty(a.PhotoUrl))
+                                    {
+                                        <img src="/api/photo/@Uri.EscapeDataString(a.PhotoUrl)" alt="@a.FullName"
+                                             style="width:100%;height:100%;border-radius:50%;object-fit:cover;"
+                                             onerror="this.onerror=null;this.parentElement.textContent=this.parentElement.getAttribute('data-ini');" />
+                                    }
+                                    else
+                                    {
+                                        @initials
+                                    }
+                                </div>
+                                <span class="adm-name">@(a.FullName == a.EmpCode ? "—" : a.FullName)</span>
+                            </div>
+                        </td>
+                        <td><span class="adm-code-badge">@a.EmpCode</span></td>
+                        <td>
+                            <span class="adm-role-badge">
+                                <i class="bi bi-shield-fill-check"></i> Administrator
+                            </span>
+                        </td>
+                        <td style="text-align:right;">
+                            <button type="button"
+                                    class="adm-btn-remove"
+                                    data-empcode="@a.EmpCode"
+                                    data-name="@(a.FullName == a.EmpCode ? a.EmpCode : a.FullName)"
+                                    onclick="openRemoveModal(this)">
+                                <i class="bi bi-person-dash-fill"></i> Remove
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<!-- Confirm Remove Modal -->
+<div class="adm-modal-backdrop" id="admRemoveBackdrop">
+    <div class="adm-modal">
+        <div class="adm-modal-icon"><i class="bi bi-person-x-fill"></i></div>
+        <div class="adm-modal-title">Remove Administrator</div>
+        <div class="adm-modal-body">
+            Remove admin privileges for <strong id="admModalName"></strong>?
+            They will no longer have administrator access.
+        </div>
+        <div class="adm-modal-actions">
+            <button class="adm-modal-cancel" onclick="closeRemoveModal()">Cancel</button>
+            <form id="admRemoveForm" method="post" asp-page-handler="Remove" style="flex:1;display:contents;">
+                <input type="hidden" id="admRemoveInput" name="empCode" value="" />
+                <button type="submit" class="adm-modal-confirm">
+                    <i class="bi bi-trash3-fill"></i> Remove
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function openRemoveModal(btn) {
+        document.getElementById('admModalName').textContent = btn.dataset.name;
+        document.getElementById('admRemoveInput').value = btn.dataset.empcode;
+        document.getElementById('admRemoveBackdrop').classList.add('open');
+    }
+    function closeRemoveModal() {
+        document.getElementById('admRemoveBackdrop').classList.remove('open');
+    }
+    document.getElementById('admRemoveBackdrop').addEventListener('click', function (e) {
+        if (e.target === this) closeRemoveModal();
+    });
+</script>
+}

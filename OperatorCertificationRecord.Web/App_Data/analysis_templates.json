@@ -1,0 +1,30 @@
+[
+  {
+    "Name": "1",
+    "GroupBy": [
+      "Month",
+      "Department",
+      "Section"
+    ],
+    "Metric": "DistinctEmployees",
+    "Departments": [],
+    "Sections": [],
+    "SelectedColumns": [
+      "DeptName",
+      "SectName",
+      "ProcessName",
+      "CertifiedDate",
+      "ExpiryDate",
+      "DisQualifiedDate",
+      "DisQualifiedBy"
+    ],
+    "SelectedMonths": [],
+    "OnlyDisqualified": true,
+    "DateField": "DisqualifiedDate",
+    "StartDate": "2025-01-01T00:00:00",
+    "EndDate": "2025-12-31T00:00:00",
+    "TopN": 20,
+    "ChartType": "bar",
+    "SavedAt": "2026-02-23T07:00:02.850313Z"
+  }
+]

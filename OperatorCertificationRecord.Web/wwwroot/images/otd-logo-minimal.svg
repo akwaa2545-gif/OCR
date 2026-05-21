@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="OTD logo-minimal">
+  <defs>
+    <linearGradient id="grad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FF9A49"/>
+      <stop offset="100%" stop-color="#FF5A1F"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="112" height="112" rx="18" fill="url(#grad)"/>
+  <g fill="#fff" font-family="Segoe UI, Roboto, Arial, sans-serif" font-weight="700">
+    <text x="60" y="78" text-anchor="middle" font-size="36">OTD</text>
+  </g>
+  <!-- small check badge positioned to the right of the 'D' (white badge + orange check) -->
+  <g transform="translate(104,52)">
+    <circle cx="0" cy="0" r="8" fill="#ffffff"/>
+    <path d="M-3,0 L-1,2 L3,-2" stroke="#FF8C42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

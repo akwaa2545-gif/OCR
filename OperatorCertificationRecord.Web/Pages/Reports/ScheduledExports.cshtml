@@ -1,0 +1,53 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.ScheduledExportsModel
+@{
+    ViewData["Title"] = "Scheduled Exports";
+    ViewData["ActivePage"] = "ScheduledExports";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Scheduled Exports</h1>
+    <p class="page-subtitle">List of scheduled exports saved in the system</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @if (TempData["Message"] != null)
+        {
+            <div class="alert alert-success">@TempData["Message"]</div>
+        }
+
+        @if (Model.Jobs == null || Model.Jobs.Count == 0)
+        {
+            <p>No scheduled exports found.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Report</th>
+                        <th>Section</th>
+                        <th>Department</th>
+                        <th>Format</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach(var j in Model.Jobs)
+                    {
+                        <tr>
+                            <td>@j.Id</td>
+                            <td>@j.ReportType</td>
+                            <td>@(string.IsNullOrEmpty(j.Section)?"—":j.Section)</td>
+                            <td>@(string.IsNullOrEmpty(j.Department)?"—":j.Department)</td>
+                            <td>@j.Format</td>
+                            <td>@j.CreatedAt.ToLocalTime().ToString("g")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

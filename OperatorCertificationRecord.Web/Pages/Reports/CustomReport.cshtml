@@ -1,0 +1,691 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.Reports.CustomReportModel
+@{
+    ViewData["Title"] = "Custom Report Builder";
+    ViewData["ActivePage"] = "CustomReport";
+}
+
+<!-- Report Analyzer Hero -->
+<div class="rpt-hero">
+    <div class="rpt-hero-info">
+        <div class="rpt-hero-badge"><i class="bi bi-file-earmark-bar-graph-fill"></i> Report Analyzer</div>
+        <h1 class="rpt-hero-title">Custom Report Builder</h1>
+        <p class="rpt-hero-sub">Choose fields, filters and output format for an ad-hoc report</p>
+    </div>
+    <div class="rpt-hero-actions">
+        <a class="rpt-back-btn" href="/Dashboard"><i class="bi bi-arrow-left"></i> Dashboard</a>
+    </div>
+</div>
+
+@if(TempData["Message"] != null){
+    <div class="alert alert-@(TempData["MessageType"] ?? "info") mb-3" role="alert">@TempData["Message"]</div>
+}
+
+<form method="post" id="customReportForm">
+    @Html.AntiForgeryToken()
+    <div class="rpt-layout">
+        <!-- LEFT PANEL -->
+        <div class="rpt-panel rpt-panel-left">
+            <div class="rpt-section-label"><i class="bi bi-layout-three-columns"></i> Fields</div>
+            <p class="rpt-hint">Select the columns to include in the report.</p>
+            <div class="fields-grid">
+                        @foreach(var f in Model.AvailableFields)
+                        {
+                            <label class="field-pill">
+                                <input type="checkbox" name="SelectedFields" value="@f" @(Model.SelectedFields?.Contains(f) == true ? "checked" : "") />
+                                <span class="field-label">@f</span>
+                            </label>
+                        }
+                    </div>
+
+            <div class="rpt-section-label" style="margin-top:1.4rem"><i class="bi bi-funnel-fill"></i> Filters</div>
+            <div class="rpt-filter-grid">
+                        <div>
+                            <label class="rpt-field-label" style="display:block;margin-bottom:0.3rem;">Departments</label>
+                            <div class="multi-dropdown" data-target="departments">
+                                <div class="multi-dropdown-header" role="button" tabindex="0">
+                                    <span class="label">Select departments</span>
+                                    <span class="summary">-- Any --</span>
+                                    <span class="caret">▾</span>
+                                </div>
+                                <div class="multi-dropdown-panel" style="display:none;">
+                                    <div style="padding:0.25rem 0.5rem;border-bottom:1px solid #eef2f7;display:flex;gap:0.5rem;align-items:center;">
+                                        <button type="button" class="btn btn-sm btn-link select-all">Select all</button>
+                                        <button type="button" class="btn btn-sm btn-link clear-all">Clear</button>
+                                    </div>
+                                    <div class="multiselect-list" style="padding:0.5rem;max-height:200px;overflow:auto;">
+                                        @foreach(var d in Model.Departments)
+                                        {
+                                            var id = "dept_" + d?.GetHashCode();
+                                            <label class="list-item">
+                                                <input type="checkbox" name="SelectedDepartments" value="@d" id="@id" @(Model.SelectedDepartments?.Contains(d) == true ? "checked" : "") />
+                                                <span>@d</span>
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="rpt-field-label" style="display:block;margin-bottom:0.3rem;">Sections</label>
+                            <div class="multi-dropdown" data-target="sections">
+                                <div class="multi-dropdown-header" role="button" tabindex="0">
+                                    <span class="label">Select sections</span>
+                                    <span class="summary">-- Any --</span>
+                                    <span class="caret">▾</span>
+                                </div>
+                                <div class="multi-dropdown-panel" style="display:none;">
+                                    <div style="padding:0.25rem 0.5rem;border-bottom:1px solid #eef2f7;display:flex;gap:0.5rem;align-items:center;">
+                                        <button type="button" class="btn btn-sm btn-link select-all">Select all</button>
+                                        <button type="button" class="btn btn-sm btn-link clear-all">Clear</button>
+                                    </div>
+                                    <div class="multiselect-list" style="padding:0.5rem;max-height:200px;overflow:auto;">
+                                        @foreach(var s in Model.Sections)
+                                        {
+                                            var id = "sect_" + s?.GetHashCode();
+                                            <label class="list-item">
+                                                <input type="checkbox" name="SelectedSections" value="@s" id="@id" @(Model.SelectedSections?.Contains(s) == true ? "checked" : "") />
+                                                <span>@s</span>
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+            <div class="rpt-date-row">
+                <div class="rpt-field">
+                    <label class="rpt-field-label">Start Date</label>
+                    <input type="date" class="rpt-input" name="StartDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="rpt-field">
+                    <label class="rpt-field-label">End Date</label>
+                    <input type="date" class="rpt-input" name="EndDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+        </div><!-- /LEFT PANEL -->
+
+
+
+
+        <!-- RIGHT PANEL -->
+        <div class="rpt-panel rpt-panel-right">
+
+            <div class="rpt-section-label"><i class="bi bi-download"></i> Output</div>
+            <div class="rpt-field">
+                <label class="rpt-field-label">Format</label>
+                <select class="rpt-input" name="Format">
+                    <option value="xlsx">📊 Excel (.xlsx)</option>
+                    <option value="csv">📄 CSV (.csv)</option>
+                    <option value="pdf">📑 PDF (.pdf)</option>
+                </select>
+            </div>
+            <div class="rpt-field" style="margin-top:0.75rem">
+                <label class="rpt-field-label">Filename</label>
+                <input type="text" class="rpt-input" name="FileName" placeholder="custom-report" />
+            </div>
+            <div class="rpt-field" style="margin-top:0.75rem">
+                <label class="rpt-field-label">Template name <span class="rpt-optional">(optional)</span></label>
+                <input type="text" class="rpt-input" name="TemplateName" placeholder="Save as template…" />
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="rpt-actions">
+                <button type="submit" formaction="" class="rpt-btn rpt-btn-primary" onclick="document.getElementById('customReportForm').action='';"><i class="bi bi-download"></i> Download</button>
+                <button type="submit" formaction="?handler=SaveTemplate" class="rpt-btn rpt-btn-success"><i class="bi bi-bookmark-fill"></i> Save Template</button>
+            </div>
+
+            <!-- Preview controls -->
+            <div class="rpt-preview-controls">
+                <select id="selRowLimit" class="rpt-input" style="width:110px;">
+                    <option value="30">30 rows</option>
+                    <option value="50">50 rows</option>
+                    <option value="100">100 rows</option>
+                    <option value="200">200 rows</option>
+                </select>
+                <button type="button" id="btnPreview" class="rpt-btn rpt-btn-outline"><i class="bi bi-eye"></i> Preview</button>
+                <button type="button" id="btnFullPreview" class="rpt-btn rpt-btn-ghost"><i class="bi bi-box-arrow-up-right"></i> Full Preview</button>
+            </div>
+            <p class="rpt-hint">Preview top rows quickly, or open full dataset in a new tab.</p>
+
+            <!-- Saved Templates -->
+            <div class="rpt-section-label" style="margin-top:1.4rem"><i class="bi bi-bookmark-star"></i> Saved Templates</div>
+            <p class="rpt-hint">Load or delete previously saved templates.</p>
+            <div class="rpt-templates-list">
+                @if(Model.Templates == null || !Model.Templates.Any()){
+                    <div class="rpt-empty"><i class="bi bi-inbox"></i> No saved templates</div>
+                } else {
+                    @for(int i=0;i<Model.Templates.Count;i++){
+                        var t = Model.Templates[i];
+                        <div class="rpt-template-row">
+                            <div class="rpt-template-info">
+                                <span class="rpt-template-name">@t.Name</span>
+                                <span class="rpt-template-meta">@t.Format &bull; @t.SavedAt.ToString("dd MMM yyyy")</span>
+                            </div>
+                            <div class="rpt-template-btns">
+                                <button type="submit" formaction="?handler=LoadTemplate" name="templateIndex" value="@i" class="rpt-btn rpt-btn-xs rpt-btn-outline">Load</button>
+                                <button type="submit" formaction="?handler=DeleteTemplate" name="templateIndex" value="@i" class="rpt-btn rpt-btn-xs rpt-btn-danger">Delete</button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+        </div><!-- /RIGHT PANEL -->
+
+    </div><!-- /rpt-layout -->
+</form>
+
+<!-- Preview modal overlay -->
+<div id="previewOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:1050;align-items:center;justify-content:center;">
+    <div id="previewModal" style="background:#fff;border-radius:16px;width:min(98vw,1100px);max-height:90vh;overflow:hidden;box-shadow:0 28px 64px rgba(0,0,0,0.28);display:flex;flex-direction:column;animation:modalIn 0.22s cubic-bezier(0.34,1.4,0.64,1) both;">
+        <!-- Modal header -->
+        <div style="background:#0f172a;border-bottom:3px solid #ea580c;padding:0.9rem 1.4rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:0.65rem;">
+                <span style="display:inline-block;width:3px;height:1.1em;background:#ea580c;border-radius:2px;"></span>
+                <strong style="color:#f8fafc;font-size:1rem;letter-spacing:0.01em;">Data Preview</strong>
+                <div id="previewEstimate" style="color:#94a3b8;font-weight:600;font-size:0.88rem;">&nbsp;</div>
+            </div>
+            <button id="btnClosePreview" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:7px;padding:0.3rem 0.8rem;cursor:pointer;font-size:0.85rem;font-weight:600;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">✕ Close</button>
+        </div>
+        <!-- Table body -->
+        <div id="previewContent" style="padding:1rem 1.25rem;overflow:auto;flex:1;"></div>
+        <!-- Footer -->
+        <div style="padding:0.65rem 1.4rem;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-shrink:0;">
+            <div id="previewPager" style="display:none;align-items:center;gap:0.5rem;">
+                <button id="pagerPrev" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.28rem 0.85rem;cursor:pointer;font-weight:600;font-size:0.85rem;color:#334155;">‹ Prev</button>
+                <span id="pagerInfo" style="color:#334155;font-weight:700;font-size:0.9rem;">Page 1</span>
+                <button id="pagerNext" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.28rem 0.85rem;cursor:pointer;font-weight:600;font-size:0.85rem;color:#334155;">Next ›</button>
+            </div>
+            <small style="color:#94a3b8">Preview only — download contains the full dataset.</small>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ===== Report Analyzer Page ===== */
+
+    /* Hero banner */
+    .rpt-hero {
+        background: linear-gradient(120deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        border-left: 4px solid #ea580c;
+    }
+    .rpt-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #fb923c;
+        margin-bottom: 0.4rem;
+    }
+    .rpt-hero-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin: 0 0 0.3rem;
+        line-height: 1.2;
+    }
+    .rpt-hero-sub {
+        font-size: 0.88rem;
+        color: #94a3b8;
+        margin: 0;
+    }
+    .rpt-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1.1rem;
+        background: rgba(255,255,255,0.07);
+        border: 1.5px solid rgba(255,255,255,0.15);
+        border-radius: 9px;
+        color: #e2e8f0;
+        font-weight: 600;
+        font-size: 0.88rem;
+        text-decoration: none;
+        transition: background 0.15s, color 0.15s;
+        white-space: nowrap;
+    }
+    .rpt-back-btn:hover { background: rgba(234,88,12,0.18); color: #fb923c; border-color: rgba(234,88,12,0.4); }
+
+    /* Two-column layout */
+    .rpt-layout {
+        display: grid;
+        grid-template-columns: 1fr 310px;
+        gap: 1.25rem;
+        align-items: start;
+    }
+    @@media (max-width: 900px) { .rpt-layout { grid-template-columns: 1fr; } }
+
+    /* Panels */
+    .rpt-panel {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        padding: 1.5rem;
+        border: 1px solid #f1f5f9;
+    }
+    .rpt-panel-right { position: sticky; top: 1rem; }
+    @@media (max-width: 900px) { .rpt-panel-right { position: static; } }
+
+    /* Section label */
+    .rpt-section-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #ea580c;
+        border-bottom: 2px solid #fff7ed;
+        padding-bottom: 0.35rem;
+        margin-bottom: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .rpt-hint { font-size: 0.82rem; color: #94a3b8; margin: 0 0 0.75rem; }
+    .rpt-optional { color: #94a3b8; font-weight: 400; }
+
+    /* Fields grid */
+    .fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.45rem; margin-bottom: 0.25rem; }
+    .field-pill {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.65rem;
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.14s ease;
+        user-select: none;
+    }
+    .field-pill:hover { border-color: #fb923c; background: #fff7ed; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(234,88,12,0.1); }
+    .field-pill input[type="checkbox"] { margin: 0; width: 15px; height: 15px; accent-color: #ea580c; flex-shrink: 0; }
+    .field-pill .field-label { font-weight: 600; font-size: 0.87rem; color: #475569; }
+    .field-pill:has(input:checked) { background: #fff7ed; border-color: #ea580c; }
+    .field-pill:has(input:checked) .field-label { color: #c2410c; }
+
+    /* Filter grid */
+    .rpt-filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @@media (max-width: 600px) { .rpt-filter-grid { grid-template-columns: 1fr; } }
+    .rpt-date-row { display: flex; gap: 0.75rem; margin-top: 0.75rem; }
+    .rpt-date-row .rpt-field { flex: 1; }
+
+    /* Form fields */
+    .rpt-field { display: flex; flex-direction: column; gap: 0.28rem; }
+    .rpt-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+    .rpt-input {
+        width: 100%;
+        padding: 0.48rem 0.75rem;
+        font-size: 0.91rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #1e293b;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.16s, box-shadow 0.16s;
+    }
+    .rpt-input:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(234,88,12,0.1); background: #fff; }
+    select.rpt-input { appearance: auto; }
+
+    /* Action buttons */
+    .rpt-actions { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0 0.25rem; }
+    .rpt-preview-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.6rem; }
+    .rpt-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.52rem 1rem;
+        border-radius: 9px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        transition: opacity 0.14s, transform 0.1s, box-shadow 0.14s;
+        line-height: 1.4;
+        white-space: nowrap;
+        font-family: inherit;
+    }
+    .rpt-btn:hover { opacity: 0.87; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .rpt-btn-primary  { background: #0f172a; color: #fff; width: 100%; justify-content: center; }
+    .rpt-btn-success  { background: #059669; color: #fff; width: 100%; justify-content: center; }
+    .rpt-btn-outline  { background: transparent; color: #ea580c; border: 1.5px solid #ea580c; }
+    .rpt-btn-ghost    { background: #f1f5f9; color: #475569; }
+    .rpt-btn-danger   { background: transparent; color: #dc2626; border: 1.5px solid #fca5a5; }
+    .rpt-btn-xs { padding: 0.28rem 0.65rem; font-size: 0.78rem; width: auto !important; }
+
+    /* Templates list */
+    .rpt-templates-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.45rem; }
+    .rpt-template-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 9px;
+        transition: border-color 0.14s;
+    }
+    .rpt-template-row:hover { border-color: #fb923c; background: #fff7ed; }
+    .rpt-template-info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+    .rpt-template-name { font-weight: 700; font-size: 0.88rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rpt-template-meta { font-size: 0.75rem; color: #94a3b8; }
+    .rpt-template-btns { display: flex; gap: 0.35rem; flex-shrink: 0; }
+    .rpt-empty { color: #94a3b8; font-size: 0.88rem; padding: 0.75rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+
+    /* multi-dropdown */
+    .multi-dropdown { position: relative; }
+    .multi-dropdown-header { display:flex; align-items:center; justify-content:space-between; padding:0.48rem 0.75rem; border:1.5px solid #e2e8f0; border-radius:8px; cursor:pointer; background:#f8fafc; font-size:0.91rem; transition:border-color 0.15s; }
+    .multi-dropdown-header:hover { border-color: #ea580c; background: #fff7ed; }
+    .multi-dropdown-header .summary { color:#94a3b8; font-size:0.88rem; margin-left:0.4rem; flex:1; text-align:left; }
+    .multi-dropdown-header .caret { margin-left:0.4rem; color:#94a3b8; }
+    .multi-dropdown-panel { position:absolute; left:0; right:0; z-index:80; background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; margin-top:6px; box-shadow:0 12px 28px rgba(0,0,0,0.1); max-height:60vh; overflow:auto; min-width:280px; width:max(280px,100%); }
+    .multi-dropdown .multiselect-list { padding:0.5rem; font-size:0.92rem; }
+    .multi-dropdown .multiselect-list label { display:flex; align-items:center; gap:0.5rem; padding:0.3rem 0.5rem; border-radius:6px; cursor:pointer; }
+    .multi-dropdown .multiselect-list label:hover { background:#fff7ed; }
+    .multi-dropdown .multiselect-list input[type="checkbox"] { width:15px; height:15px; margin:0; accent-color:#ea580c; }
+    .multi-dropdown .multiselect-list input[type="checkbox"]:checked + span { font-weight:700; color:#ea580c; }
+    .multi-dropdown-panel.up { bottom:calc(100% + 6px); top:auto; margin-top:0; margin-bottom:6px; }
+    @@media (max-width:900px) { .multi-dropdown .multi-dropdown-panel { min-width:auto; width:100%; } }
+    .list-item { display:flex; align-items:center; gap:0.5rem; padding:0.25rem 0.35rem; border-radius:4px; }
+    .list-item:hover { background:rgba(234,88,12,0.04); cursor:pointer; }
+
+    /* Preview table */
+    #previewContent table { border-collapse:collapse; width:100%; font-size:0.85rem; }
+    #previewContent table thead th { position:sticky; top:0; background:#0f172a; color:#f8fafc; font-size:0.75rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:0.5rem 0.6rem; z-index:1; border-bottom:2px solid #ea580c; white-space:nowrap; }
+    #previewContent table tbody td { padding:0.35rem 0.6rem; border-bottom:1px solid #f1f5f9; color:#374151; }
+    #previewContent table tbody tr:hover { background:#fff7ed; }
+    #previewContent table tbody tr:nth-child(even) { background:#fafafa; }
+    #previewContent table tbody tr:nth-child(even):hover { background:#fff7ed; }
+
+    /* Preview loading */
+    .preview-loading { display:flex; align-items:center; gap:0.75rem; padding:2rem 1rem; color:#64748b; }
+    .loader { width:20px; height:20px; border-radius:50%; border:3px solid #e2e8f0; border-top-color:#ea580c; animation:spinRpt 0.8s linear infinite; flex-shrink:0; }
+    @@keyframes spinRpt { to { transform:rotate(360deg); } }
+    @@keyframes modalIn { from { opacity:0; transform:scale(0.94) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
+</style>
+<script>
+    function updateSelectedCount(){
+        const checked = document.querySelectorAll('input[name="SelectedFields"]:checked').length;
+        const title = document.querySelector('.page-title');
+        if(title) title.textContent = 'Custom Report Builder' + (checked>0 ? ' — ' + checked + ' fields' : '');
+    }
+    document.addEventListener('change', function(e){ if(e.target && e.target.name==='SelectedFields') updateSelectedCount(); });
+    document.addEventListener('DOMContentLoaded', updateSelectedCount);
+
+    // Preview subsystem: paging, sorting and row-limit support
+    (function(){
+        let currentPage = 1;
+        let pageSize = 50;
+        let sortColumn = null;
+        let sortDirection = 'asc';
+
+        function renderTable(container, rows, columns){
+            container.innerHTML = '';
+            if(!rows || rows.length === 0){ container.innerHTML = '<div class="text-muted">No rows returned for the selected filters.</div>'; return; }
+            const table = document.createElement('table');
+            table.className = 'table table-sm';
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            columns.forEach((h, idx) => {
+                const th = document.createElement('th');
+                th.textContent = h;
+                th.setAttribute('data-col', h);
+                th.draggable = true;
+                th.style.cursor = 'move';
+                // sorting click
+                th.addEventListener('click', function(){
+                    if(sortColumn === h) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'; else { sortColumn = h; sortDirection = 'asc'; }
+                    fetchPreview();
+                });
+                // drag/drop for reordering
+                th.addEventListener('dragstart', function(e){ e.dataTransfer.setData('text/plain', idx); });
+                th.addEventListener('dragover', function(e){ e.preventDefault(); });
+                th.addEventListener('drop', function(e){
+                    const from = parseInt(e.dataTransfer.getData('text/plain'),10);
+                    const to = idx;
+                    reorderColumns(table, from, to);
+                });
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                columns.forEach(c => {
+                    const td = document.createElement('td'); td.textContent = r[c] ?? ''; tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+        }
+
+        function reorderColumns(table, from, to){
+            const tbody = table.querySelector('tbody');
+            const thead = table.querySelector('thead');
+            if(!tbody || !thead) return;
+            const headCells = Array.from(thead.querySelectorAll('th'));
+            const heads = headCells.map(h => h.textContent);
+            const moved = heads.splice(from,1)[0];
+            heads.splice(to,0,moved);
+            // rebuild header
+            thead.innerHTML = '';
+            const hr = document.createElement('tr');
+            heads.forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+            thead.appendChild(hr);
+            // rebuild rows
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.forEach(tr => {
+                const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent || '');
+                tr.innerHTML = '';
+                heads.forEach(h => {
+                    const td = document.createElement('td'); td.textContent = cells[heads.indexOf(h)] ?? ''; tr.appendChild(td);
+                });
+            });
+        }
+
+        async function fetchPreview(page){
+            const btn = document.getElementById('btnPreview');
+            if(page) currentPage = page;
+            btn.disabled = true; btn.textContent = 'Loading...';
+
+            // show quick estimating UI while server performs COUNT and fetches page
+            const overlay = document.getElementById('previewOverlay');
+            document.getElementById('previewEstimate').textContent = 'Estimating rows...';
+            document.getElementById('previewContent').innerHTML = '<div class="preview-loading"><div class="loader"></div><div class="text-muted">Estimating rows…</div></div>';
+            overlay.style.display = 'flex';
+
+            const form = document.getElementById('customReportForm');
+            const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : null;
+
+            pageSize = parseInt(document.getElementById('selRowLimit').value,10) || 30;
+
+            const formData = new FormData();
+            if (token) formData.append('__RequestVerificationToken', token);
+            // SelectedFields (multiple)
+            document.querySelectorAll('input[name="SelectedFields"]:checked').forEach(ch => formData.append('SelectedFields', ch.value));
+            // Filters
+            document.querySelectorAll('input[name="SelectedDepartments"]:checked').forEach(ch => formData.append('SelectedDepartments', ch.value));
+            document.querySelectorAll('input[name="SelectedSections"]:checked').forEach(ch => formData.append('SelectedSections', ch.value));
+            const start = form.querySelector('input[name="StartDate"]').value;
+            const end = form.querySelector('input[name="EndDate"]').value;
+            if (start) formData.append('StartDate', start);
+            if (end) formData.append('EndDate', end);
+
+            formData.append('page', String(currentPage));
+            formData.append('pageSize', String(pageSize));
+            if(sortColumn) formData.append('sortColumn', sortColumn);
+            if(sortDirection) formData.append('sortDirection', sortDirection);
+
+            try{
+                const resp = await fetch(window.location.pathname + '?handler=Preview', { method: 'POST', credentials: 'same-origin', body: formData });
+                const json = await resp.json();
+                const container = document.getElementById('previewContent');
+                if(json && json.success){
+                    // update estimate in header (handle unknown total = -1)
+                    const estimateEl = document.getElementById('previewEstimate');
+                    if (json.total == null || json.total < 0) {
+                        if (estimateEl) estimateEl.textContent = 'Estimating…';
+                    } else {
+                        if (estimateEl) estimateEl.textContent = (json.total || 0) + ' rows';
+                    }
+
+                    renderTable(container, json.data || [], json.columns || []);
+
+                    // pager
+                    const pager = document.getElementById('previewPager');
+                    if(json.total != null && json.total > 0 && json.total > pageSize){
+                        pager.style.display = 'flex';
+                        const totalPages = Math.ceil(json.total / pageSize);
+                        document.getElementById('pagerInfo').textContent = `Page ${currentPage} / ${totalPages}`;
+                        document.getElementById('pagerPrev').disabled = currentPage <= 1;
+                        document.getElementById('pagerNext').disabled = currentPage >= totalPages;
+                    } else { pager.style.display = 'none'; }
+                } else {
+                    document.getElementById('previewEstimate').textContent = '';
+                    container.innerHTML = '<div class="text-danger">Preview failed: ' + (json && json.message ? json.message : 'Unknown error') + '</div>';
+                }
+            } catch(err){
+                document.getElementById('previewEstimate').textContent = '';
+                const container = document.getElementById('previewContent');
+                container.innerHTML = '<div class="text-danger">Preview failed: ' + (err && err.message ? err.message : err) + '</div>';
+            } finally { btn.disabled = false; btn.textContent = 'Preview (' + pageSize + ')'; }
+        }
+
+        document.getElementById('btnPreview').addEventListener('click', function(){ currentPage = 1; fetchPreview(); });
+        document.getElementById('pagerPrev').addEventListener('click', function(){ if(currentPage>1){ currentPage--; fetchPreview(); }});
+        document.getElementById('pagerNext').addEventListener('click', function(){ currentPage++; fetchPreview(); });
+
+        // Full preview: submit a form to a handler in new tab
+        document.getElementById('btnFullPreview').addEventListener('click', function(){
+            const form = document.createElement('form');
+            form.method = 'post'; form.action = window.location.pathname + '?handler=FullPreview'; form.target = '_blank';
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            if(tokenInput){ const t = document.createElement('input'); t.type='hidden'; t.name='__RequestVerificationToken'; t.value=tokenInput.value; form.appendChild(t); }
+            // append selected fields/filters
+            document.querySelectorAll('input[name="SelectedFields"]:checked').forEach(ch => { const i = document.createElement('input'); i.type='hidden'; i.name='SelectedFields'; i.value = ch.value; form.appendChild(i); });
+            document.querySelectorAll('input[name="SelectedDepartments"]:checked').forEach(ch => { const i = document.createElement('input'); i.type='hidden'; i.name='SelectedDepartments'; i.value = ch.value; form.appendChild(i); });
+            document.querySelectorAll('input[name="SelectedSections"]:checked').forEach(ch => { const i = document.createElement('input'); i.type='hidden'; i.name='SelectedSections'; i.value = ch.value; form.appendChild(i); });
+            const start = document.querySelector('input[name="StartDate"]').value; if(start){ const i = document.createElement('input'); i.type='hidden'; i.name='StartDate'; i.value = start; form.appendChild(i); }
+            const end = document.querySelector('input[name="EndDate"]').value; if(end){ const i = document.createElement('input'); i.type='hidden'; i.name='EndDate'; i.value = end; form.appendChild(i); }
+            document.body.appendChild(form); form.submit(); form.remove();
+        });
+
+        // Live preview helpers
+        function debounce(fn, wait){ let t; return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), wait); }; }
+        
+        // initialize row limit
+        const sel = document.getElementById('selRowLimit'); if(sel) sel.value = '30';
+
+
+
+    })();
+
+    document.getElementById('btnClosePreview').addEventListener('click', function(){
+        document.getElementById('previewOverlay').style.display = 'none';
+    });
+
+    // Multi-dropdown behavior (toggle, select-all/clear, header summary)
+    (function(){
+        function updateSummary(container){
+            const checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(x => x.nextElementSibling?.textContent || x.value);
+            const header = container.querySelector('.multi-dropdown-header .summary');
+            if(!header) return;
+            if(checked.length === 0) header.textContent = '-- Any --';
+            else if(checked.length === 1) header.textContent = checked[0];
+            else header.textContent = checked[0] + ' (+ ' + (checked.length - 1) + ')';
+        }
+
+        document.querySelectorAll('.multi-dropdown').forEach(function(drop){
+            const header = drop.querySelector('.multi-dropdown-header');
+            const panel = drop.querySelector('.multi-dropdown-panel');
+            const list = drop.querySelector('.multiselect-list');
+
+            header.addEventListener('click', function(e){
+                e.stopPropagation();
+                // close others
+                document.querySelectorAll('.multi-dropdown-panel').forEach(p => { if(p !== panel) p.style.display = 'none'; p.classList.remove('up'); });
+                const isOpen = panel.style.display === 'block';
+                panel.style.display = isOpen ? 'none' : 'block';
+                if(!isOpen){
+                    // compute available space and flip up if needed
+                    const rect = panel.getBoundingClientRect();
+                    const headerRect = header.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - headerRect.bottom;
+                    const spaceAbove = headerRect.top;
+                    // estimate panel height: use offsetHeight if already rendered hidden by display:block, else measure by temporarily showing
+                    let panelHeight = panel.offsetHeight;
+                    if(!panelHeight){
+                        panel.style.visibility = 'hidden'; panel.style.display = 'block'; panelHeight = panel.offsetHeight; panel.style.display = 'none'; panel.style.visibility = '';
+                    }
+                    if(panelHeight > spaceBelow && spaceAbove > spaceBelow){
+                        panel.classList.add('up');
+                    } else {
+                        panel.classList.remove('up');
+                    }
+                    // ensure panel doesn't horizontally overflow
+                    const panelRectAfter = panel.getBoundingClientRect();
+                    if(panelRectAfter.right > window.innerWidth){
+                        panel.style.left = 'auto'; panel.style.right = '0px';
+                    } else { panel.style.left = '0px'; panel.style.right = 'auto'; }
+                }
+            });
+
+            // keyboard support
+            header.addEventListener('keydown', function(e){ if(e.key === 'Escape') panel.style.display = 'none'; if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); header.click(); } });
+
+            // click outside closes (also close on resize). do NOT close when scrolling inside the panel.
+            document.addEventListener('click', function(e){ if(!drop.contains(e.target)) panel.style.display = 'none'; });
+            window.addEventListener('resize', function(){ panel.style.display = 'none'; });
+            window.addEventListener('scroll', function(e){ if(drop.contains(e.target)) return; panel.style.display = 'none'; }, true);
+
+            // select all / clear
+            drop.querySelectorAll('.select-all').forEach(btn => btn.addEventListener('click', function(){ list.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.checked = true); updateSummary(drop); }));
+            drop.querySelectorAll('.clear-all').forEach(btn => btn.addEventListener('click', function(){ list.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.checked = false); updateSummary(drop); }));
+
+            // update header when checkboxes change
+            list.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.addEventListener('change', function(){ updateSummary(drop); }));
+
+            // initialize summary
+            updateSummary(drop);
+        });
+    })();
+
+    // Close overlay on ESC
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { const ov = document.getElementById('previewOverlay'); if (ov && ov.style.display === 'flex') ov.style.display = 'none'; } });
+
+    // Prevent saving an unnamed template - client-side hint
+    (function(){
+        const saveBtn = document.querySelector('button[formaction="?handler=SaveTemplate"]');
+        if (saveBtn){
+            saveBtn.addEventListener('click', function(e){
+                const name = document.querySelector('input[name="TemplateName"]').value;
+                if (!name || !name.trim()){
+                    e.preventDefault();
+                    alert('Please enter a template name before saving.');
+                    document.querySelector('input[name="TemplateName"]').focus();
+                }
+            });
+        }
+    })();
+</script>

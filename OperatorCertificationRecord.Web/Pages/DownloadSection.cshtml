@@ -1,0 +1,938 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.DownloadSectionModel
+@{
+    ViewData["Title"] = "Download Reports";
+    ViewData["ActivePage"] = "DownloadSection";
+}
+
+<style>
+/* ── Hero ── */
+.dl-hero {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 20px; padding: 2rem 2rem 1.75rem;
+    margin-bottom: 1.75rem; position: relative; overflow: hidden;
+}
+.dl-hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 85% 0%, rgba(124,58,237,.28) 0%, transparent 55%),
+                radial-gradient(ellipse at 15% 100%, rgba(29,78,216,.20) 0%, transparent 50%);
+}
+.dl-hero-inner { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem; }
+.dl-hero-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 999px; padding: 0.28rem 0.85rem;
+    font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #94a3b8;
+    margin-bottom: 0.6rem;
+}
+.dl-hero-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; margin: 0 0 0.35rem; line-height: 1.2; }
+.dl-hero-sub   { font-size: 1.05rem; color: #94a3b8; margin: 0; max-width: 520px; }
+.dl-hero-chips { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.dl-hero-chip  {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px; padding: 0.42rem 0.85rem;
+    font-size: 0.95rem; font-weight: 600; color: #cbd5e1;
+}
+.dl-hero-chip i { font-size: 1.05rem; }
+
+/* ── Category label ── */
+.dl-cat-label {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+    color: #94a3b8; margin: 0 0 0.9rem;
+}
+.dl-cat-label::after {
+    content: ''; flex: 1; height: 1px; background: #e2e8f0; margin-left: 0.4rem;
+}
+
+/* ── Card grid ── */
+.dl-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 1.1rem;
+    margin-bottom: 1.75rem;
+}
+.dl-card {
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.8rem;
+    background: #fff; border: 1.5px solid #e2e8f0;
+    border-radius: 18px; padding: 1.8rem 1rem 1.5rem;
+    text-align: center; cursor: pointer; width: 100%;
+    transition: transform .15s, box-shadow .18s, border-color .15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.dl-card:hover, .dl-card:focus-visible {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(0,0,0,.12);
+    outline: none;
+}
+.dl-card:active { transform: translateY(-1px) scale(.99); }
+.dl-card-strip {
+    position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: 18px 18px 0 0;
+}
+.dl-card-icon {
+    width: 80px; height: 80px; border-radius: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 2.6rem;
+    transition: transform .15s;
+}
+.dl-card:hover .dl-card-icon { transform: scale(1.1); }
+.dl-card-title { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0; line-height: 1.3; }
+
+/* dq-download + modal-close-btn retained */
+.dq-download {
+    display:inline-flex; align-items:center; gap:0.5rem;
+    background: linear-gradient(180deg,var(--accent) 0%, #f6c46b 100%);
+    color: var(--white); padding: 0.8rem 1.3rem;
+    border-radius: 0.6rem; border: none;
+    box-shadow: 0 6px 18px rgba(16,185,129,0.12);
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+    cursor: pointer; font-weight: 700; font-size: 1.1rem;
+    min-width:130px; justify-content:center;
+}
+.dq-download:hover, .dq-download:focus { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(16,185,129,0.18); }
+.dq-download:active { transform: translateY(0) scale(.99); }
+.dq-download[disabled], .dq-download[disabled]:hover { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+.modal-close-btn { background: transparent; border: 1px solid var(--gray-300); color: var(--gray-700); padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight:600; transition: all .12s ease; }
+.modal-close-btn:hover { background: var(--gray-50); border-color: var(--gray-400); color: var(--gray-900); transform: translateY(-1px); }
+.modal-close-btn[disabled] { opacity:.6; cursor:not-allowed }
+
+/* Date range validation */
+@@keyframes dm-fadein { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+.dm-date-err { display:none; font-size:0.85rem; color:#ef4444; margin-top:0.35rem; font-weight:500; }
+.dm-date-err.visible { display:block; animation: dm-fadein 0.2s ease; }
+.dm-input.dm-invalid { border-color:#ef4444 !important; box-shadow:0 0 0 3px rgba(239,68,68,0.15) !important; }
+
+@@media (max-width: 640px) {
+    .dl-card-grid { grid-template-columns: 1fr; }
+    .dl-hero-title { font-size: 1.7rem; }
+}
+</style>
+
+<!-- Hero -->
+<div class="dl-hero">
+    <div class="dl-hero-inner">
+        <div>
+            <div class="dl-hero-badge"><i class="bi bi-cloud-arrow-down-fill"></i> Export Center</div>
+            <h1 class="dl-hero-title">Download Reports</h1>
+        </div>
+        <div class="dl-hero-chips">
+            <div class="dl-hero-chip"><i class="bi bi-file-earmark-spreadsheet-fill"></i> 7 report types</div>
+            <div class="dl-hero-chip"><i class="bi bi-shield-check-fill"></i> Parameterized SQL</div>
+            <div class="dl-hero-chip"><i class="bi bi-funnel-fill"></i> Date &amp; dept filters</div>
+        </div>
+    </div>
+</div>
+
+<!-- Card grid -->
+<div class="dl-card-grid">
+
+    <!-- Skill Inventory -->
+    <button type="button" class="dl-card" data-bs-toggle="modal" data-bs-target="#skillInventoryModal">
+        <div class="dl-card-strip" style="background:linear-gradient(90deg,#1d4ed8,#3b82f6)"></div>
+        <div class="dl-card-icon" style="background:#eff6ff;color:#1d4ed8;"><i class="bi bi-layers-fill"></i></div>
+        <div class="dl-card-title">Skill Inventory</div>
+    </button>
+
+    <!-- Operator No-skill -->
+    <button id="operatorNoSkillBtn" type="button" class="dl-card">
+        <div class="dl-card-strip" style="background:linear-gradient(90deg,#0d9488,#14b8a6)"></div>
+        <div class="dl-card-icon" style="background:#f0fdfa;color:#0d9488;"><i class="bi bi-person-x-fill"></i></div>
+        <div class="dl-card-title">Operator No-skill</div>
+    </button>
+
+    <!-- Expiry Date -->
+    <button type="button" class="dl-card" data-bs-toggle="modal" data-bs-target="#expiryModal">
+        <div class="dl-card-strip" style="background:linear-gradient(90deg,#ea580c,#fb923c)"></div>
+        <div class="dl-card-icon" style="background:#fff7ed;color:#ea580c;"><i class="bi bi-calendar-x-fill"></i></div>
+        <div class="dl-card-title">Expiry Date</div>
+    </button>
+
+    <!-- Disqualification -->
+    <button type="button" class="dl-card" data-bs-toggle="modal" data-bs-target="#disqualificationModal">
+        <div class="dl-card-strip" style="background:linear-gradient(90deg,#dc2626,#ef4444)"></div>
+        <div class="dl-card-icon" style="background:#fef2f2;color:#dc2626;"><i class="bi bi-slash-circle-fill"></i></div>
+        <div class="dl-card-title">Disqualification</div>
+    </button>
+
+    <!-- Obsoleted -->
+    <button type="button" class="dl-card" data-bs-toggle="modal" data-bs-target="#obsoletedModal">
+        <div class="dl-card-strip" style="background:linear-gradient(90deg,#92400e,#b45309)"></div>
+        <div class="dl-card-icon" style="background:#fffbeb;color:#92400e;"><i class="bi bi-archive-fill"></i></div>
+        <div class="dl-card-title">Obsoleted</div>
+    </button>
+
+    <!-- Resignation -->
+    <button type="button" class="dl-card" data-bs-toggle="modal" data-bs-target="#resignModal">
+        <div class="dl-card-strip" style="background:linear-gradient(90deg,#475569,#64748b)"></div>
+        <div class="dl-card-icon" style="background:#f8fafc;color:#475569;"><i class="bi bi-door-open-fill"></i></div>
+        <div class="dl-card-title">Resignation</div>
+    </button>
+
+</div>
+
+<div style="margin-bottom:1rem;">
+    <a href="/Dashboard" class="btn btn-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<style>
+    /* Force modals to center on screen */
+    .modal.fade {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: none;
+        z-index: 1050;
+    }
+    
+    .modal.fade.show {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    .modal-dialog { 
+        margin: 0 auto !important;
+        position: relative;
+        width: auto;
+        pointer-events: none;
+    }
+
+    .modal.show .modal-dialog {
+        transform: none;
+        pointer-events: auto;
+    }
+    
+    .modal-dialog-centered {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+    }
+    
+    .modal-dialog-centered .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+        pointer-events: auto;
+    }
+    
+    .modal-content { 
+        backface-visibility: hidden; 
+        -webkit-backface-visibility: hidden; 
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Ensure backdrop is visible and properly positioned */
+    .modal-backdrop {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        z-index: 1040;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    .modal-backdrop.show { 
+        opacity: 0.5 !important;
+    }
+</style>
+
+<!-- FORCE Modal Centering Override -->
+<style>
+    .modal {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: none !important;
+        z-index: 1050 !important;
+    }
+
+    .modal.show {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 1rem !important;
+        box-sizing: border-box !important;
+    }
+
+    .modal-dialog {
+        position: relative !important;
+        width: auto !important;
+        margin: 0 auto !important;
+        max-width: 540px !important;
+    }
+
+    .modal-dialog.modal-lg {
+        max-width: 800px !important;
+    }
+
+    .modal-dialog-centered {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .modal-content {
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+
+    .modal-backdrop {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 1040 !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+</style>
+        
+        
+        <!-- Skill Inventory Modal (same layout as Section) -->
+        <div class="modal fade" id="skillInventoryModal" tabindex="-1" aria-labelledby="skillInventoryLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content dm-modal-content" style="--dm-color:#1d4ed8;--dm-light:#eff6ff;">
+                    <div class="dm-header">
+                        <div class="dm-hdr-icon"><i class="bi bi-layers-fill"></i></div>
+                        <div class="dm-hdr-text">
+                            <div class="dm-hdr-title" id="skillInventoryLabel">Skill Inventory</div>
+                            <div class="dm-hdr-sub">Download skill inventory by section</div>
+                        </div>
+                        <button type="button" class="dm-close" data-bs-dismiss="modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <div class="dm-body">
+                        <div class="dm-section-lbl"><i class="bi bi-funnel-fill"></i> Filter</div>
+                        <div class="dm-field">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+                                <label class="dm-label" for="skillSectionSelect">Section</label>
+                                <label style="font-weight:600; font-size:0.85rem; color:#64748b; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
+                                    <input id="skillAllDepartments" type="checkbox" /> All Departments
+                                </label>
+                            </div>
+                            <select id="skillSectionSelect" class="dm-input" style="margin-top:0.35rem;">
+                                <option value="">— Select section —</option>
+                                @foreach(var s in Model.Sections ?? new List<OperatorCertificationRecord.Web.Models.Section>())
+                                {
+                                    <option value="@s.SectName">@s.SectName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="dm-summary">
+                            <div class="dm-field dm-format-field">
+                                <label class="dm-label">Format</label>
+                                <select id="skillFormat" class="dm-input">
+                                    <option value="xlsx">Excel (.xlsx)</option>
+                                    <option value="csv">CSV (.csv)</option>
+                                </select>
+                            </div>
+                            <button id="previewSkillBtn" type="button" class="dm-preview-btn">
+                                <i class="bi bi-search"></i> Preview
+                            </button>
+                            <div class="dm-count-wrap">
+                                <div class="dm-count-lbl">Records</div>
+                                <div id="skillCountBadge" class="dm-count-badge">—</div>
+                                <div id="skillLoading" style="display:none" class="dm-loading"><i class="bi bi-hourglass-split"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dm-footer">
+                        <button type="button" class="dm-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+                        <button id="downloadSkillBtn" type="button" class="dm-btn-dl" disabled>
+                            <i class="bi bi-download"></i> Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        @* include disqualification modal partial so it can be opened from this page *@
+        @await Html.PartialAsync("Shared/_DisqualificationDownloadModal")
+        @* include resign modal partial *@
+        @await Html.PartialAsync("Shared/_ResignDownloadModal")
+        @* include expiry modal partial *@
+        @await Html.PartialAsync("Shared/_ExpiryDownloadModal")
+        @* include obsoleted modal partial *@
+        @await Html.PartialAsync("Shared/_ObsoletedDownloadModal")
+
+        <!-- Operator No-skill Modal -->
+        <div class="modal fade" id="operatorNoSkillModal" tabindex="-1" aria-labelledby="operatorNoSkillLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content dm-modal-content" style="--dm-color:#0d9488;--dm-light:#f0fdfa;">
+                    <div class="dm-header">
+                        <div class="dm-hdr-icon"><i class="bi bi-person-x-fill"></i></div>
+                        <div class="dm-hdr-text">
+                            <div class="dm-hdr-title" id="operatorNoSkillLabel">Operator No-skill</div>
+                            <div class="dm-hdr-sub">Download operators with no skill assigned</div>
+                        </div>
+                        <button type="button" class="dm-close" data-bs-dismiss="modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <div class="dm-body">
+                        <div class="dm-section-lbl"><i class="bi bi-funnel-fill"></i> Filter</div>
+                        <div class="dm-grid-2">
+                            <div class="dm-field">
+                                <label class="dm-label" for="onsDeptSelect">Department</label>
+                                <select id="onsDeptSelect" class="dm-input">
+                                    <option value="">— Any —</option>
+                                    @foreach(var d in Model.Departments ?? new List<OperatorCertificationRecord.Web.Models.Department>())
+                                    {
+                                        <option value="@d.DeptName">@d.DeptName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="dm-field">
+                                <label class="dm-label" for="onsSectSelect">Section</label>
+                                <select id="onsSectSelect" class="dm-input">
+                                    <option value="">— Any —</option>
+                                    @foreach(var s in Model.Sections ?? new List<OperatorCertificationRecord.Web.Models.Section>())
+                                    {
+                                        <option value="@s.SectName">@s.SectName</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="dm-section-lbl" style="margin-top:1rem"><i class="bi bi-calendar3"></i> Date Range</div>
+                        <div class="dm-grid-2">
+                            <div class="dm-field">
+                                <label class="dm-label" for="onsStart">Start Date (Join Date)</label>
+                                <input id="onsStart" type="date" class="dm-input" onchange="validateDateRange('onsStart','onsEnd','onsDateErr','previewOnsBtn','downloadOnsBtn')" />
+                            </div>
+                            <div class="dm-field">
+                                <label class="dm-label" for="onsEnd">End Date</label>
+                                <input id="onsEnd" type="date" class="dm-input" onchange="validateDateRange('onsStart','onsEnd','onsDateErr','previewOnsBtn','downloadOnsBtn')" />
+                            </div>
+                        </div>
+                        <span class="dm-date-err" id="onsDateErr"></span>
+                        <div class="dm-pill-row dq-presets">
+                            <button type="button" class="dm-pill" data-days="7">7 days</button>
+                            <button type="button" class="dm-pill" data-days="30">30 days</button>
+                            <button type="button" class="dm-pill" data-days="365">1 year</button>
+                            <button type="button" class="dm-pill active" data-days="0">All time</button>
+                        </div>
+                        <div class="dm-summary">
+                            <div class="dm-field dm-format-field">
+                                <label class="dm-label">Format</label>
+                                <select id="onsFormat" class="dm-input">
+                                    <option value="xlsx">Excel (.xlsx)</option>
+                                    <option value="csv">CSV (.csv)</option>
+                                </select>
+                            </div>
+                            <button id="previewOnsBtn" type="button" class="dm-preview-btn">
+                                <i class="bi bi-search"></i> Preview
+                            </button>
+                            <div class="dm-count-wrap">
+                                <div class="dm-count-lbl">Records</div>
+                                <div id="onsCountBadge" class="dm-count-badge">—</div>
+                                <div id="onsLoading" style="display:none" class="dm-loading"><i class="bi bi-hourglass-split"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dm-footer">
+                        <button type="button" class="dm-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+                        <button id="downloadOnsBtn" type="button" class="dm-btn-dl" disabled>
+                            <i class="bi bi-download"></i> Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// preset helper used by preset buttons
+
+// Defensive modal open handler for Operator No-skill (ensures modal opens even if data-attrs are blocked)
+(function initOperatorNoSkillModal(){
+    function openModalFallback(el){
+        document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        document.body.appendChild(backdrop);
+        // force display
+        el.classList.add('show');
+        el.style.display = 'flex';
+        el.setAttribute('aria-modal','true');
+        el.removeAttribute('aria-hidden');
+        const focusable = el.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable) focusable.focus();
+        // dispatch Bootstrap-like event so listeners in modal partial run
+        try{ el.dispatchEvent(new Event('shown.bs.modal')); } catch(e){ /* ignore */ }
+        if (window.Toast) try{ window.Toast.info('Modal','Operator No-skill opened (fallback)'); } catch(e){}
+        backdrop.addEventListener('click', ()=> {
+        // ensure close buttons inside fallback modal also clear backdrop
+        el.querySelectorAll("[data-bs-dismiss=\"modal\"], .btn-close").forEach(function(btn){ btn.addEventListener("click", function(){ try{ el.classList.remove("show"); el.style.display="none"; backdrop.remove(); } catch(e){ console.error("Backdrop close error", e); } }); });
+            try{ el.classList.remove('show'); el.style.display = 'none'; backdrop.remove(); }catch(e){ console.error('Backdrop close error', e); }
+        });
+    }
+
+    function handler(e){
+        e && e.preventDefault();
+        console.debug('[OperatorNoSkill] click handler invoked');
+        try{
+            const el = document.getElementById('operatorNoSkillModal');
+            if(!el){ console.error('[OperatorNoSkill] modal not found in DOM'); if(window.Toast) window.Toast.warning('Modal not available','Operator No-skill modal is not present on this page'); return; }
+            console.debug('[OperatorNoSkill] bootstrap=', !!(window.bootstrap && window.bootstrap.Modal));
+            if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+                try {
+                    const inst = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+                    inst.show();
+                    // if bootstrap didn't actually show the modal (race/issue), fallback after short delay
+                    setTimeout(()=>{
+                        if (!el.classList.contains('show')){
+                            console.warn('[OperatorNoSkill] bootstrap modal did not become visible — using fallback');
+                            openModalFallback(el);
+                        } else {
+                            if (window.Toast) try{ window.Toast.info('Modal','Operator No-skill opened'); } catch(e){}
+                        }
+                    }, 80);
+                    return;
+                } catch(e) {
+                    console.error('[OperatorNoSkill] bootstrap modal show failed', e);
+                }
+            }
+            openModalFallback(el);
+        }catch(err){
+            console.error('[OperatorNoSkill] Error opening modal', err);
+            document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+        }
+    }
+
+    function setup(){
+        const btn = document.getElementById('operatorNoSkillBtn');
+        console.debug('[OperatorNoSkill] setup — btn found=', !!btn);
+        if(!btn) return;
+        // hide the button when the modal markup is not present on the page (prevents toast/error)
+        const modalEl = document.getElementById('operatorNoSkillModal');
+        if (!modalEl) {
+            console.warn('[OperatorNoSkill] operatorNoSkillModal not found — hiding button');
+            btn.style.display = 'none';
+            btn.setAttribute('aria-hidden', 'true');
+            return;
+        }
+        btn.removeEventListener('click', handler);
+        btn.addEventListener('click', handler);
+    }
+
+    if (document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', setup);
+    } else {
+        setup();
+    }
+})();
+function setSkillPreset(days){
+    const startEl = document.getElementById('skillStart');
+    const endEl = document.getElementById('skillEnd');
+    if (!startEl || !endEl) return;
+    const today = new Date();
+    function fmt(d){
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${dd}`;
+    }
+    if (!days || days <= 0){ startEl.value = ''; endEl.value = ''; return; }
+    const start = new Date(); start.setDate(today.getDate() - (days - 1));
+    startEl.value = fmt(start);
+    endEl.value = fmt(today);
+}
+
+// toggle active preset button for every preset container and invoke corresponding preset handler
+;(function(){
+    const containers = document.querySelectorAll('.dq-presets');
+    if(!containers || containers.length === 0) return;
+
+    containers.forEach(container => {
+        container.addEventListener('click', function(e){
+            const btn = e.target.closest('button');
+            if(!btn) return;
+
+            // clear active within this container only
+            container.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // determine days and target modal to call the right preset function
+            const days = parseInt(btn.getAttribute('data-days') || '0', 10);
+            const modal = btn.closest('.modal');
+            if(modal){
+                switch(modal.id){
+                    case 'skillInventoryModal': if(typeof setSkillPreset === 'function') setSkillPreset(days); break;
+                    case 'expiryModal': if(typeof setExpiryPreset === 'function') setExpiryPreset(days); break;
+                    case 'operatorNoSkillModal': if(typeof setOnsPreset === 'function') setOnsPreset(days); break;
+                    default:
+                        // try generic handlers defined on some modals
+                        if(typeof setPresetModal === 'function') setPresetModal(days);
+                        else if(typeof setPreset === 'function') setPreset(days);
+                        break;
+                }
+            } else {
+                // fallback: attempt to call function named in onclick attribute (safer than eval)
+                const onclick = btn.getAttribute('onclick');
+                if(onclick){
+                    try{ new Function(onclick)(); }catch(err){ console.error('preset onclick failed', err); }
+                }
+            }
+        });
+    });
+})();
+
+// Skill Inventory modal behavior (preview + download)
+(function(){
+    const previewBtn = document.getElementById('previewSkillBtn');
+    const downloadBtn = document.getElementById('downloadSkillBtn');
+    const selectEl = document.getElementById('skillSectionSelect');
+    const allDeptEl = document.getElementById('skillAllDepartments');
+    const badge = document.getElementById('skillCountBadge');
+    const loading = document.getElementById('skillLoading');
+    const formatEl = document.getElementById('skillFormat');
+
+    if (!previewBtn) return;
+
+    function setBadge(count){
+        badge.style.background=''; badge.style.color='';
+        if(count === null){ badge.textContent='err'; badge.style.background='#ef4444'; badge.style.color='#fff'; return; }
+        badge.textContent = String(count);
+        if(count <= 0){ badge.style.background='#ef4444'; badge.style.color='#fff'; }
+        else if(count <= 10){ badge.style.background='#f59e0b'; badge.style.color='#111827'; }
+        else { badge.style.background='#10b981'; badge.style.color='#fff'; }
+    }
+
+    async function preview(){
+        const section = selectEl.value;
+        const allDept = allDeptEl?.checked;
+        if (!section && !allDept) { if(window.Toast) window.Toast.warning('No Selection','Please select a section or choose All Departments to preview'); return; }
+        const start = document.getElementById('skillStart')?.value;
+        const end = document.getElementById('skillEnd')?.value;
+        badge.textContent = '…'; loading.style.display = 'inline'; previewBtn.disabled = true;
+        try{
+            let url = '/api/download/skillinventory/count?';
+            if (!allDept) url += 'section=' + encodeURIComponent(section);
+            if (start && end) url += (url.endsWith('?') ? '' : '&') + 'start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end);
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Server returned ' + res.status);
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            if (!ct.includes('application/json')) {
+                const txt = await res.text();
+                console.error('[Preview] expected JSON but got', ct, txt.slice(0,200));
+                throw new Error('Invalid server response (not JSON)');
+            }
+            const j = await res.json();
+            const cnt = j.count ?? 0;
+            setBadge(cnt);
+            downloadBtn.classList.remove('dl-pending');
+            downloadBtn.disabled = false;
+            if (window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' records');
+            return true;
+        }catch(err){
+            console.error('Preview error', err);
+            setBadge(null);
+            downloadBtn.classList.add('dl-pending');
+            if (window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
+            return false;
+        } finally {
+            loading.style.display = 'none';
+            previewBtn.disabled = false;
+        }
+    }
+
+    async function download(){
+        const section = selectEl.value;
+        const allDept = allDeptEl?.checked;
+        if (!section && !allDept) { if(window.Toast) window.Toast.warning('No Selection','Please select a section or choose All Departments before downloading'); return; }
+        if (downloadBtn.classList.contains('dl-pending')) { const ok = await preview(); if (!ok || downloadBtn.classList.contains('dl-pending')) return; }
+        if (window.showLoading) window.showLoading('Generating file...');
+        if (window.Toast) window.Toast.success('Download Started','Your file is being generated...');
+        const start = document.getElementById('skillStart')?.value;
+        const end = document.getElementById('skillEnd')?.value;
+        const fmt = formatEl?.value || 'xlsx';
+        let url = '/Download/SkillInventory?';
+        if (!allDept) url += 'section=' + encodeURIComponent(section);
+        if (start && end) url += (url.endsWith('?') ? '' : '&') + 'start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end);
+        if (fmt) url += (url.endsWith('?') ? '' : '&') + 'format=' + encodeURIComponent(fmt);
+        window.location.href = url;
+    }
+
+    previewBtn.addEventListener('click', function(e){ e.preventDefault(); preview(); });
+    downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
+
+    // Checkbox (All Departments) uses native change event — reliable
+    if(allDeptEl) allDeptEl.addEventListener('change', function(){
+        if(this.checked){ selectEl.value = ''; selectEl.disabled = true; preview(); }
+        else { selectEl.disabled = false; badge.textContent='—'; downloadBtn.classList.add('dl-pending'); }
+    });
+    // Polling: detect fancy-select section changes
+    let _skp = '', _skt = null;
+    const _skEl = document.getElementById('skillInventoryModal');
+    if (_skEl) {
+        _skEl.addEventListener('shown.bs.modal', function() {
+            _skp = selectEl.value;
+            if (_skp || (allDeptEl && allDeptEl.checked)) preview();
+            _skt = setInterval(function() {
+                if (previewBtn.disabled) return;
+                if (!_skEl.classList.contains('show')) { clearInterval(_skt); _skt = null; return; }
+                const sv = selectEl.value;
+                if (sv !== _skp) {
+                    _skp = sv;
+                    if(allDeptEl) allDeptEl.checked = false;
+                    selectEl.disabled = false;
+                    if (sv) preview();
+                    else { badge.textContent='—'; downloadBtn.classList.add('dl-pending'); }
+                }
+            }, 250);
+        });
+        _skEl.addEventListener('hidden.bs.modal', function() { if (_skt) { clearInterval(_skt); _skt = null; } });
+    }
+})();
+
+// preset helper used by skill preset buttons
+function setSkillPreset(days){
+    const startEl = document.getElementById('skillStart');
+    const endEl = document.getElementById('skillEnd');
+    if (!startEl || !endEl) return;
+    const today = new Date();
+    function fmt(d){
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${dd}`;
+    }
+    if (!days || days <= 0){ startEl.value = ''; endEl.value = ''; return; }
+    const end = today;
+    const start = new Date(); start.setDate(today.getDate() - (days-1));
+    startEl.value = fmt(start);
+    endEl.value = fmt(end);
+}
+
+// Ensure skill modal defaults to 'All Time' when opened
+(function(){
+    const modal = document.getElementById('skillInventoryModal');
+    if(!modal) return;
+    modal.addEventListener('show.bs.modal', function(){
+        const container = modal.querySelector('.dq-presets');
+        if(!container) return;
+        container.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+        const allBtn = container.querySelector('button[data-days="0"]');
+        if(allBtn) allBtn.classList.add('active');
+        setSkillPreset(0);
+        const badge = document.getElementById('skillCountBadge'); if(badge) badge.textContent='—';
+        const dl = document.getElementById('downloadSkillBtn'); if(dl) dl.classList.add('dl-pending');
+    });
+})();// Operator No-skill modal behavior (preview + download)
+(function(){
+    const previewBtn = document.getElementById('previewOnsBtn');
+    const downloadBtn = document.getElementById('downloadOnsBtn');
+    const deptEl = document.getElementById('onsDeptSelect');
+    const sectEl = document.getElementById('onsSectSelect');
+    const badge = document.getElementById('onsCountBadge');
+    const loading = document.getElementById('onsLoading');
+    const formatEl = document.getElementById('onsFormat');
+
+    if (!previewBtn) return;
+
+    function setBadge(count){
+        badge.style.background=''; badge.style.color='';
+        if(count === null){ badge.textContent='err'; badge.style.background='#ef4444'; badge.style.color='#fff'; return; }
+        badge.textContent = String(count);
+        if(count <= 0){ badge.style.background='#ef4444'; badge.style.color='#fff'; }
+        else if(count <= 10){ badge.style.background='#f59e0b'; badge.style.color='#111827'; }
+        else { badge.style.background='#10b981'; badge.style.color='#fff'; }
+    }
+
+    async function preview(){
+        const dept = deptEl?.value;
+        const sect = sectEl?.value;
+        const start = document.getElementById('onsStart')?.value;
+        const end = document.getElementById('onsEnd')?.value;
+        badge.textContent = '…'; loading.style.display = 'inline'; previewBtn.disabled = true;
+        try{
+            const params = [];
+            if (dept) params.push('dept=' + encodeURIComponent(dept));
+            if (sect) params.push('sect=' + encodeURIComponent(sect));
+            if (start && end){ params.push('start=' + encodeURIComponent(start)); params.push('end=' + encodeURIComponent(end)); }
+            const url = '/api/download/operator-noskill/count' + (params.length ? '?' + params.join('&') : '');
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Server returned ' + res.status);
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            if (!ct.includes('application/json')) throw new Error('Invalid server response (not JSON)');
+            const j = await res.json();
+            const cnt = j.count ?? 0;
+            setBadge(cnt);
+            downloadBtn.classList.remove('dl-pending');
+            if (window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' operators with no skill');
+            return true;
+        }catch(err){
+            console.error('[ONS] Preview error', err);
+            setBadge(null);
+            downloadBtn.classList.add('dl-pending');
+            if (window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
+            return false;
+        } finally {
+            loading.style.display = 'none';
+            previewBtn.disabled = false;
+        }
+    }
+
+    async function download(){
+        if (downloadBtn.classList.contains('dl-pending')){ const ok = await preview(); if (!ok || downloadBtn.classList.contains('dl-pending')) return; }
+        const dept = deptEl?.value;
+        const sect = sectEl?.value;
+        const start = document.getElementById('onsStart')?.value;
+        const end = document.getElementById('onsEnd')?.value;
+        const fmt = formatEl?.value || 'xlsx';
+        const params = [];
+        if (dept) params.push('dept=' + encodeURIComponent(dept));
+        if (sect) params.push('sect=' + encodeURIComponent(sect));
+        if (start && end){ params.push('start=' + encodeURIComponent(start)); params.push('end=' + encodeURIComponent(end)); }
+        params.push('format=' + encodeURIComponent(fmt));
+        if (window.Toast) window.Toast.success('Download Started','Your file is being generated...');
+        window.location.href = '/api/download/operator-noskill?' + params.join('&');
+    }
+
+    previewBtn.addEventListener('click', function(e){ e.preventDefault(); preview(); });
+    downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
+    // Polling: detect fancy-select value changes for both dept and sect
+    let _op = '', _os = '', _ot = null;
+    const _onEl = document.getElementById('operatorNoSkillModal');
+    if (_onEl) {
+        _onEl.addEventListener('shown.bs.modal', function() {
+            _op = deptEl ? deptEl.value : ''; _os = sectEl ? sectEl.value : '';
+            if (_op || _os) preview();
+            _ot = setInterval(function() {
+                if (previewBtn.disabled) return;
+                if (!_onEl.classList.contains('show')) { clearInterval(_ot); _ot = null; return; }
+                const dv = deptEl ? deptEl.value : '', sv = sectEl ? sectEl.value : '';
+                if (dv !== _op || sv !== _os) {
+                    _op = dv; _os = sv;
+                    if (dv || sv) preview();
+                    else { badge.textContent='—'; downloadBtn.classList.add('dl-pending'); }
+                }
+            }, 250);
+        });
+        _onEl.addEventListener('hidden.bs.modal', function() { if (_ot) { clearInterval(_ot); _ot = null; } });
+    }
+})();
+
+function setOnsPreset(days){
+    const startEl = document.getElementById('onsStart');
+    const endEl = document.getElementById('onsEnd');
+    if (!startEl || !endEl) return;
+    const today = new Date();
+    function fmt(d){
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${dd}`;
+    }
+    if (!days || days <= 0){ startEl.value = ''; endEl.value = ''; return; }
+    const start = new Date(); start.setDate(today.getDate() - (days-1));
+    startEl.value = fmt(start);
+    endEl.value = fmt(today);
+}
+
+(function(){
+    const modal = document.getElementById('operatorNoSkillModal');
+    if(!modal) return;
+    modal.addEventListener('show.bs.modal', function(){
+        const container = modal.querySelector('.dq-presets');
+        if(!container) return;
+        container.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+        const allBtn = container.querySelector('button[data-days="0"]');
+        if(allBtn) allBtn.classList.add('active');
+        setOnsPreset(0);
+        const badge = document.getElementById('onsCountBadge'); if(badge) badge.textContent='—';
+        const dl = document.getElementById('downloadOnsBtn'); if(dl) dl.classList.add('dl-pending');
+    });
+})();
+// relocate modals to body to escape any transformed ancestors\n(function(){\n  document.querySelectorAll('.modal').forEach(function(m){\n    if(m.parentElement !== document.body) document.body.appendChild(m);\n  });\n})();\n
+function validateDateRange(startId, endId, errId, previewBtnId, dlBtnId) {
+    const s = document.getElementById(startId);
+    const e = document.getElementById(endId);
+    const err = document.getElementById(errId);
+    if (!s || !e || !err) return true;
+    const invalid = s.value && e.value && s.value > e.value;
+    if (invalid) {
+        s.classList.add('dm-invalid'); e.classList.add('dm-invalid');
+        err.textContent = 'End date must be on or after start date.';
+        err.classList.add('visible');
+    } else {
+        s.classList.remove('dm-invalid'); e.classList.remove('dm-invalid');
+        err.classList.remove('visible'); err.textContent = '';
+    }
+    if (previewBtnId) { const b = document.getElementById(previewBtnId); if (b) b.disabled = !!invalid; }
+    if (dlBtnId)      { const b = document.getElementById(dlBtnId);      if (b) b.disabled = !!invalid; }
+
+    return !invalid;
+}
+
+// ═══ FORCE Modal Centering Override ═══
+document.addEventListener('DOMContentLoaded', function() {
+    const modals = document.querySelectorAll('.modal');
+    
+    modals.forEach(modal => {
+        modal.addEventListener('show.bs.modal', function(e) {
+            // Remove ALL inline styles and force our own
+            this.removeAttribute('style');
+            this.setAttribute('style', `
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                z-index: 1050 !important;
+                padding: 1rem !important;
+            `);
+        });
+        
+        modal.addEventListener('shown.bs.modal', function(e) {
+            // Keep forcing it after Bootstrap finishes
+            this.style.display = 'flex';
+            this.style.alignItems = 'center';
+            this.style.justifyContent = 'center';
+            this.style.position = 'fixed';
+            this.style.top = '0';
+            this.style.left = '0';
+            this.style.width = '100%';
+            this.style.height = '100%';
+            this.style.zIndex = '1050';
+            this.style.padding = '1rem';
+            this.style.boxSizing = 'border-box';
+            
+            const dialog = this.querySelector('.modal-dialog');
+            if (dialog) {
+                dialog.style.position = 'relative';
+                dialog.style.margin = '0 auto';
+                dialog.style.width = 'auto';
+            }
+        });
+    });
+    
+    // Also intercept modal display changes
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                const modal = mutation.target;
+                if (modal.classList.contains('show') && modal.classList.contains('modal')) {
+                    modal.style.display = 'flex !important';
+                    modal.style.alignItems = 'center !important';
+                    modal.style.justifyContent = 'center !important';
+                }
+            }
+        });
+    });
+    
+    modals.forEach(modal => {
+        observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    });
+});
+</script>

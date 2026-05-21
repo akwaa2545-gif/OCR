@@ -1,0 +1,25 @@
+services:
+  ocr-web:
+    image: ocr-web:latest
+    # make sure the host port (left side) is not already in use; change to 4041, 8080, etc. if you get
+    # "port is already allocated" errors (the screenshot you captured earlier showed 4040 in use).
+    ports:
+      - "8080:80"                # hostPort:containerPort - adjust hostPort if this conflicts with another service
+
+    volumes:
+    - certshare:/app/wwwroot/certs:ro
+    - photovol:/app/wwwroot/uploads:ro
+
+    environment:
+      CertificatePath: "/certs"
+      ConnectionStrings__DefaultConnection: >-
+        Server=10.249.153.30;Database=OperatorCertificationRecordDB;
+        User Id=TETUSR;Password=TETPWD;TrustServerCertificate=True;
+
+    restart: always
+
+volumes:
+  certshare:
+    external: true
+  photovol:
+    external: true

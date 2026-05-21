@@ -1,0 +1,353 @@
+﻿@page
+@model OperatorCertificationRecord.Web.Pages.DownloadExpiryDateModel
+@{
+    ViewData["Title"] = "Download Expiry Date";
+    ViewData["ActivePage"] = "DownloadExpiryDate";
+}
+
+<style>
+    /* ===== Expiry Analyzer Page ===== */
+
+    /* Hero */
+    .exp-hero {
+        background: linear-gradient(120deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        border-left: 4px solid #ea580c;
+    }
+    .exp-hero-badge { display:inline-flex;align-items:center;gap:0.4rem;font-size:0.72rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#fb923c;margin-bottom:0.4rem; }
+    .exp-hero-title { font-size:1.6rem;font-weight:800;color:#f8fafc;margin:0 0 0.3rem;line-height:1.2; }
+    .exp-hero-sub { font-size:0.88rem;color:#94a3b8;margin:0; }
+    .exp-back-btn { display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1.1rem;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.15);border-radius:9px;color:#e2e8f0;font-weight:600;font-size:0.88rem;text-decoration:none;transition:background 0.15s,color 0.15s;white-space:nowrap; }
+    .exp-back-btn:hover { background:rgba(234,88,12,0.18);color:#fb923c;border-color:rgba(234,88,12,0.4); }
+
+    /* Cards */
+    .exp-card { background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.07);padding:1.5rem;border:1px solid #f1f5f9;margin-bottom:1.25rem; }
+
+    /* Section label */
+    .exp-section-label { font-size:0.7rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#ea580c;border-bottom:2px solid #fff7ed;padding-bottom:0.35rem;margin-bottom:0.85rem;display:flex;align-items:center;gap:0.4rem; }
+
+    /* Filter form */
+    .exp-filter-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;align-items:end; }
+    .exp-apply-col .exp-btn { width:100%; }
+    .exp-field { display:flex;flex-direction:column;gap:0.28rem; }
+    .exp-field-label { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#64748b; }
+    .exp-input { width:100%;padding:0.48rem 0.75rem;font-size:0.91rem;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#1e293b;font-family:inherit;outline:none;transition:border-color 0.16s,box-shadow 0.16s; }
+    .exp-input:focus { border-color:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.1);background:#fff; }
+    select.exp-input { appearance: none; -webkit-appearance: none; background-color: #fff7ed; }
+    .exp-search-row { display:flex;align-items:center;gap:0.6rem;margin-top:0.85rem;flex-wrap:wrap; }
+    .exp-legend { display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;font-size:0.8rem;color:#64748b;font-weight:600; }
+
+    /* Badges */
+    .exp-badge { display:inline-flex;align-items:center;justify-content:center;padding:0.22rem 0.65rem;border-radius:999px;font-size:0.74rem;font-weight:700; }
+    .exp-badge-expired { background:#6b7280;color:#fff; }
+    .exp-badge-critical { background:#ef4444;color:#fff; }
+    .exp-badge-soon { background:#facc15;color:#92400e; }
+    .exp-count-badge { display:inline-flex;align-items:center;padding:0.28rem 0.75rem;background:#0f172a;color:#fff;border-radius:999px;font-size:0.82rem;font-weight:700; }
+
+    /* Buttons */
+    .exp-btn { display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;padding:0.5rem 1rem;border-radius:9px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:opacity 0.14s,transform 0.1s,box-shadow 0.14s;font-family:inherit;white-space:nowrap; }
+    .exp-btn:hover { opacity:0.85;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.12); }
+    .exp-btn-primary { background:#ea580c;color:#fff; }
+    .exp-btn-outline { background:transparent;color:#ea580c;border:1.5px solid #ea580c; }
+    .exp-btn-sm { padding:0.3rem 0.7rem !important;font-size:0.8rem !important; }
+    .exp-btn-view { background:#0f172a;color:#fff; }
+
+    /* Results header */
+    .exp-results-header { display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap; }
+    .exp-results-header .exp-section-label { margin-bottom:0;border-bottom:none;padding-bottom:0; }
+
+    /* Table */
+    .exp-table-wrap { overflow:auto;max-height:65vh;border-radius:10px;border:1.5px solid #f1f5f9; }
+    .exp-table { border-collapse:collapse;width:100%;font-size:0.875rem; }
+    .exp-table thead th { position:sticky;top:0;background:#0f172a;color:#f8fafc;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:0.65rem 1rem;border-bottom:2px solid #ea580c;white-space:nowrap;z-index:2; }
+    .exp-table tbody td { padding:0.65rem 1rem;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle; }
+    .exp-table tbody tr:hover td { background:#fff7ed !important; }
+    .exp-table tbody tr:last-child td { border-bottom:none; }
+    .exp-link { color:#ea580c;font-weight:700;text-decoration:none; }
+    .exp-link:hover { text-decoration:underline; }
+
+    /* Keep JS-compatible expiry classes */
+    .expiry-date { font-weight:700;color:#dc2626;display:inline-flex;align-items:center;gap:0.4rem; }
+    .expiry-badge { font-size:0.72rem;padding:0.18rem 0.55rem;border-radius:999px;color:#fff;display:inline-flex;align-items:center;white-space:nowrap; }
+    .expiry-soon { color:#b45309; } .expiry-soon .expiry-badge { background:#facc15;color:#92400e; }
+    .expiry-critical { color:#b91c1c; } .expiry-critical .expiry-badge { background:#ef4444; }
+    .expiry-expired { color:#6b7280;opacity:.9; } .expiry-expired .expiry-badge { background:#6b7280; }
+    tr.expiry-row-critical td { background:rgba(254,226,226,0.45) !important; }
+    tr.expiry-row-soon td { background:rgba(255,249,230,0.45) !important; }
+    tr.expiry-row-expired td { background:rgba(243,244,246,0.45) !important; }
+    .expiry-meta { font-size:.82rem;color:#94a3b8;margin-left:.25rem; }
+
+    /* Empty state */
+    .exp-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1rem;gap:0.75rem;text-align:center; }
+    .exp-empty-title { font-size:1rem;font-weight:700;color:#1e293b; }
+    .exp-empty-text { font-size:0.88rem;color:#94a3b8; }
+
+    @@media (max-width: 768px) { .exp-filter-grid { grid-template-columns:1fr 1fr; } }
+    @@media (max-width: 480px) { .exp-filter-grid { grid-template-columns:1fr; } }
+
+    /* Legend / badge improvements */
+    .legend-row { display:inline-flex; gap:.6rem; align-items:center; flex-wrap:wrap }
+    .legend-row .badge { border-radius: 999px; padding:.35rem .6rem; box-shadow: 0 4px 12px rgba(2,6,23,0.06); font-weight:600; }
+    .legend-expired { background:#ef4444; color:#fff }
+    .legend-today { background:#c0262c; color:#fff }
+    .legend-soon { background:#facc15; color:#92400e; border:1px solid rgba(0,0,0,0.06) }
+
+    /* Results count badge (legend-style pill) */
+    .results-count, .results-toolbar .results-count {
+        display: inline-block;
+        vertical-align: middle;
+        background: #154ecb; /* keep blue color */
+        color: #fff;
+        padding: .35rem .6rem;
+        border-radius: 999px; /* pill-style like legend */
+        box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+        font-weight: 700;
+        font-size: .95rem;
+        min-width: 2.4rem;
+        text-align: center;
+        line-height: 1;
+        letter-spacing: .2px;
+    }
+    .results-count:focus, .results-toolbar .results-count:focus{
+        outline: none;
+        box-shadow: 0 8px 24px rgba(21,78,203,0.28), 0 0 0 3px rgba(21,78,203,0.06);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* Add card-like gaps between rows similar to quick actions */
+    #expiryTable { border-collapse: separate; border-spacing: 0 12px; }
+    /* give each cell a white background so gaps are visible, and add shadow to row */
+    #expiryTable tbody td { background: #ffffff; }
+    #expiryTable tbody tr { box-shadow: 0 6px 18px rgba(12,38,64,0.04); }
+    /* round the left/right ends of the row by rounding first/last cell corners */
+    #expiryTable tbody tr td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+    #expiryTable tbody tr td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+
+    .expiry-date { font-weight: 700; color: var(--danger); display: inline-flex; align-items: center; gap: .5rem; white-space: nowrap; }
+    .expiry-badge { margin-left: .25rem; font-size: .75rem; padding: .18rem .6rem; border-radius: 999px; color: #fff; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; min-width: 56px; box-sizing: border-box; }
+    /* soon: warning color for <= 10 days */
+    .expiry-soon { color: #b45309; }
+    .expiry-soon .expiry-badge { background: #facc15; color: #92400e; }
+    .expiry-soon .expiry-meta { color: #92400e; font-weight:600; }
+    .expiry-critical { color: #b91c1c; } /* red */
+    .expiry-critical .expiry-badge { background: #ef4444; }
+    .expiry-expired { color: #6b7280; opacity: .9; }
+    .expiry-expired .expiry-badge { background: #6b7280; }
+
+    /* Row-level highlights for expiry ranges */
+    tr.expiry-row-critical { background: linear-gradient(90deg, rgba(254,226,226,0.9), #fff); border-left: 4px solid rgba(239,68,68,0.95); }
+    tr.expiry-row-soon { background: linear-gradient(90deg, rgba(255,249,230,0.9), #fff); border-left: 4px solid rgba(249,188,58,0.9); }
+    tr.expiry-row-expired { background: linear-gradient(90deg, rgba(243,244,246,0.9), #fff); border-left: 4px solid rgba(107,114,128,0.9); }
+
+    /* Ensure TDs show the row highlight (override cell backgrounds) */
+    /* make TD backgrounds transparent so the TR gradient is uninterrupted */
+    #expiryTable tbody tr.expiry-row-critical td { background: transparent !important; }
+    #expiryTable tbody tr.expiry-row-soon td { background: transparent !important; }
+    #expiryTable tbody tr.expiry-row-expired td { background: transparent !important; }
+
+    /* Make the results area a little more spacious */
+    .card-body .table-responsive { padding-top: .5rem; }
+
+    /* small helper for subtle secondary text */
+    .expiry-meta { font-size: .85rem; color: #6b7280; margin-left: .35rem; }
+
+</style>
+
+<div class="exp-hero">
+    <div class="exp-hero-info">
+        <div class="exp-hero-badge"><i class="bi bi-calendar-x-fill"></i> Expiry Analyzer</div>
+        <h1 class="exp-hero-title">Skill Expiry Date Report</h1>
+        <p class="exp-hero-sub">Track and export upcoming or overdue skill certifications</p>
+    </div>
+    <div class="exp-hero-actions">
+        <a class="exp-back-btn" href="/Dashboard"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="exp-card">
+    <div class="exp-section-label"><i class="bi bi-funnel-fill"></i> Filters</div>
+    <form method="get">
+        <div class="exp-filter-grid">
+            <div class="exp-field">
+                <label class="exp-field-label">From Date</label>
+                <input type="date" name="start" class="exp-input" value="@Model.Start?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="exp-field">
+                <label class="exp-field-label">To Date</label>
+                <input type="date" name="end" class="exp-input" value="@Model.End?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="exp-field">
+                <label class="exp-field-label">Or next (days)</label>
+                <input type="number" min="1" max="365" name="days" class="exp-input" value="@(Model.Days ?? 30)" />
+            </div>
+            <div class="exp-field">
+                <label class="exp-field-label">Department</label>
+                <select name="dept" class="exp-input">
+                    <option value="">All Departments</option>
+                    @if (Model.Departments != null) {
+                        foreach (var d in Model.Departments) {
+                            <option value="@d.DeptName" selected="@(Model.Dept == d.DeptName ? "selected" : null)">@d.DeptName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="exp-field">
+                <label class="exp-field-label">Section</label>
+                <select name="sect" class="exp-input">
+                    <option value="">All Sections</option>
+                    @if (Model.Sections != null) {
+                        foreach (var s in Model.Sections) {
+                            <option value="@s.SectName" selected="@(Model.Sect == s.SectName ? "selected" : null)">@s.SectName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="exp-field exp-apply-col">
+                <label class="exp-field-label">&nbsp;</label>
+                <button type="submit" class="exp-btn exp-btn-primary"><i class="bi bi-search"></i> Apply</button>
+            </div>
+        </div>
+
+        <div class="exp-search-row">
+            <input class="exp-input" id="expirySearch" placeholder="Filter by employee ID or name…" style="flex:1;" />
+            <a class="exp-btn exp-btn-outline exp-btn-sm" href="/api/download/expiry?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=xlsx"><i class="bi bi-file-earmark-excel"></i> XLSX</a>
+            <a class="exp-btn exp-btn-outline exp-btn-sm" href="/api/download/expiry?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=csv"><i class="bi bi-file-earmark-text"></i> CSV</a>
+        </div>
+
+        <div class="exp-legend">
+            Legend:
+            <span class="exp-badge exp-badge-expired">Expired</span>
+            <span class="exp-badge exp-badge-critical">&le;10 days</span>
+            <span class="exp-badge exp-badge-soon">&le;30 days</span>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="card-title mb-0">Results <span class="results-count ms-2">@Model.ExpiringCount</span></h5>
+            <div class="results-toolbar d-flex align-items-center gap-2">
+                <a class="btn btn-outline-secondary btn-sm" href="/api/download/expiry?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=xlsx">Export XLSX</a>
+                <a class="btn btn-outline-secondary btn-sm" href="/api/download/expiry?start=@Model.Start?.ToString("yyyy-MM-dd")&end=@Model.End?.ToString("yyyy-MM-dd")&format=csv">Export CSV</a>
+            </div>
+        </div>
+        @if (Model.ExpiringList != null && Model.ExpiringList.Count > 0)
+        {
+            <div class="table-responsive" style="max-height:60vh; overflow:auto">
+                <table class="table table-sm" id="expiryTable">
+                    <thead>
+                        <tr>
+                            <th>EmpCode</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Section</th>
+                            <th>Process</th>
+                            <th>Expiry Date</th>
+                            <th style="width:120px; text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var it in Model.ExpiringList)
+                        {
+                            <tr>
+                                <td><a href="/ViewUser?empCode=@it.EmpCode">@it.EmpCode</a></td>
+                                <td>@(string.IsNullOrWhiteSpace(it.FirstNameEng) ? it.EmpCode : it.FirstNameEng + " " + it.LastNameEng)</td>
+                                <td>@it.DeptName</td>
+                                <td>@it.SectName</td>
+                                <td>@it.Process</td>
+                                <td>
+                                    <span class="expiry-date" data-expiry="@it.ExpiryDate?.ToString("yyyy-MM-dd")">@it.ExpiryDate?.ToString("dd MMM yyyy")</span>
+                                </td>
+                                <td style="text-align:right">
+                                    <a class="btn btn-sm btn-primary" href="/ViewUser?empCode=@it.EmpCode"><i class="bi bi-eye"></i> View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-calendar-check empty-state-icon" style="color: var(--primary);"></i>
+                <p class="empty-state-title">No records for the selected range</p>
+                <p class="empty-state-text">Try a different date range or increase the "days" parameter.</p>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function(){
+            const input = document.getElementById('expirySearch');
+            const table = document.getElementById('expiryTable');
+            if(!input || !table) return;
+            input.addEventListener('input', function(){
+                const q = this.value.toLowerCase();
+                for(const row of table.querySelectorAll('tbody tr')){
+                    const txt = row.textContent.toLowerCase();
+                    row.style.display = txt.indexOf(q) === -1 ? 'none' : '';
+                }
+            });
+        })();
+        
+        // Highlight expiry dates: expired / critical (<=7d) / soon (<=30d)
+        (function(){
+            function parseDate(s){
+                if(!s) return null;
+                const d = new Date(s);
+                return isNaN(d) ? null : d;
+            }
+            function daysBetween(a,b){
+                const msPerDay = 24*60*60*1000;
+                return Math.ceil((a - b) / msPerDay);
+            }
+
+            document.addEventListener('DOMContentLoaded', function(){
+                const today = new Date();
+                for(const el of document.querySelectorAll('.expiry-date')){
+                    const raw = el.getAttribute('data-expiry');
+                    const d = parseDate(raw);
+                    if(!d) continue;
+                    const diff = Math.floor((d - today) / (24*60*60*1000));
+                    // expired
+                    const row = el.closest('tr');
+                    if(diff < 0){
+                        el.classList.add('expiry-expired');
+                        if(row) row.classList.add('expiry-row-expired');
+                        const badge = document.createElement('span');
+                        badge.className = 'expiry-badge';
+                        badge.textContent = 'Expired';
+                        el.appendChild(badge);
+                    } else if(diff <= 10){
+                        el.classList.add('expiry-critical');
+                        if(row) row.classList.add('expiry-row-critical');
+                        const badge = document.createElement('span');
+                        badge.className = 'expiry-badge';
+                        badge.textContent = diff === 0 ? 'Today' : `in ${diff}d`;
+                        el.appendChild(badge);
+                    } else if(diff <= 30){
+                        el.classList.add('expiry-soon');
+                        if(row) row.classList.add('expiry-row-soon');
+                        const badge = document.createElement('span');
+                        badge.className = 'expiry-badge';
+                        badge.textContent = `in ${diff}d`;
+                        el.appendChild(badge);
+                    }
+                }
+            });
+        })();
+    </script>
+}
+
+

@@ -1,0 +1,1166 @@
+@using Microsoft.AspNetCore.Hosting
+@inject IWebHostEnvironment Env
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Operator's Training Database" />
+    <title>@ViewData["Title"] - OTD System</title>
+    
+    <!-- Bootstrap Icons (non-render-blocking) -->
+    <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"></noscript>
+    
+    <!-- App Styles -->
+    <link rel="stylesheet" href="/css/app.css?v=@DateTime.Now.Ticks" />
+    <!-- Flatpickr date picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
+    <style>
+    /* ===== Flatpickr — polished orange theme with animations ===== */
+    @@keyframes fp-calendar-in {
+        from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @@keyframes fp-overlay-in {
+        from { opacity: 0; transform: scale(0.95); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+    @@keyframes fp-day-pop {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(1.22); }
+        100% { transform: scale(1); }
+    }
+
+    .flatpickr-calendar {
+        border-radius: 20px;
+        border: 1.5px solid rgba(249,115,22,.15);
+        box-shadow: 0 20px 60px rgba(0,0,0,.14), 0 6px 18px rgba(249,115,22,.08);
+        font-family: 'Inter', sans-serif; padding: 0; overflow: hidden;
+        animation: fp-calendar-in .2s cubic-bezier(.22,1,.36,1) both;
+    }
+
+    /* ── Header ── */
+    .flatpickr-months {
+        background: linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%);
+        border-radius: 18px 18px 0 0; padding: 0.35rem 0.25rem;
+        position: relative; overflow: hidden;
+    }
+    .flatpickr-months::after {
+        content: ''; position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 70% 0%, rgba(255,255,255,.18) 0%, transparent 65%);
+    }
+    .flatpickr-months .flatpickr-month { background: transparent; color: #fff; fill: #fff; }
+
+    /* Prev / Next arrows */
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+        fill: #fff; color: #fff; top: 6px;
+        width: 32px; height: 32px; border-radius: 9px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .15s, transform .15s;
+    }
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+        background: rgba(255,255,255,.22); transform: scale(1.1);
+    }
+    .flatpickr-months .flatpickr-prev-month svg,
+    .flatpickr-months .flatpickr-next-month svg { fill: #fff; }
+
+    /* Month + Year labels */
+    .flatpickr-current-month {
+        display: flex; align-items: center; justify-content: center;
+        gap: 0.3rem; padding: 0.2rem 0;
+    }
+    .flatpickr-current-month .cur-month {
+        color: #fff; font-weight: 800; font-size: 1.08rem; letter-spacing: -0.01em;
+        cursor: pointer;
+        text-decoration: underline dotted rgba(255,255,255,.45);
+        text-underline-offset: 3px; transition: opacity .15s, transform .15s;
+    }
+    .flatpickr-current-month .cur-month:hover { opacity: .82; transform: scale(1.04); }
+
+    /* Year: hide up/down arrows, make whole wrapper clickable */
+    .flatpickr-current-month .numInputWrapper {
+        background: transparent !important; cursor: pointer; position: relative;
+        transition: opacity .15s, transform .15s;
+    }
+    .flatpickr-current-month .numInputWrapper:hover { opacity: .82; transform: scale(1.04); }
+    .flatpickr-current-month .numInputWrapper span.arrowUp,
+    .flatpickr-current-month .numInputWrapper span.arrowDown { display: none !important; }
+    .flatpickr-current-month input.cur-year {
+        color: #fff !important; font-weight: 800 !important; font-size: 1.08rem !important;
+        background: transparent !important; border: none !important; box-shadow: none !important;
+        outline: none !important; pointer-events: none; width: 4ch; padding: 0;
+        letter-spacing: -0.01em;
+        text-decoration: underline dotted rgba(255,255,255,.45); text-underline-offset: 3px;
+    }
+
+    /* ── Weekday row ── */
+    .flatpickr-weekdays {
+        background: #fff7ed;
+        padding: 0.2rem 0;
+    }
+    .flatpickr-weekdaycontainer {
+        display: grid !important;
+        grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+        width: 100% !important;
+    }
+    span.flatpickr-weekday {
+        background: #fff7ed; color: #ea580c; font-weight: 700; font-size: 0.7rem;
+        text-transform: uppercase; letter-spacing: .04em;
+        width: auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* ── Day grid ── */
+    .flatpickr-innerContainer { background: #fff; }
+    .flatpickr-weekwrapper { display: none !important; }
+    .flatpickr-rContainer {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .flatpickr-days {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        padding: 0.3rem 0.25rem 0.4rem;
+    }
+    .dayContainer {
+        display: grid !important;
+        grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+        grid-auto-rows: 36px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+    .flatpickr-day {
+        border-radius: 10px; font-size: 0.875rem; font-weight: 500;
+        line-height: 36px;
+        height: 36px;
+        width: auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        transition: background .12s, color .12s, border-color .12s, transform .1s, box-shadow .12s;
+    }
+    .flatpickr-day:hover, .flatpickr-day:focus {
+        background: #fff7ed; border-color: #fdba74; color: #ea580c;
+        transform: scale(1.08); box-shadow: 0 2px 8px rgba(249,115,22,.18);
+    }
+    .flatpickr-day.today {
+        border-color: #f97316; font-weight: 800;
+        box-shadow: 0 0 0 2px rgba(249,115,22,.18);
+    }
+    .flatpickr-day.today:hover { background: #fff7ed; color: #ea580c; }
+    .flatpickr-day.selected,     .flatpickr-day.selected:hover,
+    .flatpickr-day.startRange,   .flatpickr-day.startRange:hover,
+    .flatpickr-day.endRange,     .flatpickr-day.endRange:hover {
+        background: linear-gradient(135deg,#ea580c,#f97316);
+        border-color: transparent; color: #fff; font-weight: 700;
+        box-shadow: 0 3px 10px rgba(249,115,22,.35);
+        animation: fp-day-pop .22s cubic-bezier(.22,1,.36,1) both;
+    }
+    .flatpickr-day.inRange {
+        background: #fff7ed; border-color: #fff7ed;
+        box-shadow: -5px 0 0 #fff7ed, 5px 0 0 #fff7ed;
+    }
+    .flatpickr-day.flatpickr-disabled,
+    .flatpickr-day.flatpickr-disabled:hover { color: #cbd5e1; }
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay { color: #d1d5db; }
+
+    /* Alt-input wrapper with calendar icon */
+    .fp-date-wrap { position: relative; display: block; }
+    .fp-date-wrap .flatpickr-input[readonly] { cursor: pointer; padding-right: 2.4rem; width: 100%; }
+    .fp-date-wrap .fp-cal-icon {
+        position: absolute; right: 0.65rem; top: 50%; transform: translateY(-50%);
+        pointer-events: none; color: #0d9488; opacity: 0.7; line-height: 1;
+        transition: opacity .15s;
+    }
+    .fp-date-wrap:hover .fp-cal-icon,
+    .fp-date-wrap:focus-within .fp-cal-icon { opacity: 1; color: #0d9488; }
+
+    .flatpickr-input[readonly] { cursor: pointer; }
+
+    /* ── Month overlay (body-level, position:fixed via JS) ── */
+    .fp-month-overlay, .fp-year-overlay {
+        display: none; position: fixed; z-index: 99999; box-sizing: border-box;
+        background: #fff; border-radius: 20px; overflow: hidden;
+        border: 1.5px solid rgba(249,115,22,.15);
+        box-shadow: 0 20px 60px rgba(0,0,0,.14), 0 6px 18px rgba(249,115,22,.08);
+    }
+    .fp-month-overlay {
+        padding: 1rem 0.85rem 0.9rem;
+        grid-template-columns: repeat(3,1fr); gap: 0.45rem; align-content: center;
+    }
+    .fp-year-overlay {
+        padding: 1rem 0.85rem 0.9rem;
+        grid-template-columns: repeat(4,1fr); gap: 0.45rem; align-content: start;
+    }
+    .fp-month-overlay.open, .fp-year-overlay.open {
+        display: grid;
+        animation: fp-overlay-in .18s cubic-bezier(.22,1,.36,1) both;
+    }
+
+    /* Overlay header */
+    .fp-overlay-hdr {
+        grid-column: 1 / -1;
+        background: linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%);
+        border-radius: 12px; padding: 0.5rem 0.75rem;
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 0.55rem;
+        position: relative; overflow: hidden;
+    }
+    .fp-overlay-hdr::after {
+        content: ''; position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 70% 0%, rgba(255,255,255,.18) 0%, transparent 65%);
+    }
+    .fp-overlay-title {
+        color: #fff; font-weight: 800; font-size: 0.88rem; letter-spacing: .03em;
+        text-transform: uppercase;
+    }
+    .fp-overlay-close {
+        background: rgba(255,255,255,.22); border: none; border-radius: 7px;
+        width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: #fff; font-size: 0.9rem; line-height: 1;
+        transition: background .12s, transform .12s; z-index: 1;
+    }
+    .fp-overlay-close:hover { background: rgba(255,255,255,.38); transform: scale(1.1); }
+
+    /* Month / Year buttons */
+    .fp-month-btn, .fp-year-btn {
+        background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px;
+        padding: 0.55rem 0; font-size: 0.84rem; font-weight: 600; color: #374151;
+        cursor: pointer;
+        transition: background .12s, color .12s, border-color .12s, transform .1s, box-shadow .12s;
+    }
+    .fp-month-btn:hover, .fp-year-btn:hover {
+        background: #fff7ed; border-color: #fdba74; color: #ea580c;
+        transform: scale(1.05); box-shadow: 0 2px 8px rgba(249,115,22,.15);
+    }
+    .fp-month-btn.active, .fp-year-btn.active {
+        background: linear-gradient(135deg,#ea580c,#f97316);
+        border-color: transparent; color: #fff; font-weight: 700;
+        box-shadow: 0 3px 10px rgba(249,115,22,.3);
+    }
+
+    /* Year pager nav */
+    .fp-year-nav {
+        grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 0.4rem;
+    }
+    .fp-year-nav-btn {
+        background: #f1f5f9; border: 1.5px solid #e2e8f0; border-radius: 8px;
+        width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-size: 1rem; color: #374151;
+        transition: background .12s, transform .12s, border-color .12s;
+    }
+    .fp-year-nav-btn:hover { background: #fff7ed; border-color: #fdba74; color: #ea580c; transform: scale(1.1); }
+    .fp-year-range-lbl { font-size: 0.78rem; font-weight: 700; color: #64748b; }
+    </style>
+    <!-- Favicon / App icon (minimal logo - SVG) -->
+    <link rel="icon" href="/images/otd-logo-minimal.svg" type="image/svg+xml" />
+    <link rel="shortcut icon" href="/images/otd-logo-minimal.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/images/otd-logo-minimal.svg" />
+    <style>
+        /* Card-style date picker for download modals */
+        .date-card { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; box-shadow: 0 1px 0 rgba(16,24,40,0.03); }
+        .date-card .date-input { border: none; padding: 0; margin: 0; background: transparent; outline: none; font-size: 0.95rem; color: inherit; }
+        .date-card .date-input::-webkit-calendar-picker-indicator { display: none; }
+        .date-card .date-icon { border: none; background: transparent; padding: 0; margin: 0; color: #6b7280; cursor: pointer; display:flex; align-items:center; }
+        .date-card .date-icon:focus { outline: none; }
+        .date-card .date-icon i { font-size: 1.1rem; }
+    </style>
+
+    <script>
+        // Early helper for safely escaping text inserted into HTML
+        window.escapeHtml = window.escapeHtml || function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); };
+    </script>
+
+    <style>
+        /* ═══════════════════════════════════════════
+           PAGE ANIMATION SYSTEM
+        ═══════════════════════════════════════════ */
+
+        /* Top progress bar (page-nav indicator) */
+        #page-progress-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed, #a855f7);
+            z-index: 9999;
+            border-radius: 0 3px 3px 0;
+            transition: width 0.25s ease;
+            box-shadow: 0 0 8px rgba(139,92,246,0.6);
+            pointer-events: none;
+        }
+        #page-progress-bar.complete {
+            width: 100% !important;
+            opacity: 0;
+            transition: width 0.15s ease, opacity 0.3s ease 0.15s;
+        }
+
+        /* Page content entrance animation */
+        .app-main {
+            animation: pageEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @@keyframes pageEnter {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Sidebar links: animated active indicator + hover scale */
+        .sidebar-link {
+            transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease !important;
+            position: relative;
+            overflow: hidden;
+        }
+        .sidebar-link:hover {
+            transform: translateX(3px);
+        }
+        .sidebar-link .sidebar-link-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            transform: scale(0);
+            animation: rippleBurst 0.5s linear;
+            pointer-events: none;
+        }
+        @@keyframes rippleBurst {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* Card entrance (stagger via JS) */
+        .card, .emp-profile-card, .upd-profile-card {
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .card:hover {
+            box-shadow: 0 8px 28px rgba(79,70,229,0.10), 0 2px 8px rgba(0,0,0,0.07) !important;
+            transform: translateY(-2px);
+        }
+        .anim-card-enter {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.42s cubic-bezier(0.22,1,0.36,1), transform 0.42s cubic-bezier(0.22,1,0.36,1);
+        }
+        .anim-card-enter.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Button press feedback */
+        .btn {
+            transition: transform 0.08s ease, box-shadow 0.15s ease !important;
+        }
+        .btn:not(.disabled):not([disabled]):active {
+            transform: scale(0.96) !important;
+        }
+
+        /* Table row hover glide */
+        .table tbody tr {
+            transition: background 0.15s ease, transform 0.12s ease;
+        }
+        .table tbody tr:hover {
+            transform: translateX(2px);
+        }
+
+        /* Header entrance */
+        .app-header {
+            animation: headerSlide 0.3s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        @@keyframes headerSlide {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Sidebar entrance */
+        .app-sidebar {
+            animation: sidebarSlide 0.32s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        @@keyframes sidebarSlide {
+            from { opacity: 0; transform: translateX(-18px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Badge/chip pop on load */
+        .badge, .emp-status-badge, .emp-stat-chip, .upd-stat-chip {
+            animation: chipPop 0.35s cubic-bezier(0.34,1.5,0.64,1) both;
+        }
+        @@keyframes chipPop {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* Skeleton shimmer for loading states */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 4px;
+        }
+        @@keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Page-leave fade (applied via JS on navigation) */
+        .page-leaving .app-main {
+            animation: pageLeave 0.2s ease forwards;
+        }
+        @@keyframes pageLeave {
+            from { opacity: 1; transform: translateY(0); filter: none; }
+            to   { opacity: 0; transform: translateY(-10px); filter: none; }
+        }
+
+        /* Modal open — stop page-leave animation, never blur content */
+        body.modal-open .page-leaving .app-main {
+            animation: none !important;
+            filter: none !important;
+            opacity: 1 !important;
+        }
+    </style>
+    
+    <style>
+    /* ===== Download Modal — dm-* Design System ===== */
+    .modal-dialog:has(.dm-modal-content) {
+        max-width: min(900px, calc(100vw - 2rem));
+    }
+    .dm-modal-content {
+        border: none; border-radius: 22px;
+        box-shadow: 0 24px 72px rgba(0,0,0,.15), 0 6px 20px rgba(0,0,0,.07);
+        overflow: visible; /* do NOT use overflow:hidden — it clips fancy-select dropdowns */
+    }
+    .dm-header {
+        display: flex; align-items: center; gap: 1.1rem;
+        padding: 1.35rem 1.6rem 1.25rem;
+        background: linear-gradient(135deg, var(--dm-light,#fff7ed) 0%, #fff 60%);
+        border-bottom: 1px solid #e2e8f0; position: relative;
+        border-radius: 22px 22px 0 0; overflow: hidden;
+    }
+    .dm-header::before {
+        content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+        width: 5px; background: var(--dm-color,#f97316); border-radius: 0;
+    }
+    .dm-hdr-icon {
+        width: 56px; height: 56px; border-radius: 15px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+        background: var(--dm-light,#fff7ed); color: var(--dm-color,#f97316);
+        border: 1.5px solid rgba(0,0,0,0.06);
+    }
+    .dm-hdr-text { flex: 1; min-width: 0; }
+    .dm-hdr-title { font-weight: 800; font-size: 1.2rem; color: #0f172a; line-height: 1.25; }
+    .dm-hdr-sub   { font-size: 0.85rem; color: #64748b; margin-top: 3px; }
+    .dm-close {
+        background: none; border: 1.5px solid #e2e8f0; border-radius: 9px;
+        width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+        color: #64748b; cursor: pointer; font-size: 0.9rem; flex-shrink: 0;
+        transition: background .12s, color .12s, border-color .12s;
+    }
+    .dm-close:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+    .dm-body { padding: 1.5rem 1.6rem 1rem; }
+    .dm-section-lbl {
+        display: flex; align-items: center; gap: 0.45rem;
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 0.75rem;
+    }
+    .dm-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem 1.35rem; }
+    @@media (max-width: 576px) { .dm-grid-2 { grid-template-columns: 1fr; } }
+    .dm-field { display: flex; flex-direction: column; gap: 0.35rem; position: relative; }
+    .dm-label { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; }
+    .dm-input {
+        padding: 0.65rem 0.9rem; font-size: 0.97rem; color: #0f172a; font-weight: 500;
+        background: #f8fafc; border: 1.5px solid #e2e8f0;
+        border-left: 3px solid var(--dm-color,#f97316);
+        border-radius: 10px; width: 100%; outline: none;
+        transition: border-color .15s, box-shadow .15s, background .15s;
+        appearance: none; -webkit-appearance: none;
+    }
+    .dm-input:focus { background: #fff; border-color: var(--dm-color,#f97316); box-shadow: 0 0 0 3px rgba(249,115,22,0.12); }
+    input[type="date"].dm-input { border-left-color: #f59e0b; }
+    .dm-field:has(select.dm-input)::after {
+        content: ''; position: absolute; right: 0.75rem; bottom: 0.72rem;
+        width: 0.88rem; height: 0.88rem;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f97316' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") no-repeat center/contain;
+        pointer-events: none;
+    }
+    .dm-field:has(.fancy-select-wrapper)::after { display: none !important; }
+    .dm-pill-row { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.85rem; }
+    .dm-pill {
+        padding: 0.32rem 0.85rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600;
+        border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b;
+        cursor: pointer; transition: all .12s; white-space: nowrap;
+    }
+    .dm-pill:hover { border-color: var(--dm-color,#f97316); color: var(--dm-color,#f97316); }
+    .dm-pill.active {
+        background: var(--dm-color,#f97316); color: #fff; border-color: var(--dm-color,#f97316);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    }
+    .dm-summary {
+        display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;
+        margin-top: 1.35rem; background: linear-gradient(135deg, var(--dm-light,#fff7ed) 0%, #f8fafc 100%);
+        border: 1.5px solid color-mix(in srgb, var(--dm-color,#f97316) 18%, #e2e8f0);
+        border-radius: 14px; padding: 1rem 1.2rem;
+    }
+    .dm-format-field { min-width: 155px; }
+    .dm-summary .dm-field .dm-input {
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .dm-preview-btn {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.65rem 1.3rem; border-radius: 10px; font-size: 0.92rem; font-weight: 700;
+        color: var(--dm-color,#f97316);
+        background: var(--dm-light,#fff7ed);
+        border: 1.5px solid var(--dm-color,#f97316);
+        cursor: pointer; white-space: nowrap;
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--dm-color,#f97316) 20%, transparent);
+        transition: all .15s;
+    }
+    .dm-preview-btn:hover {
+        background: var(--dm-color,#f97316); color: #fff;
+        box-shadow: 0 5px 18px color-mix(in srgb, var(--dm-color,#f97316) 38%, transparent);
+        transform: translateY(-1px);
+    }
+    .dm-count-wrap { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
+    .dm-count-lbl  { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 0.25rem; }
+    .dm-count-badge {
+        font-weight: 800; font-size: 1.45rem; line-height: 1;
+        padding: 0.35rem 1rem; border-radius: 10px; min-width: 76px; text-align: center;
+        background: #e2e8f0; color: #64748b; transition: background .2s, color .2s;
+    }
+    .dm-loading { font-size: 0.85rem; color: #94a3b8; }
+    .dm-footer {
+        display: flex; align-items: center; justify-content: flex-end; gap: 0.65rem;
+        padding: 1rem 1.6rem; border-top: 1px solid #f1f5f9;
+        border-radius: 0 0 22px 22px;
+    }
+    .dm-btn-cancel {
+        padding: 0.6rem 1.25rem; border-radius: 10px; font-size: 0.93rem; font-weight: 600;
+        color: #475569; background: #f1f5f9; border: 1.5px solid #e2e8f0;
+        cursor: pointer; transition: all .12s;
+    }
+    .dm-btn-cancel:hover { background: #e2e8f0; color: #0f172a; }
+    .dm-btn-dl {
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.62rem 1.5rem; border-radius: 10px; font-size: 0.97rem; font-weight: 700;
+        background: linear-gradient(135deg,#ea580c,#f97316); color: #fff; border: none;
+        box-shadow: 0 4px 16px rgba(249,115,22,.30); cursor: pointer; transition: all .12s;
+    }
+    .dm-btn-dl:hover { box-shadow: 0 6px 24px rgba(249,115,22,.44); transform: translateY(-1px); color: #fff; }
+    .dm-btn-dl[disabled] { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .dm-btn-dl.dl-pending { opacity: .5; cursor: default; transform: none; box-shadow: none; }
+    </style>
+
+    @await RenderSectionAsync("Styles", required: false)
+    @inject OperatorCertificationRecord.Web.Services.AdminService AdminService
+</head>
+<body>
+<!-- Page navigation progress bar -->
+<div id="page-progress-bar"></div>
+@{
+    var userCode = Context.Session.GetString("UserCode");
+    var isAdmin = !string.IsNullOrEmpty(userCode) && AdminService.IsAdmin(userCode);
+}
+
+    @if (ViewData["HideNavbar"] == null)
+    {
+        <!-- Professional Enterprise Layout with Sidebar -->
+        <div class="app-container">
+            <!-- Sidebar Navigation -->
+            <aside class="app-sidebar">
+                <div class="sidebar-header">
+                    <a href="/Dashboard" class="sidebar-logo">
+                        <img src="/images/otd-logo-minimal.svg" alt="OTD logo" style="height:26px; width:26px; flex-shrink:0;">
+                        <span>OTD System</span>
+                    </a>
+                </div>
+                
+                <nav class="sidebar-nav">
+                    @if (Context.Session.GetString("UserCode") != null)
+                    {
+                        <div class="sidebar-nav-section">
+                            <div class="sidebar-nav-title">Main</div>
+                            <a href="/Dashboard" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active" : "")">
+                                <i class="bi bi-grid-1x2-fill"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="/DownloadSection" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "DownloadSection" ? "active" : "")">
+                                <i class="bi bi-cloud-arrow-down-fill"></i>
+                                <span>Download Reports</span>
+                            </a>
+                            @if (isAdmin)
+                            {
+                                <a href="/Reports/CustomReport" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "CustomReport" ? "active" : "")">
+                                    <i class="bi bi-file-earmark-text-fill"></i>
+                                    <span>Custom Report</span>
+                                </a>
+                            }
+                        </div>
+                        
+                        <div class="sidebar-nav-section">
+                            <div class="sidebar-nav-title">Employees</div>
+                            @if (isAdmin)
+                            {
+                                <a href="/AddUser" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "AddUser" ? "active" : "")">
+                                    <i class="bi bi-person-plus-fill"></i>
+                                    <span>Add Employee</span>
+                                </a>
+                                <a href="/Admins" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "Admins" ? "active" : "")">
+                                    <i class="bi bi-shield-lock-fill"></i>
+                                    <span>Admin Management</span>
+                                </a>
+                                <a href="/Settings" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active" : "")">
+                                    <i class="bi bi-gear-fill"></i>
+                                    <span>Settings</span>
+                                </a>
+                            }
+                            <a href="/ViewUser" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "ViewUser" ? "active" : "")">
+                                <i class="bi bi-people-fill"></i>
+                                <span>View Employees</span>
+                            </a>
+                        </div>
+                        
+                        <div class="sidebar-nav-section">
+                            <div class="sidebar-nav-title">Training</div>
+                            <a href="/OperatorTraining" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "OperatorTraining" ? "active" : "")">
+                                <i class="bi bi-mortarboard-fill"></i>
+                                <span>Operator Training</span>
+                            </a>
+                            @if (isAdmin)
+                            {
+                                <a href="/SkillMatrix" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "SkillMatrix" ? "active" : "")">
+                                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                                    <span>Skill Matrix</span>
+                                </a>
+                            }
+                        </div>
+
+                        @if (isAdmin)
+                        {
+                        <div class="sidebar-nav-section">
+                            <div class="sidebar-nav-title">Automation</div>
+                            <a href="/Reports/Automation" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "AutomationIndex" ? "active" : "")">
+                                <i class="bi bi-cpu-fill"></i>
+                                <span>Overview</span>
+                            </a>
+                            <a href="/Reports/Automation/ILUOSkillLevel" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "ILUOSkillLevel" ? "active" : "")">
+                                <i class="bi bi-bar-chart-steps"></i>
+                                <span>ILUO Skill Level</span>
+                            </a>
+                            <a href="/Reports/Automation/SkillByProcess" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "SkillByProcess" ? "active" : "")">
+                                <i class="bi bi-list-stars"></i>
+                                <span>Skill by Process</span>
+                            </a>
+                            <a href="/Reports/Automation/MultiSkillRatio" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "MultiSkillRatio" ? "active" : "")">
+                                <i class="bi bi-graph-up-arrow"></i>
+                                <span>Multi-skill Ratio</span>
+                            </a>
+                        </div>
+                        }
+                    }
+                </nav>
+                
+                @if (Context.Session.GetString("UserCode") != null)
+                {
+                    var fullName = Context.Session.GetString("UserName") ?? Context.Session.GetString("UserCode");
+                    var firstName = string.IsNullOrWhiteSpace(fullName) ? "" : fullName.Split(' ')[0];
+                    <div class="sidebar-footer">
+                        <div class="sidebar-user">
+                            <div class="sidebar-user-avatar">
+                                @Context.Session.GetString("UserCode")?.Substring(0, 2).ToUpper()
+                            </div>
+                            <div class="sidebar-user-info">
+                                <span class="sidebar-user-name">@firstName</span>
+                                <span class="sidebar-user-role">Online</span>
+                            </div>
+                        </div>
+                        <a href="/Logout" class="sidebar-link" style="margin-top:0.25rem;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div class="sidebar-footer">
+                        <a href="/Login" class="sidebar-link" style="justify-content:center;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border-radius:10px;font-weight:700;">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Login</span>
+                        </a>
+                    </div>
+                }
+            </aside>
+            
+            <!-- Main Content Area -->
+            <div class="app-content-wrapper">
+                <header class="app-header">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <button id="toggleSidebarBtn" class="sidebar-toggle-btn" aria-label="Toggle sidebar" title="Toggle sidebar">
+                            <i class="bi bi-list" style="font-size:1.1rem"></i>
+                        </button>
+                        <div class="app-header-divider"></div>
+                        <h1 class="app-header-title" style="display:flex;align-items:center;gap:0.5rem;">
+                            @ViewData["Title"]
+                            @if (Env.IsDevelopment() || Env.EnvironmentName == "Testing")
+                            {
+                                <span style="font-size:0.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#fef08a;color:#854d0e;border:1px solid #fde047;border-radius:4px;padding:2px 7px;line-height:1.6;white-space:nowrap;">Testing</span>
+                            }
+                        </h1>
+                    </div>
+                    <div class="app-header-actions">
+                        <span class="badge badge-info" style="font-size: var(--font-size-sm); padding: 0.35rem 0.75rem; border-radius: 999px; display:inline-flex; align-items:center; gap:0.4rem;">
+                            <i class="bi bi-calendar3"></i>
+                            <span id="currentDateTime"></span>
+                        </span>
+                    </div>
+                </header>
+                
+                <main class="app-main">
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+        @* Modals slot — rendered OUTSIDE .app-main so CSS transform animation never breaks position:fixed *@
+        @await RenderSectionAsync("Modals", required: false)
+    }
+    else
+    {
+        <!-- Login Page (No Sidebar) -->
+        @RenderBody()
+    }
+
+    <!-- App Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/fancy-select.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script>
+    // ===== Flatpickr — enhance all input[type="date"] globally =====
+    (function () {
+        if (typeof flatpickr === 'undefined') return;
+        var proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        var GREGORIAN_WEEKDAYS = {
+            shorthand: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+            longhand: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        };
+        var GREGORIAN_MONTHS = {
+            shorthand: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            longhand: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        };
+
+        function enhance(el) {
+            if (el._fpInit) return;
+            if (el.hasAttribute('data-no-flatpickr')) return;
+            if ((el.getAttribute('type') || '').toLowerCase() !== 'date') return;
+            el._fpInit = true;
+
+            var fp = flatpickr(el, {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'j M Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                weekNumbers: false,
+                locale: {
+                    firstDayOfWeek: 1,
+                    weekdays: GREGORIAN_WEEKDAYS,
+                    months: GREGORIAN_MONTHS
+                },
+                defaultDate: el.value || null,
+                onChange: function(selectedDates, dateStr) {
+                    // Keep original element's value in sync and fire native change/input events
+                    // so existing onchange="" attributes and addEventListener('change') handlers fire.
+                    proto.set.call(el, dateStr);
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('input',  { bubbles: true }));
+                },
+                onReady: function(_, __, instance) {
+                    var cal = instance.calendarContainer;
+                    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+                    function makeHdr(title) {
+                        var hdr = document.createElement('div'); hdr.className = 'fp-overlay-hdr';
+                        var t = document.createElement('span'); t.className = 'fp-overlay-title'; t.textContent = title;
+                        var x = document.createElement('button'); x.type = 'button'; x.className = 'fp-overlay-close'; x.innerHTML = '&#10005;';
+                        hdr.appendChild(t); hdr.appendChild(x);
+                        return hdr;
+                    }
+
+                    // ── Month overlay ─────────────────────────────────────────
+                    var mOverlay = document.createElement('div');
+                    mOverlay.className = 'fp-month-overlay';
+                    document.body.appendChild(mOverlay);
+                    var mHdr = makeHdr('Select Month');
+                    mHdr.querySelector('.fp-overlay-close').addEventListener('mousedown', function(e){ e.preventDefault(); mOverlay.classList.remove('open'); });
+                    mOverlay.appendChild(mHdr);
+                    MONTHS.forEach(function(name, idx) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button'; btn.className = 'fp-month-btn';
+                        btn.textContent = name; btn.dataset.idx = idx;
+                        btn.addEventListener('mousedown', function(e) {
+                            e.preventDefault(); e.stopPropagation();
+                            instance.changeMonth(idx, false);
+                            mOverlay.classList.remove('open');
+                        });
+                        mOverlay.appendChild(btn);
+                    });
+
+                    // ── Year overlay ──────────────────────────────────────────
+                    var yOverlay = document.createElement('div');
+                    yOverlay.className = 'fp-year-overlay';
+                    document.body.appendChild(yOverlay);
+                    var yPageStart = instance.currentYear - 6;
+
+                    function buildYearGrid() {
+                        yOverlay.innerHTML = '';
+                        var yHdr = makeHdr('Select Year');
+                        yHdr.querySelector('.fp-overlay-close').addEventListener('mousedown', function(e){ e.preventDefault(); yOverlay.classList.remove('open'); });
+                        yOverlay.appendChild(yHdr);
+                        // pager nav
+                        var nav = document.createElement('div'); nav.className = 'fp-year-nav';
+                        var prev = document.createElement('button'); prev.type = 'button'; prev.className = 'fp-year-nav-btn'; prev.innerHTML = '&#8249;';
+                        var lbl  = document.createElement('span');  lbl.className = 'fp-year-range-lbl';
+                        lbl.textContent = yPageStart + '\u2013' + (yPageStart + 11);
+                        var next = document.createElement('button'); next.type = 'button'; next.className = 'fp-year-nav-btn'; next.innerHTML = '&#8250;';
+                        prev.addEventListener('mousedown', function(e){ e.preventDefault(); yPageStart -= 12; buildYearGrid(); });
+                        next.addEventListener('mousedown', function(e){ e.preventDefault(); yPageStart += 12; buildYearGrid(); });
+                        nav.appendChild(prev); nav.appendChild(lbl); nav.appendChild(next);
+                        yOverlay.appendChild(nav);
+                        for (var y = yPageStart; y < yPageStart + 12; y++) {
+                            (function(yr){
+                                var btn = document.createElement('button');
+                                btn.type = 'button'; btn.className = 'fp-year-btn';
+                                if (yr === instance.currentYear) btn.classList.add('active');
+                                btn.textContent = yr;
+                                btn.addEventListener('mousedown', function(e) {
+                                    e.preventDefault(); e.stopPropagation();
+                                    instance.changeMonth((yr - instance.currentYear) * 12, true);
+                                    yOverlay.classList.remove('open');
+                                });
+                                yOverlay.appendChild(btn);
+                            })(y);
+                        }
+                    }
+
+                    // ── Month click (event delegation) ─────────────────────────
+                    cal.addEventListener('click', function(e) {
+                        if (!e.target.closest('.cur-month')) return;
+                        e.stopPropagation();
+                        var r = cal.getBoundingClientRect();
+                        yOverlay.classList.remove('open');
+                        mOverlay.querySelectorAll('.fp-month-btn').forEach(function(b) {
+                            b.classList.toggle('active', parseInt(b.dataset.idx) === instance.currentMonth);
+                        });
+                        mOverlay.style.top = r.top + 'px'; mOverlay.style.left = r.left + 'px';
+                        mOverlay.style.width = r.width + 'px'; mOverlay.style.height = r.height + 'px';
+                        mOverlay.classList.toggle('open');
+                    });
+
+                    // ── Year click (direct listener on numInputWrapper) ─────────
+                    var numWrapper = cal.querySelector('.numInputWrapper');
+                    if (numWrapper) {
+                        numWrapper.addEventListener('click', function(e) {
+                            e.stopPropagation(); e.preventDefault();
+                            var r = cal.getBoundingClientRect();
+                            mOverlay.classList.remove('open');
+                            yPageStart = instance.currentYear - 6;
+                            buildYearGrid();
+                            yOverlay.style.top = r.top + 'px'; yOverlay.style.left = r.left + 'px';
+                            yOverlay.style.width = r.width + 'px'; yOverlay.style.height = r.height + 'px';
+                            yOverlay.classList.toggle('open');
+                        });
+                    }
+
+                    // Close on outside click
+                    document.addEventListener('click', function(e) {
+                        if (!mOverlay.contains(e.target) && !cal.contains(e.target)) mOverlay.classList.remove('open');
+                        if (!yOverlay.contains(e.target) && !cal.contains(e.target)) yOverlay.classList.remove('open');
+                    });
+                },
+            });
+
+            // Copy original classes onto altInput so it inherits .dm-input / .ask-input / etc.
+            if (fp && fp.altInput) {
+                Array.from(el.classList)
+                    .filter(function(c){ return c !== 'flatpickr-input'; })
+                    .forEach(function(c){ fp.altInput.classList.add(c); });
+
+                // Wrap altInput in a relative container and append a calendar icon
+                var wrap = document.createElement('div');
+                wrap.className = 'fp-date-wrap';
+                fp.altInput.parentNode.insertBefore(wrap, fp.altInput);
+                wrap.appendChild(fp.altInput);
+                var icon = document.createElement('span');
+                icon.className = 'fp-cal-icon';
+                icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+                wrap.appendChild(icon);
+            }
+
+            // Intercept programmatic el.value = '...' so altInput display stays in sync.
+            // Guard _busy to prevent re-entrant calls when fp.setDate() writes back to el.value.
+            var _busy = false;
+            Object.defineProperty(el, 'value', {
+                get: function() { return proto.get.call(el); },
+                set: function(v) {
+                    proto.set.call(el, v);
+                    if (_busy || !fp) return;
+                    _busy = true;
+                    try { if (v) fp.setDate(v, false); else fp.clear(false); }
+                    finally { _busy = false; }
+                },
+                configurable: true,
+            });
+        }
+
+        // Enhance all date inputs already in the DOM
+        document.querySelectorAll('input[type="date"]').forEach(enhance);
+
+        // Enhance date inputs added later (e.g. dynamic modal content loaded via JS)
+        new MutationObserver(function(muts) {
+            muts.forEach(function(m) {
+                m.addedNodes.forEach(function(node) {
+                    if (node.nodeType !== 1) return;
+                    if (node.matches && node.matches('input[type="date"]')) enhance(node);
+                    if (node.querySelectorAll) node.querySelectorAll('input[type="date"]').forEach(enhance);
+                });
+            });
+        }).observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
+    <script>
+        // Global helper: escape HTML for safe insertion into option lists
+        window.escapeHtml = window.escapeHtml || function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); };
+
+        // Sidebar toggle behavior with persistence
+        (function(){
+            const container = document.querySelector('.app-container');
+            const btn = document.getElementById('toggleSidebarBtn');
+            const STORAGE_KEY = 'ocr_sidebar_collapsed';
+            let mobileOverlay = null;
+
+            function isMobile() { return window.innerWidth <= 900; }
+
+            function applyState(collapsed) {
+                if(!container) return;
+                if (collapsed) {
+                    container.classList.add('sidebar-collapsed');
+                    btn && btn.classList.add('collapsed');
+                    setBtnIconCollapsed(true);
+                } else {
+                    container.classList.remove('sidebar-collapsed');
+                    btn && btn.classList.remove('collapsed');
+                    setBtnIconCollapsed(false);
+                }
+            }
+
+            function setBtnIconCollapsed(collapsed){
+                if (!btn) return;
+                const ic = btn.querySelector('i');
+                if (!ic) return;
+                // Use chevron for desktop toggle and rotate via .collapsed class
+                ic.className = 'bi bi-chevron-left';
+                if (collapsed) btn.classList.add('collapsed'); else btn.classList.remove('collapsed');
+            }
+
+            function openMobile(){
+                if(!container) return;
+                container.classList.add('sidebar-open');
+                // overlay
+                mobileOverlay = document.createElement('div');
+                mobileOverlay.className = 'sidebar-overlay';
+                document.body.appendChild(mobileOverlay);
+                // allow fade
+                requestAnimationFrame(()=> mobileOverlay.classList.add('visible'));
+                mobileOverlay.addEventListener('click', closeMobile);
+                document.body.style.overflow = 'hidden';
+                // show close icon on mobile
+                if (btn) {
+                    const ic = btn.querySelector('i');
+                    if (ic) ic.className = 'bi bi-x';
+                }
+            }
+
+            
+            function closeMobile(){
+                if(!container) return;
+                container.classList.remove('sidebar-open');
+                if (mobileOverlay) {
+                    mobileOverlay.classList.remove('visible');
+                    setTimeout(()=>{ mobileOverlay && mobileOverlay.remove(); mobileOverlay = null; }, 200);
+                }
+                document.body.style.overflow = '';
+                // restore button icon to collapsed/expanded desktop state
+                try{ const saved = localStorage.getItem(STORAGE_KEY); applyState(saved === '1'); }catch(e){}
+            }
+
+            // initialize from localStorage for desktop
+            try{
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (!isMobile()) applyState(saved === '1');
+                else setBtnIconCollapsed(true);
+            }catch(e){}
+
+            if (btn) {
+                btn.addEventListener('click', function(){
+                    if (isMobile()) {
+                        // mobile toggles overlay slide-in
+                        if (container.classList.contains('sidebar-open')) closeMobile();
+                        else openMobile();
+                        return;
+                    }
+
+                    const collapsed = container.classList.toggle('sidebar-collapsed');
+                    try{ localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); }catch(e){}
+                    setBtnIconCollapsed(collapsed);
+                });
+            }
+
+            // Close mobile sidebar when resizing to desktop
+            window.addEventListener('resize', function(){
+                if (!isMobile()) {
+                    closeMobile();
+                    try{ const saved = localStorage.getItem(STORAGE_KEY); applyState(saved === '1'); }catch(e){}
+                }
+            });
+        })();
+
+        // Update datetime in header
+        function updateDateTime() {
+            const now = new Date();
+            const formatted = now.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const el = document.getElementById('currentDateTime');
+            if (el) el.textContent = formatted;
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+    </script>
+    
+    @* Global modals included here so buttons across pages can open them without missing DOM errors *@
+    @await Html.PartialAsync("Shared/_OperatorNoSkillDownloadModal")
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <script>
+    /* ===== Animation system ===== */
+    (function(){
+        var bar = document.getElementById('page-progress-bar');
+
+        /* Progress bar helpers */
+        var _pTimer = null;
+        function pbStart(){
+            if (!bar) return;
+            bar.style.transition = 'width 0.25s ease';
+            bar.style.opacity = '1';
+            bar.classList.remove('complete');
+            bar.style.width = '0%';
+            requestAnimationFrame(function(){
+                requestAnimationFrame(function(){
+                    bar.style.width = '70%';
+                });
+            });
+            _pTimer = setTimeout(function(){ bar.style.width = '90%'; }, 500);
+        }
+        function pbDone(){
+            if (!bar) return;
+            clearTimeout(_pTimer);
+            bar.style.transition = 'none';
+            bar.style.width = '100%';
+            bar.style.opacity = '1';
+            setTimeout(function(){
+                bar.style.transition = 'opacity 0.3s ease';
+                bar.style.opacity = '0';
+                setTimeout(function(){ bar.style.width = '0%'; }, 300);
+            }, 150);
+        }
+
+        /* Page-enter: complete bar */
+        pbStart();
+        window.addEventListener('DOMContentLoaded', function(){ pbDone(); });
+
+        /* Page-leave: animate out then navigate */
+        document.addEventListener('click', function(e){
+            var anchor = e.target.closest('a[href]');
+            if (!anchor) return;
+            var href = anchor.getAttribute('href');
+            /* skip hash links, external, download, mailto, js: */
+            if (!href || href.startsWith('#') || href.startsWith('javascript') || href.startsWith('mailto') || href.startsWith('http') || anchor.hasAttribute('download') || anchor.target === '_blank') return;
+            /* skip api calls */
+            if (href.startsWith('/api/') || href.startsWith('?handler=')) return;
+            e.preventDefault();
+            pbStart();
+            var body = document.body;
+            body.classList.add('page-leaving');
+            setTimeout(function(){ window.location.href = href; }, 160);
+        });
+        /* globally keep modals on top and in body */
+        document.addEventListener('shown.bs.modal', function(e){
+            try {
+                var m = e.target;
+                if (m && m.parentElement !== document.body) document.body.appendChild(m);
+                if (m) m.style.zIndex = '10050';
+                var bd = document.querySelector('.modal-backdrop');
+                if (bd) bd.style.zIndex = '1040';
+            } catch(err) { console.error('modal placement error', err); }
+        });
+        document.addEventListener('hidden.bs.modal', function(e){
+            document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+        });
+
+        /* Sidebar ripple effect */
+        document.querySelectorAll('.sidebar-link').forEach(function(link){
+            link.addEventListener('click', function(e){
+                var r = document.createElement('span');
+                r.className = 'sidebar-link-ripple';
+                var rect = link.getBoundingClientRect();
+                var size = Math.max(rect.width, rect.height);
+                r.style.cssText = 'width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px';
+                link.appendChild(r);
+                setTimeout(function(){ r.remove(); }, 520);
+            });
+        });
+
+        /* Date-card icon button → open native date picker */
+        document.addEventListener('click', function(e){
+            var btn = e.target.closest('.date-icon');
+            if (!btn) return;
+            e.preventDefault();
+            var card = btn.closest('.date-card');
+            if (!card) return;
+            var inp = card.querySelector('.date-input');
+            if (!inp) return;
+            try { inp.showPicker(); } catch(err) { inp.focus(); inp.click(); }
+        });
+
+        /* Card stagger entrance via IntersectionObserver */
+        var cards = document.querySelectorAll('.card, .emp-profile-card, .upd-profile-card');
+        if ('IntersectionObserver' in window && cards.length){
+            cards.forEach(function(c, i){
+                c.classList.add('anim-card-enter');
+                c.style.transitionDelay = Math.min(i * 0.07, 0.4) + 's';
+            });
+            var io = new IntersectionObserver(function(entries){
+                entries.forEach(function(entry){
+                    if (entry.isIntersecting){
+                        entry.target.classList.add('visible');
+                        io.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.08 });
+            cards.forEach(function(c){ io.observe(c); });
+        }
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+@* Quick Actions Partial — Redesigned v2 *@
+@inject OperatorCertificationRecord.Web.Services.AdminService AdminService
+@{
+    var userCode = Context.Session.GetString("UserCode");
+    var isAdmin = !string.IsNullOrEmpty(userCode) && AdminService.IsAdmin(userCode);
+}
+
+<style>
+/* ── Quick Actions v3 — Big Icons ──────────────────────── */
+.qa-wrapper {
+    background: var(--white);
+    border-radius: 16px;
+    border: 1px solid var(--gray-200);
+    box-shadow: 0 2px 16px rgba(0,0,0,.07);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+/* Header */
+.qa-header {
+    background: linear-gradient(130deg, #7c2d12 0%, #c2410c 55%, #fb923c 100%);
+    padding: 0.7rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+.qa-header-left {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+.qa-header-icon {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,.9);
+    flex-shrink: 0;
+}
+.qa-header-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .01em;
+    line-height: 1.2;
+}
+.qa-header-sub { display: none; }
+.qa-header-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+.qa-hbtn {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .35rem .9rem;
+    font-size: .76rem;
+    font-weight: 600;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,.45);
+    color: #fff;
+    background: rgba(255,255,255,.12);
+    text-decoration: none;
+    transition: all .18s ease;
+    white-space: nowrap;
+}
+.qa-hbtn:hover {
+    background: rgba(255,255,255,.28);
+    border-color: rgba(255,255,255,.75);
+    color: #fff;
+}
+.qa-hbtn.qa-hbtn-locked {
+    opacity: .45;
+    pointer-events: none;
+}
+
+/* Body */
+.qa-body {
+    padding: 1.4rem 1.5rem 1.6rem;
+}
+
+/* Card grid — vertical icon+label layout */
+.qa-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: .75rem;
+}
+
+/* Individual card — vertical stacked */
+.qa-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    padding: 1.25rem .75rem 1rem;
+    background: var(--gray-50);
+    border-radius: 14px;
+    border: 1.5px solid var(--gray-200);
+    text-decoration: none;
+    position: relative;
+    transition: all .18s ease;
+    cursor: pointer;
+    min-height: 105px;
+    text-align: center;
+}
+.qa-card:hover {
+    background: var(--white);
+    box-shadow: 0 6px 20px rgba(0,0,0,.10);
+    transform: translateY(-2px);
+    text-decoration: none;
+}
+.qa-card.qa-green:hover  { border-color: #6ee7b7; background: #f0fdf4; }
+.qa-card.qa-blue:hover   { border-color: #93c5fd; background: #eff6ff; }
+.qa-card.qa-amber:hover  { border-color: #fcd34d; background: #fffbeb; }
+.qa-card.qa-red:hover    { border-color: #fca5a5; background: #fef2f2; }
+
+/* locked / admin-only state */
+.qa-card.qa-locked {
+    opacity: .45;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+/* static info tile */
+.qa-card.qa-static {
+    cursor: default;
+    background: var(--gray-50);
+}
+.qa-card.qa-static:hover {
+    transform: none;
+    box-shadow: none;
+    background: var(--gray-50);
+    border-color: var(--gray-200);
+}
+
+/* Icon box — big, circular colored background */
+.qa-icon-box {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.65rem;
+    flex-shrink: 0;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.qa-card:hover .qa-icon-box { transform: scale(1.08); box-shadow: 0 4px 12px rgba(0,0,0,.14); }
+.qa-card.qa-static:hover .qa-icon-box { transform: none; box-shadow: none; }
+
+/* Icon box color variants */
+.qa-icon-box.ib-green  { background: #d1fae5; color: #059669; }
+.qa-icon-box.ib-blue   { background: #dbeafe; color: #1d4ed8; }
+.qa-icon-box.ib-indigo { background: #e0e7ff; color: #4338ca; }
+.qa-icon-box.ib-violet { background: #ede9fe; color: #7c3aed; }
+.qa-icon-box.ib-amber  { background: #fef3c7; color: #d97706; }
+.qa-icon-box.ib-red    { background: #fee2e2; color: #dc2626; }
+.qa-icon-box.ib-gray   { background: var(--gray-100); color: var(--gray-500); }
+.qa-icon-box.ib-orange { background: #ffedd5; color: #ea580c; }
+
+/* Keep old .qa-icon for any leftover uses */
+.qa-icon { font-size: 1rem; flex-shrink: 0; }
+.qa-icon.ic-green  { color: #059669; }
+.qa-icon.ic-blue   { color: #0284c7; }
+.qa-icon.ic-indigo { color: #4338ca; }
+.qa-icon.ic-violet { color: #7c3aed; }
+.qa-icon.ic-amber  { color: #d97706; }
+.qa-icon.ic-red    { color: #dc2626; }
+.qa-icon.ic-gray   { color: var(--gray-400); }
+
+/* Card label text */
+.qa-name {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    line-height: 1.3;
+    text-align: center;
+}
+
+/* Admin badge */
+.qa-admin-badge {
+    position: absolute;
+    top: 5px; right: 7px;
+    font-size: .58rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    border-radius: 4px;
+    padding: 1px 5px;
+    line-height: 1.5;
+}
+
+/* Divider between groups */
+.qa-divider { display: none; }
+
+@@media (max-width: 575px) {
+    .qa-grid { grid-template-columns: repeat(3, 1fr); }
+    .qa-header { flex-direction: column; align-items: flex-start; }
+}
+@@media (max-width: 399px) {
+    .qa-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+
+<div class="qa-wrapper">
+
+    <!-- ── Header ── -->
+    <div class="qa-header">
+        <div class="qa-header-left">
+            <i class="bi bi-lightning-charge-fill qa-header-icon"></i>
+            <div class="qa-header-title">Quick Actions</div>
+        </div>
+        <div class="qa-header-actions">
+            <a href="/Reports/CustomReport"
+               class="qa-hbtn @(isAdmin ? "" : "qa-hbtn-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <i class="bi bi-file-earmark-plus"></i> New Report
+            </a>
+            <a href="/Reports/Analyzer"
+               class="qa-hbtn @(isAdmin ? "" : "qa-hbtn-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <i class="bi bi-bar-chart"></i> Analytics
+            </a>
+            <a href="/Reports/Automation"
+               class="qa-hbtn @(isAdmin ? "" : "qa-hbtn-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <i class="bi bi-graph-up-arrow"></i> Automation
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Body ── -->
+    <div class="qa-body">
+        <div class="qa-grid">
+            <a href="/AddUser"
+               class="qa-card qa-green @(isAdmin ? "" : "qa-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <div class="qa-icon-box ib-green"><i class="bi bi-person-plus-fill"></i></div>
+                <span class="qa-name">Add Employee</span>
+                @if (isAdmin) { <span class="qa-admin-badge">ADMIN</span> }
+            </a>
+
+            <a href="/Reports/CustomReport"
+               class="qa-card qa-blue @(isAdmin ? "" : "qa-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <div class="qa-icon-box ib-blue"><i class="bi bi-file-earmark-text-fill"></i></div>
+                <span class="qa-name">Custom Report</span>
+                @if (isAdmin) { <span class="qa-admin-badge">ADMIN</span> }
+            </a>
+
+            <a href="/Reports/Analyzer"
+               class="qa-card qa-blue @(isAdmin ? "" : "qa-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <div class="qa-icon-box ib-indigo"><i class="bi bi-bar-chart-fill"></i></div>
+                <span class="qa-name">Report Analyzer</span>
+                @if (isAdmin) { <span class="qa-admin-badge">ADMIN</span> }
+            </a>
+
+            <a href="/Reports/Automation"
+               class="qa-card qa-blue @(isAdmin ? "" : "qa-locked")"
+               @(isAdmin ? "" : "tabindex=\"-1\" aria-disabled=\"true\"")>
+                <div class="qa-icon-box ib-violet"><i class="bi bi-graph-up-arrow"></i></div>
+                <span class="qa-name">Report Automation</span>
+                @if (isAdmin) { <span class="qa-admin-badge">ADMIN</span> }
+            </a>
+
+            <a href="/DownloadExpiryDate" class="qa-card qa-blue">
+                <div class="qa-icon-box ib-blue"><i class="bi bi-calendar-check-fill"></i></div>
+                <span class="qa-name">Skill Expiry Report</span>
+            </a>
+
+            <a href="/DownloadSection" class="qa-card qa-blue">
+                <div class="qa-icon-box ib-indigo"><i class="bi bi-download"></i></div>
+                <span class="qa-name">Download Reports</span>
+            </a>
+
+            @if (isAdmin)
+            {
+                <a href="/SkillMatrix" class="qa-card qa-blue">
+                    <div class="qa-icon-box ib-violet"><i class="bi bi-grid-3x3-gap-fill"></i></div>
+                    <span class="qa-name">Skill Matrix</span>
+                    <span class="qa-admin-badge">ADMIN</span>
+                </a>
+            }
+
+            @if (isAdmin)
+            {
+                <a href="/Disqualification" class="qa-card qa-red">
+                    <div class="qa-icon-box ib-red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <span class="qa-name">Disqualification</span>
+                    <span class="qa-admin-badge">ADMIN</span>
+                </a>
+            }
+            else
+            {
+                <a href="/Disqualification" class="qa-card qa-red qa-locked" tabindex="-1" aria-disabled="true">
+                    <div class="qa-icon-box ib-red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <span class="qa-name">Disqualification</span>
+                </a>
+            }
+
+            <div class="qa-card qa-static">
+                <div class="qa-icon-box ib-gray"><i class="bi bi-info-circle-fill"></i></div>
+                <span class="qa-name" style="color:var(--gray-500);font-weight:600;font-size:.75rem;">
+                    OTD System v3.0<br>
+                    <span style="font-weight:400;font-size:.68rem;">© 2026 IT Department</span>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>

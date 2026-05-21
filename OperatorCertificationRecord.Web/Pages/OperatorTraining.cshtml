@@ -1,0 +1,239 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.OperatorTrainingModel
+@{
+    ViewData["Title"] = "Operator Training";
+    ViewData["ActivePage"] = "OperatorTraining";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Operator Training</h1>
+        <p class="page-subtitle">View and manage operator training records</p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="post">
+            <div class="form-grid-3">
+                <div class="form-inline-group">
+                    <label class="form-label">Search Employee</label>
+                    <input type="text" class="form-control" name="SearchEmpCode" placeholder="Enter Employee Number" value="@Model.SearchEmpCode">
+                </div>
+                <div class="form-inline-group" style="align-items: flex-end;">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-primary" type="submit" name="action" value="search">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+                <div></div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Employee != null)
+{
+    <!-- Employee Information Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <!-- Row 1: Basic Info -->
+            <div class="form-grid-3 mb-4">
+                <div class="form-inline-group">
+                    <label class="form-label">Emp. No.</label>
+                    <div class="form-value">@Model.Employee.EmpCode</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Emp. date</label>
+                    <div class="form-value">@Model.Employee.JoinDate.ToString("dd MMMM yyyy")</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Job grade</label>
+                    <div class="form-value">@Model.Employee.JobGrade</div>
+                </div>
+            </div>
+
+            <!-- Row 2: English Name -->
+            <div class="form-grid-3 mb-4">
+                <div class="form-inline-group">
+                    <label class="form-label">Prefix (Eng)</label>
+                    <div class="form-value">@Model.Employee.PrefixEng</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">First Name (Eng)</label>
+                    <div class="form-value">@Model.Employee.FirstNameEng</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Last Name (Eng)</label>
+                    <div class="form-value">@Model.Employee.LastNameEng</div>
+                </div>
+            </div>
+
+            <!-- Row 3: Thai Name -->
+            <div class="form-grid-3 mb-4">
+                <div class="form-inline-group">
+                    <label class="form-label">Prefix (Thai)</label>
+                    <div class="form-value">@Model.Employee.PrefixThai</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">First Name (Thai)</label>
+                    <div class="form-value">@Model.Employee.FirstNameThai</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Last Name (Thai)</label>
+                    <div class="form-value">@Model.Employee.LastNameThai</div>
+                </div>
+            </div>
+
+            <!-- Row 4: Organization -->
+            <div class="form-grid-2 mb-4">
+                <div class="form-inline-group">
+                    <label class="form-label">Department</label>
+                    <div class="form-value">@Model.Employee.DeptID</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Section</label>
+                    <div class="form-value">@Model.Employee.SectID</div>
+                </div>
+            </div>
+
+            <!-- Row 5: Workshop, Shift, Qualified -->
+            <div class="form-grid-3">
+                <div class="form-inline-group">
+                    <label class="form-label">Workshop</label>
+                    <div class="form-value">@Model.Employee.WorkshopID</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Shift</label>
+                    <div class="form-value">@Model.Employee.Shift</div>
+                </div>
+                <div class="form-inline-group">
+                    <label class="form-label">Qualified (Process)</label>
+                    <div class="form-value" style="color: var(--success); font-weight: 700;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skills Card -->
+    <div class="card">
+        <div class="card-body">
+            <div class="section-title">
+                <i class="bi bi-award"></i>
+                Skills & Certifications
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="tabs-container mb-4">
+                <button class="tab-btn active" data-tab="current-skill">
+                    <i class="bi bi-check-circle"></i> Current Skill
+                </button>
+                <button class="tab-btn" data-tab="disqualified">
+                    <i class="bi bi-x-circle"></i> Disqualified
+                </button>
+                <button class="tab-btn" data-tab="obsoleted">
+                    <i class="bi bi-arrow-repeat"></i> Obsoleted
+                </button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="tab-content active" id="current-skill">
+                <div class="empty-state">
+                    <i class="bi bi-clipboard-check empty-state-icon" style="color: var(--primary);"></i>
+                    <h3 class="empty-state-title">Current Skill Data</h3>
+                    <p class="empty-state-text">Current skill records will be displayed here.</p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="disqualified">
+                <div class="empty-state">
+                    <i class="bi bi-clipboard-x empty-state-icon" style="color: var(--danger);"></i>
+                    <h3 class="empty-state-title">Disqualified Records</h3>
+                    <p class="empty-state-text">Disqualified skill records will be displayed here.</p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="obsoleted">
+                <div class="empty-state">
+                    <i class="bi bi-archive empty-state-icon"></i>
+                    <h3 class="empty-state-title">Obsoleted Records</h3>
+                    <p class="empty-state-text">Obsoleted skill records will be displayed here.</p>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4" style="border-top: 1px solid var(--gray-200);">
+                <button class="btn btn-secondary">
+                    <i class="bi bi-download"></i> Download Current Skill
+                </button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="bi bi-search empty-state-icon"></i>
+                <h3 class="empty-state-title">Search for an Employee</h3>
+                <p class="empty-state-text">Enter an employee number above to view their training records.</p>
+            </div>
+        </div>
+    </div>
+}
+
+@section Styles {
+<style>
+    .tabs-container {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid var(--gray-200);
+    }
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        color: var(--gray-600);
+        font-weight: 500;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .tab-btn:hover {
+        color: var(--primary);
+    }
+    .tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+    .tab-content {
+        display: none;
+        padding-top: 1.5rem;
+    }
+    .tab-content.active {
+        display: block;
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const tabId = this.dataset.tab;
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    });
+</script>
+}

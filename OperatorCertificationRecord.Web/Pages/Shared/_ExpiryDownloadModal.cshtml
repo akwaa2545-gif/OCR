@@ -1,0 +1,137 @@
+<div class="modal fade" id="expiryModal" tabindex="-1" aria-labelledby="expiryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content dm-modal-content" style="--dm-color:#ea580c;--dm-light:#fff7ed;">
+      <div class="dm-header">
+        <div class="dm-hdr-icon"><i class="bi bi-calendar-x-fill"></i></div>
+        <div class="dm-hdr-text">
+          <div class="dm-hdr-title" id="expiryModalLabel">Expiry Date</div>
+          <div class="dm-hdr-sub">Download operator expiry date records</div>
+        </div>
+        <button type="button" class="dm-close" data-bs-dismiss="modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="dm-body">
+        <div class="dm-section-lbl"><i class="bi bi-funnel-fill"></i> Filter</div>
+        <div class="dm-grid-2">
+          <div class="dm-field">
+            <label class="dm-label" for="exDeptModal">Department</label>
+            <select id="exDeptModal" class="dm-input"><option value="">— Any —</option></select>
+          </div>
+          <div class="dm-field">
+            <label class="dm-label" for="exSectModal">Section</label>
+            <select id="exSectModal" class="dm-input"><option value="">— Any —</option></select>
+          </div>
+        </div>
+        <div class="dm-section-lbl" style="margin-top:1rem"><i class="bi bi-calendar3"></i> Date Range</div>
+        <div class="dm-grid-2">
+          <div class="dm-field">
+            <label class="dm-label" for="exStartModal">Start Date</label>
+            <input id="exStartModal" type="date" class="dm-input" onchange="validateDateRange('exStartModal','exEndModal','exDateErr','exPreviewCountModal','exDownloadBtnModal')" />
+          </div>
+          <div class="dm-field">
+            <label class="dm-label" for="exEndModal">End Date</label>
+            <input id="exEndModal" type="date" class="dm-input" onchange="validateDateRange('exStartModal','exEndModal','exDateErr','exPreviewCountModal','exDownloadBtnModal')" />
+          </div>
+        </div>
+        <span class="dm-date-err" id="exDateErr"></span>
+        <div class="dm-pill-row dq-preset-btns">
+          <button type="button" class="dm-pill" data-days="7" onclick="setExpiryPreset(7)">7 days</button>
+          <button type="button" class="dm-pill" data-days="30" onclick="setExpiryPreset(30)">30 days</button>
+          <button type="button" class="dm-pill" data-days="365" onclick="setExpiryPreset(365)">1 year</button>
+          <button type="button" class="dm-pill active" data-days="0" onclick="setExpiryPreset(0)">All time</button>
+        </div>
+        <div class="dm-summary">
+          <div class="dm-field dm-format-field">
+            <label class="dm-label">Format</label>
+            <select id="exFormatModal" class="dm-input">
+              <option value="xlsx">Excel (.xlsx)</option>
+              <option value="csv">CSV (.csv)</option>
+            </select>
+          </div>
+          <button id="exPreviewCountModal" type="button" class="dm-preview-btn">
+            <i class="bi bi-search"></i> Preview
+          </button>
+          <div class="dm-count-wrap">
+            <div class="dm-count-lbl">Records</div>
+            <div id="exCountBadgeModal" class="dm-count-badge">—</div>
+            <div id="exLoadingModal" style="display:none" class="dm-loading"><i class="bi bi-hourglass-split"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="dm-footer">
+        <button type="button" class="dm-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+        <button id="exDownloadBtnModal" type="button" class="dm-btn-dl dl-pending">
+          <i class="bi bi-download"></i> Download
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const startEl = document.getElementById('exStartModal');
+  const endEl = document.getElementById('exEndModal');
+  const formatEl = document.getElementById('exFormatModal');
+  const previewBtn = document.getElementById('exPreviewCountModal');
+  const downloadBtn = document.getElementById('exDownloadBtnModal');
+  const exCountBadge = document.getElementById('exCountBadgeModal');
+  const exLoading = document.getElementById('exLoadingModal');
+
+  const today = new Date();
+  const prior = new Date(); prior.setDate(today.getDate() - 30);
+  function toInputDate(d){ return d.toISOString().slice(0,10); }
+  
+  // Default to "All time"
+  if (startEl) startEl.value = '2000-01-01';
+  if (endEl) endEl.value = '2099-12-31';
+
+  function setActive(days){ document.querySelectorAll('.dq-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days))); }
+  window.setExpiryPreset = function(days){ const e = new Date(); if(days===0){ startEl.value = '2000-01-01'; endEl.value = '2099-12-31'; } else { const s = new Date(); s.setDate(e.getDate() - (days-1)); startEl.value = toInputDate(s); endEl.value = toInputDate(e); } setActive(days); scheduleAutoPreview(); };
+  setActive(0);
+
+  function validate(){ if(!startEl.value || !endEl.value){ if(window.Toast) window.Toast.warning('Missing dates','Please select start and end dates'); return false; } if(new Date(startEl.value) > new Date(endEl.value)){ if(window.Toast) window.Toast.warning('Invalid range','Start date must be before end date'); return false; } return true; }
+
+  let previewDone=false, timer=null;
+  function scheduleAutoPreview(){ if(timer) clearTimeout(timer); timer = setTimeout(()=> previewCount(), 600); }
+
+  function setBadge(el, count){ el.style.removeProperty('background'); el.style.removeProperty('color'); if (count === null) { el.style.background='#ef4444'; el.style.color='#fff'; el.textContent='Err'; return; } if(count<=0){el.style.background='#ef4444'; el.style.color='#fff'; el.textContent='0';} else if(count<=10){/* highlight 10-day or fewer as red */el.style.background='#ef4444'; el.style.color='#fff'; el.textContent=String(count);} else {el.style.background='#10b981'; el.style.color='#fff'; el.textContent=String(count);} }
+
+  async function previewCount(){ if(!validate()) return; exCountBadge.textContent='…'; exLoading.style.display='inline'; const s=encodeURIComponent(startEl.value), e=encodeURIComponent(endEl.value); const dept = encodeURIComponent((document.getElementById('exDeptModal')?.value)||''); const sect = encodeURIComponent((document.getElementById('exSectModal')?.value)||''); const extras = (dept?('&dept='+dept):'') + (sect?('&sect='+sect):''); try{ const res = await fetch(`/api/download/expiry/count?start=${s}&end=${e}${extras}`); if(!res.ok) throw new Error('Server '+res.status); const ct = (res.headers.get('content-type') || '').toLowerCase(); if (!ct.includes('application/json')) { const txt = await res.text(); console.error('[Expiry.preview] expected JSON but got', ct, txt.slice(0,200)); throw new Error('Invalid server response (not JSON)'); } let j; try { j = await res.json(); } catch(parseErr){ console.error('Failed to parse JSON from /api/download/expiry/count', parseErr); if (window.Toast) window.Toast.error('Data error','Invalid response from server'); setBadge(exCountBadge, null); previewDone=false; downloadBtn.classList.add('dl-pending'); return; } setBadge(exCountBadge, j.count ?? 0); previewDone=true; downloadBtn.classList.remove('dl-pending'); if(window.Toast) window.Toast.info('Preview', 'Found '+(j.count??0)+' records'); return true; }catch(err){ console.error(err); setBadge(exCountBadge, null); previewDone=false; downloadBtn.classList.add('dl-pending'); if(window.Toast) window.Toast.error('Preview failed', err.message||''); return false; } finally{ exLoading.style.display='none'; } }
+
+  async function download(){ if(!validate()) return; if(!previewDone){ const ok = await previewCount(); if(!ok || !previewDone) return; } const s=encodeURIComponent(startEl.value), e=encodeURIComponent(endEl.value), fmt=encodeURIComponent(formatEl.value||'xlsx'); const dept = encodeURIComponent((document.getElementById('exDeptModal')?.value)||''); const sect = encodeURIComponent((document.getElementById('exSectModal')?.value)||''); const extras = (dept?('&dept='+dept):'') + (sect?('&sect='+sect):''); window.location.href=`/api/download/expiry?start=${s}&end=${e}&format=${fmt}${extras}`; }
+
+  startEl.addEventListener('input', scheduleAutoPreview); endEl.addEventListener('input', scheduleAutoPreview);
+  previewBtn.addEventListener('click', function(e){ e.preventDefault(); previewCount(); });
+  downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
+
+  document.getElementById('expiryModal').addEventListener('shown.bs.modal', async function(){ previewDone=false; downloadBtn.classList.add('dl-pending'); setBadge(exCountBadge, '—'); try{
+                const res = await fetch('/api/download/meta/disqualified');
+                if (!res.ok) {
+                    console.warn('/api/download/meta/disqualified returned', res.status);
+                    if (window.Toast) window.Toast.warning('Data unavailable', 'Unable to load department/section list');
+                } else {
+                    const ct = (res.headers.get('content-type') || '').toLowerCase();
+                    if (ct.includes('application/json')) {
+                        let j;
+                        try { j = await res.json(); } catch(parseErr) {
+                            console.error('Failed to parse JSON from /api/download/meta/disqualified', parseErr);
+                            if (window.Toast) window.Toast.error('Data error', 'Invalid response from server');
+                            return;
+                        }
+                        const deptEl = document.getElementById('exDeptModal');
+                        const sectEl = document.getElementById('exSectModal');
+                        if (Array.isArray(j.departments) && deptEl) deptEl.innerHTML = '<option value="">-- Any --</option>' + j.departments.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+                        if (Array.isArray(j.sections) && sectEl) sectEl.innerHTML = '<option value="">-- Any --</option>' + j.sections.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+                        if (deptEl) deptEl.addEventListener('change', scheduleAutoPreview);
+                        if (sectEl) sectEl.addEventListener('change', scheduleAutoPreview);
+                    } else {
+                        const txt = await res.text();
+                        console.error('Unexpected /api/download/meta/disqualified response (not JSON)', ct, txt.slice(0,200));
+                        if (window.Toast) window.Toast.error('Server error', 'Unable to load department list');
+                    }
+                }
+            }catch(err){ console.error('Failed to load departments', err); if(window.Toast) window.Toast.error('Network error','Failed to load department/section list'); } });
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
+})();
+</script>

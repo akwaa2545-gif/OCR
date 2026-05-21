@@ -1,0 +1,564 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.SettingsModel
+@{
+    ViewData["Title"] = "Settings";
+    ViewData["ActivePage"] = "Settings";
+    bool hasStatus = !string.IsNullOrEmpty(Model.StatusMessage);
+    bool isSuccess = Model.StatusType == "success";
+    var ini = Model.EmpCode.Length >= 2 ? Model.EmpCode.Substring(0, 2).ToUpper() : Model.EmpCode.ToUpper();
+    var loginDate = HttpContext.Session.GetString("LoginDate") ?? DateTime.Now.ToString("dd MMM yyyy");
+}
+
+@section Styles {
+<style>
+/* ================================================================
+   SETTINGS PAGE — Dark Hero + Orange Accent  2026-04
+================================================================ */
+
+/* ── Hero banner ── */
+.stg-hero {
+    background: linear-gradient(120deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+    border-radius: 18px;
+    padding: 0;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.22);
+    overflow: hidden;
+    position: relative;
+}
+.stg-hero-body {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 2rem 2.25rem;
+    position: relative;
+    z-index: 1;
+}
+/* decorative blobs */
+.stg-hero::before {
+    content: '';
+    position: absolute; right: -60px; top: -60px;
+    width: 260px; height: 260px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+.stg-hero::after {
+    content: '';
+    position: absolute; left: 30%; bottom: -80px;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Avatar ring */
+.stg-av-ring {
+    position: relative;
+    width: 96px; height: 96px; flex-shrink: 0;
+}
+.stg-av-ring::before {
+    content: '';
+    position: absolute; inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(#f97316 0%, #fb923c 40%, #fdba74 60%, #f97316 100%);
+    animation: stgRingSpin 6s linear infinite;
+}
+@@keyframes stgRingSpin { to { transform: rotate(360deg); } }
+.stg-av-inner {
+    position: absolute; inset: 3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 800; color: #f97316;
+    letter-spacing: .02em;
+    z-index: 1;
+}
+.stg-av-inner img {
+    width: 100%; height: 100%;
+    object-fit: cover; border-radius: 50%;
+    cursor: zoom-in;
+}
+.stg-av-cam {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #f97316; color: #fff;
+    border: 2px solid #0f172a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; cursor: pointer;
+    z-index: 2;
+    transition: background 0.15s, transform 0.15s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.stg-av-cam:hover { background: #ea580c; transform: scale(1.1); }
+
+/* Hero text */
+.stg-hero-info { flex: 1; min-width: 0; }
+.stg-hero-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.67rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #fb923c; background: rgba(249,115,22,0.12);
+    border: 1px solid rgba(249,115,22,0.3); border-radius: 999px;
+    padding: 0.2rem 0.65rem; margin-bottom: 0.45rem;
+}
+.stg-hero-name {
+    font-size: 1.55rem; font-weight: 800; color: #f8fafc;
+    margin: 0 0 0.3rem; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stg-hero-meta {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.8rem; color: #94a3b8; flex-wrap: wrap;
+}
+.stg-hero-meta i { color: #64748b; }
+.stg-hero-sep { color: #475569; }
+.stg-back-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 1.1rem;
+    background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.14);
+    border-radius: 9px; color: #cbd5e1; font-weight: 600; font-size: 0.85rem;
+    text-decoration: none; transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap; flex-shrink: 0;
+    align-self: flex-start; margin-top: 0.25rem;
+}
+.stg-back-btn:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.28); color: #e2e8f0; }
+
+/* ── Toast ── */
+.stg-toast {
+    display: flex; align-items: center; gap: 0.65rem;
+    border-radius: 12px;
+    padding: 0.8rem 1.15rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.86rem; font-weight: 500;
+    animation: stgToastIn 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+@@keyframes stgToastIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+.stg-toast-success { background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; }
+.stg-toast-error   { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
+.stg-toast i { font-size: 1.15rem; flex-shrink: 0; }
+
+/* ── Layout ── */
+.stg-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+@@media (max-width: 860px) { .stg-layout { grid-template-columns: 1fr; } }
+
+/* ── Card ── */
+.stg-card {
+    background: #fff; border: 1px solid #e5e7eb;
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    margin-bottom: 1.25rem;
+}
+.stg-card:last-child { margin-bottom: 0; }
+.stg-card-header {
+    background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+    color: #e2e8f0; font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 0.7rem 1.25rem;
+    display: flex; align-items: center; gap: 0.55rem;
+    border-bottom: 2px solid #f97316;
+}
+.stg-card-header i { color: #f97316; font-size: 0.95rem; }
+.stg-card-body { padding: 1.25rem 1.5rem; }
+
+/* ── Info rows ── */
+.stg-info-row {
+    display: flex; align-items: center;
+    padding: 0.7rem 0; border-bottom: 1px solid #f3f4f6; gap: 0.85rem;
+}
+.stg-info-row:last-child { border-bottom: none; }
+.stg-info-icon {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+}
+.stg-info-icon.ico-orange { background: #fff7ed; color: #f97316; border: 1px solid #fed7aa; }
+.stg-info-icon.ico-blue   { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.stg-info-icon.ico-violet { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+.stg-info-icon.ico-green  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.stg-info-icon.ico-amber  { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+.stg-info-label { font-size: 0.69rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; line-height: 1; margin-bottom: 0.18rem; }
+.stg-info-value { font-size: 0.9rem; color: #111827; font-weight: 600; }
+.stg-admin-pill {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: #ffedd5; color: #c2410c;
+    border: 1px solid #fdba74; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 700; padding: 0.22rem 0.65rem;
+}
+
+/* ── Form ── */
+.stg-form-group { margin-bottom: 1.1rem; }
+.stg-form-group:last-child { margin-bottom: 0; }
+.stg-label {
+    display: block; font-size: 0.77rem; font-weight: 700; color: #374151;
+    margin-bottom: 0.35rem; letter-spacing: .02em;
+}
+.stg-input-wrap { position: relative; display: flex; }
+.stg-input {
+    flex: 1; height: 42px; padding: 0 2.6rem 0 0.9rem;
+    border: 1.5px solid #d1d5db; border-radius: 9px;
+    font-size: 0.89rem; color: #111827;
+    background: #fafafa; outline: none; width: 100%;
+    transition: border-color .15s, box-shadow .15s;
+    font-family: inherit;
+}
+.stg-input:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.12); background: #fff; }
+.stg-eye-btn {
+    position: absolute; right: 0.65rem; top: 50%; transform: translateY(-50%);
+    background: transparent; border: none; cursor: pointer;
+    color: #9ca3af; padding: 0; font-size: 1rem;
+    display: flex; align-items: center; transition: color .15s;
+}
+.stg-eye-btn:hover { color: #f97316; }
+.stg-hint { font-size: 0.72rem; color: #9ca3af; margin-top: 0.25rem; }
+
+/* ── Strength bar ── */
+.stg-strength { margin-top: 0.45rem; height: 5px; border-radius: 3px; background: #f3f4f6; overflow: hidden; }
+.stg-strength-fill { height: 100%; border-radius: 3px; transition: width .25s, background .25s; width: 0; }
+.stg-strength-lbl { font-size: 0.71rem; margin-top: 0.22rem; font-weight: 600; }
+
+/* ── Submit button ── */
+.stg-btn-submit {
+    width: 100%; height: 44px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    color: #fff; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    transition: all .18s; box-shadow: 0 3px 10px rgba(249,115,22,0.35);
+    margin-top: 1.35rem; font-family: inherit;
+}
+.stg-btn-submit:hover {
+    background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+    box-shadow: 0 5px 16px rgba(249,115,22,0.45); transform: translateY(-1px);
+}
+.stg-btn-submit:active { transform: scale(0.97); }
+
+/* ── Session rows ── */
+.stg-session-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.84rem;
+}
+.stg-session-row:last-child { border-bottom: none; }
+.stg-session-key { color: #6b7280; font-weight: 500; display: flex; align-items: center; gap: 0.45rem; }
+.stg-session-key i { color: #f97316; }
+.stg-session-val { color: #111827; font-weight: 700; }
+
+/* ===== Crop Modal ===== */
+#cropModal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.75); align-items:center; justify-content:center; }
+.crop-box  { background:#1e293b; border-radius:16px; padding:1.25rem; max-width:min(90vw,500px); width:calc(100% - 2rem); max-height:calc(100dvh - 2rem); display:flex; flex-direction:column; gap:0.85rem; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+.crop-hdr  { display:flex; align-items:center; justify-content:space-between; }
+.crop-title { font-weight:700; color:#f1f5f9; font-size:1rem; display:flex; align-items:center; gap:0.5rem; }
+.crop-close { background:none; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer; padding:0.15rem 0.4rem; border-radius:6px; transition:color 0.15s; line-height:1; }
+.crop-close:hover { color:#f87171; }
+.crop-img-wrap { height:460px; background:#0f172a; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.crop-img-wrap img { display:block; max-width:100%; max-height:100%; }
+.crop-foot { display:flex; gap:0.6rem; justify-content:flex-end; }
+.crop-btn  { padding:0.5rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; border:none; cursor:pointer; transition:opacity 0.14s; font-family:inherit; display:inline-flex; align-items:center; gap:0.4rem; }
+.crop-btn-ok { background:#ea580c; color:#fff; }
+.crop-btn-x  { background:rgba(255,255,255,0.08); color:#cbd5e1; }
+.crop-btn:hover { opacity:0.82; }
+</style>
+
+<!-- Photo lightbox -->
+<div id="stgPhotoModal" onclick="this.style.display='none'"
+     style="display:none;position:fixed;inset:0;z-index:1099;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;cursor:zoom-out;">
+    <img id="stgPhotoModalImg" src="" alt="Profile photo"
+         style="max-width:90vw;max-height:90vh;border-radius:1rem;box-shadow:0 8px 40px rgba(0,0,0,0.5);object-fit:contain;" />
+</div>
+<!-- Crop modal -->
+<div id="cropModal">
+    <div class="crop-box">
+        <div class="crop-hdr">
+            <div class="crop-title"><i class="bi bi-crop"></i> Crop Photo</div>
+            <button type="button" class="crop-close crop-cancel" aria-label="Close">&times;</button>
+        </div>
+        <div class="crop-img-wrap"><img id="cropImage" alt="Crop preview"></div>
+        <div class="crop-foot">
+            <button type="button" class="crop-btn crop-btn-x crop-cancel">Cancel</button>
+            <button type="button" class="crop-btn crop-btn-ok" id="cropConfirmBtn"><i class="bi bi-scissors"></i> Crop &amp; Use</button>
+        </div>
+    </div>
+</div>
+<script>
+    function openPhotoModal(src) {
+        if (!src) return;
+        document.getElementById('stgPhotoModalImg').src = src;
+        document.getElementById('stgPhotoModal').style.display = 'flex';
+    }
+</script>
+}
+
+<!-- Upload form (hidden) -->
+<form method="post" enctype="multipart/form-data" asp-page-handler="UploadPhoto" id="stgPhotoForm" style="display:none;">
+    <input type="file" asp-for="PhotoFile" id="stgPhotoFile" accept="image/*" onchange="openSettingsCropModal(event)" />
+</form>
+
+<!-- ══════════════════════════════════════
+     HERO BANNER
+══════════════════════════════════════ -->
+<div class="stg-hero">
+    <div class="stg-hero-body">
+        <!-- Avatar -->
+        <div class="stg-av-ring">
+            <div class="stg-av-inner" data-ini="@ini" id="stgAvWrap">
+                @if (!string.IsNullOrEmpty(Model.PhotoUrl)) {
+                    <img id="settingsPhotoPreview"
+                         src="/api/photo/@Uri.EscapeDataString(Model.PhotoUrl)"
+                         alt="Profile photo"
+                         onclick="openPhotoModal(this.src)"
+                         onerror="this.onerror=null;this.style.display='none';document.getElementById('stgAvIni').style.display='flex';" />
+                }
+                <span id="stgAvIni" style="@(string.IsNullOrEmpty(Model.PhotoUrl) ? "" : "display:none;") width:100%;height:100%;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:#f97316;">@ini</span>
+            </div>
+            <button type="button" class="stg-av-cam" onclick="document.getElementById('stgPhotoFile').click()" title="Change photo">
+                <i class="bi bi-camera-fill"></i>
+            </button>
+        </div>
+
+        <!-- Info -->
+        <div class="stg-hero-info">
+            <div class="stg-hero-badge"><i class="bi bi-shield-fill-check"></i> Administrator</div>
+            <div class="stg-hero-name">@Model.FullName</div>
+            <div class="stg-hero-meta">
+                <i class="bi bi-person-badge"></i> @Model.EmpCode
+                <span class="stg-hero-sep">·</span>
+                <i class="bi bi-building"></i> @(string.IsNullOrWhiteSpace(Model.DeptName) ? "—" : Model.DeptName)
+                <span class="stg-hero-sep">·</span>
+                <i class="bi bi-calendar3"></i> Logged in @loginDate
+            </div>
+        </div>
+
+        <!-- Back button -->
+        <a href="/Dashboard" class="stg-back-btn"><i class="bi bi-arrow-left"></i> Dashboard</a>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     STATUS TOAST
+══════════════════════════════════════ -->
+@if (hasStatus) {
+    <div class="stg-toast @(isSuccess ? "stg-toast-success" : "stg-toast-error")">
+        <i class="bi @(isSuccess ? "bi-check-circle-fill" : "bi-exclamation-circle-fill")"></i>
+        @Model.StatusMessage
+    </div>
+}
+
+<!-- ══════════════════════════════════════
+     MAIN LAYOUT
+══════════════════════════════════════ -->
+<div class="stg-layout">
+
+    <!-- ── LEFT: Profile + Session ── -->
+    <div>
+        <!-- Account Info -->
+        <div class="stg-card">
+            <div class="stg-card-header"><i class="bi bi-person-circle"></i> Account Information</div>
+            <div class="stg-card-body">
+                <div class="stg-info-row">
+                    <div class="stg-info-icon ico-orange"><i class="bi bi-person-badge"></i></div>
+                    <div>
+                        <div class="stg-info-label">Employee Code</div>
+                        <div class="stg-info-value">@Model.EmpCode</div>
+                    </div>
+                </div>
+                <div class="stg-info-row">
+                    <div class="stg-info-icon ico-blue"><i class="bi bi-person-fill"></i></div>
+                    <div>
+                        <div class="stg-info-label">Full Name</div>
+                        <div class="stg-info-value">@Model.FullName</div>
+                    </div>
+                </div>
+                <div class="stg-info-row">
+                    <div class="stg-info-icon ico-violet"><i class="bi bi-building"></i></div>
+                    <div>
+                        <div class="stg-info-label">Department</div>
+                        <div class="stg-info-value">@(string.IsNullOrWhiteSpace(Model.DeptName) ? "—" : Model.DeptName)</div>
+                    </div>
+                </div>
+                <div class="stg-info-row">
+                    <div class="stg-info-icon ico-amber"><i class="bi bi-shield-fill-check"></i></div>
+                    <div>
+                        <div class="stg-info-label">Role</div>
+                        <div class="stg-info-value">
+                            <span class="stg-admin-pill"><i class="bi bi-shield-fill-check"></i> Administrator</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Info -->
+        <div class="stg-card">
+            <div class="stg-card-header"><i class="bi bi-clock-history"></i> Session Info</div>
+            <div class="stg-card-body" style="padding-top:0.85rem;padding-bottom:0.85rem;">
+                <div class="stg-session-row">
+                    <span class="stg-session-key"><i class="bi bi-calendar3"></i> Login Date</span>
+                    <span class="stg-session-val">@loginDate</span>
+                </div>
+                <div class="stg-session-row">
+                    <span class="stg-session-key"><i class="bi bi-globe"></i> System</span>
+                    <span class="stg-session-val">OTD v3.0</span>
+                </div>
+                <div class="stg-session-row">
+                    <span class="stg-session-key"><i class="bi bi-code-square"></i> Branch</span>
+                    <span class="stg-session-val">main</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── RIGHT: Change Password ── -->
+    <div>
+        <div class="stg-card">
+            <div class="stg-card-header"><i class="bi bi-key-fill"></i> Change Password</div>
+            <div class="stg-card-body">
+                <form method="post" asp-page-handler="ChangePassword" id="pwdForm">
+                    @Html.AntiForgeryToken()
+
+                    <div class="stg-form-group">
+                        <label class="stg-label" for="CurrPwd">Current Password</label>
+                        <div class="stg-input-wrap">
+                            <input id="CurrPwd" name="CurrentPassword" type="password"
+                                   class="stg-input" placeholder="Enter your current password"
+                                   autocomplete="current-password" required />
+                            <button type="button" class="stg-eye-btn" onclick="togglePwd('CurrPwd', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="stg-form-group">
+                        <label class="stg-label" for="NewPwd">New Password</label>
+                        <div class="stg-input-wrap">
+                            <input id="NewPwd" name="NewPassword" type="password"
+                                   class="stg-input" placeholder="At least 4 characters"
+                                   autocomplete="new-password" required
+                                   oninput="updateStrength(this.value)" />
+                            <button type="button" class="stg-eye-btn" onclick="togglePwd('NewPwd', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="stg-strength"><div id="strengthFill" class="stg-strength-fill"></div></div>
+                        <div id="strengthLbl" class="stg-strength-lbl" style="color:#9ca3af;"></div>
+                    </div>
+
+                    <div class="stg-form-group">
+                        <label class="stg-label" for="ConfPwd">Confirm New Password</label>
+                        <div class="stg-input-wrap">
+                            <input id="ConfPwd" name="ConfirmPassword" type="password"
+                                   class="stg-input" placeholder="Repeat new password"
+                                   autocomplete="new-password" required
+                                   oninput="checkMatch()" />
+                            <button type="button" class="stg-eye-btn" onclick="togglePwd('ConfPwd', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div id="matchHint" class="stg-hint"></div>
+                    </div>
+
+                    <button type="submit" class="stg-btn-submit">
+                        <i class="bi bi-shield-lock-fill"></i> Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
+<script>
+    /* ===== Crop Modal ===== */
+    let _stgCropper = null, _stgCropName = 'photo.jpg';
+
+    function openSettingsCropModal(evt) {
+        const file = evt.target.files[0];
+        if (!file) return;
+        _stgCropName = file.name || 'photo.jpg';
+        const img = document.getElementById('cropImage');
+        if (_stgCropper) { _stgCropper.destroy(); _stgCropper = null; }
+        img.src = '';
+        document.getElementById('cropModal').style.display = 'flex';
+        img.onload = () => {
+            _stgCropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, responsive: true, background: false, zoomable: true, scalable: true });
+        };
+        img.src = URL.createObjectURL(file);
+    }
+
+    function closeSettingsCropModal() {
+        document.getElementById('cropModal').style.display = 'none';
+        if (_stgCropper) { _stgCropper.destroy(); _stgCropper = null; }
+        document.getElementById('stgPhotoFile').value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('cropConfirmBtn').addEventListener('click', () => {
+            if (!_stgCropper) return;
+            _stgCropper.getCroppedCanvas({ width: 600, height: 600 }).toBlob(blob => {
+                const croppedFile = new File([blob], _stgCropName, { type: 'image/jpeg' });
+                const dt = new DataTransfer();
+                dt.items.add(croppedFile);
+                const input = document.getElementById('stgPhotoFile');
+                input.files = dt.files;
+                const url = URL.createObjectURL(blob);
+                const prev = document.getElementById('settingsPhotoPreview');
+                if (prev) { prev.src = url; prev.style.display = ''; document.getElementById('stgAvIni').style.display = 'none'; }
+                document.getElementById('stgPhotoModalImg').src = url;
+                document.getElementById('cropModal').style.display = 'none';
+                if (_stgCropper) { _stgCropper.destroy(); _stgCropper = null; }
+                document.getElementById('stgPhotoForm').submit();
+            }, 'image/jpeg', 0.92);
+        });
+        document.querySelectorAll('.crop-cancel').forEach(b => b.addEventListener('click', closeSettingsCropModal));
+    });
+
+    /* ===== Password helpers ===== */
+    function togglePwd(inputId, btn) {
+        var input = document.getElementById(inputId);
+        var icon  = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    }
+
+    function updateStrength(val) {
+        var fill = document.getElementById('strengthFill');
+        var lbl  = document.getElementById('strengthLbl');
+        var score = 0;
+        if (val.length >= 4)  score++;
+        if (val.length >= 8)  score++;
+        if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val))         score++;
+        if (/[^A-Za-z0-9]/.test(val))  score++;
+        var configs = [
+            { pct: '0%',   bg: 'transparent', txt: '',            color: '#9ca3af' },
+            { pct: '25%',  bg: '#f87171',     txt: 'Weak',        color: '#dc2626' },
+            { pct: '50%',  bg: '#fb923c',     txt: 'Fair',        color: '#ea580c' },
+            { pct: '75%',  bg: '#facc15',     txt: 'Good',        color: '#ca8a04' },
+            { pct: '88%',  bg: '#4ade80',     txt: 'Strong',      color: '#16a34a' },
+            { pct: '100%', bg: '#22c55e',     txt: 'Very Strong', color: '#15803d' }
+        ];
+        var cfg = configs[Math.min(score, 5)];
+        fill.style.width = cfg.pct; fill.style.background = cfg.bg;
+        lbl.textContent  = cfg.txt; lbl.style.color = cfg.color;
+    }
+
+
+    function checkMatch() {
+        var hint = document.getElementById('matchHint');
+        var np   = document.getElementById('NewPwd').value;
+        var cp   = document.getElementById('ConfPwd').value;
+        if (!cp) { hint.textContent = ''; return; }
+        if (np === cp) { hint.textContent = '✓ Passwords match';       hint.style.color = '#16a34a'; }
+        else           { hint.textContent = '✗ Passwords do not match'; hint.style.color = '#dc2626'; }
+    }
+</script>
+}

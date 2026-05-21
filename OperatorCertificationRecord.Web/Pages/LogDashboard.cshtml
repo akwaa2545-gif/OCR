@@ -1,0 +1,537 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.LogDashboardModel
+@{
+    ViewData["Title"] = "System Logs & Monitoring";
+    ViewData["ActivePage"] = "LogDashboard";
+}
+
+<style>
+    .log-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    .log-card-header { padding: 1rem; border-bottom: 1px solid #eee; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .log-card-body { padding: 1rem; }
+    .stat-box { background: linear-gradient(135deg, var(--primary) 0%, #fb923c 100%); color: white; border-radius: 8px; padding: 1rem; text-align: center; }
+    .stat-box.success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+    .stat-box.warning { background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); }
+    .stat-box.danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    .stat-box.info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .stat-value { font-size: 2rem; font-weight: 700; }
+    .stat-label { font-size: 0.85rem; opacity: 0.9; }
+    .log-table { width: 100%; font-size: 0.85rem; }
+    .log-table th { background: #f8f9fa; padding: 0.5rem; text-align: left; position: sticky; top: 0; }
+    .log-table td { padding: 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    .log-level { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .log-level.debug { background: #e0e7ff; color: #3730a3; }
+    .log-level.info, .log-level.information { background: #dbeafe; color: #1d4ed8; }
+    .log-level.warning { background: #fef3c7; color: #92400e; }
+    .log-level.error { background: #fee2e2; color: #dc2626; }
+    .log-level.fatal { background: #7f1d1d; color: white; }
+    .log-message { max-width: 400px; word-break: break-word; }
+    .log-exception { background: #fef2f2; padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; max-height: 150px; overflow: auto; white-space: pre-wrap; }
+    .log-scroll { max-height: 500px; overflow-y: auto; }
+    .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-bar input, .filter-bar select { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .filter-bar button { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-secondary { background: #000000; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .refresh-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; }
+    .refresh-indicator.active { background: #22c55e; animation: pulse 1s infinite; }
+    .refresh-indicator.paused { background: #eab308; }
+    @@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab-btn { padding: 0.5rem 1rem; border: 1px solid #ddd; background: #f8f9fa; border-radius: 4px; cursor: pointer; }
+    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .request-path { font-family: monospace; font-size: 0.8rem; color: #070707; }
+    .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .status-badge.success { background: #dcfce7; color: #166534; }
+    .status-badge.redirect { background: #dbeafe; color: #1d4ed8; }
+    .status-badge.client-error { background: #fef3c7; color: #92400e; }
+    .status-badge.server-error { background: #fee2e2; color: #dc2626; }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 style="font-size: 1.5rem; font-weight: 600;">
+            <i class="bi bi-graph-up"></i> System Logs & Monitoring
+        </h1>
+        <div>
+            <span class="refresh-indicator active" id="refreshIndicator"></span>
+            <span id="refreshStatus">Auto-refresh: 5s</span>
+            <button class="btn-secondary ms-2" onclick="toggleAutoRefresh()" id="toggleRefreshBtn">Pause</button>
+            <button class="btn-primary ms-2" onclick="refreshAll()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4" id="statsRow">
+        <div class="col-md-2">
+            <div class="stat-box info">
+                <div class="stat-value" id="totalRequests">-</div>
+                <div class="stat-label">Total Requests</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-box success">
+                <div class="stat-value" id="avgResponseTime">-</div>
+                <div class="stat-label">Avg Response (ms)</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-box danger">
+                <div class="stat-value" id="errorCount">-</div>
+                <div class="stat-label">Errors</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-box warning">
+                <div class="stat-value" id="activeConnections">-</div>
+                <div class="stat-label">Active Connections</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-box">
+                <div class="stat-value" id="memoryUsage">-</div>
+                <div class="stat-label">Memory (MB)</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-box info">
+                <div class="stat-value" id="uptime">-</div>
+                <div class="stat-label">Uptime</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Buttons -->
+    <div class="tab-buttons">
+        <button class="tab-btn active" onclick="showTab('logs')">📋 Logs</button>
+        <button class="tab-btn" onclick="showTab('errors')">❌ Errors</button>
+        <button class="tab-btn" onclick="showTab('requests')">📊 Requests</button>
+        <button class="tab-btn" onclick="showTab('slow')">🐢 Slow Requests</button>
+        <button class="tab-btn" onclick="showTab('pathStats')">📈 Path Stats</button>
+    </div>
+
+    <!-- Logs Tab -->
+    <div class="tab-content active" id="tab-logs">
+        <div class="log-card">
+            <div class="log-card-header">
+                <span>Recent Logs</span>
+                <span id="logCount">-</span>
+            </div>
+            <div class="log-card-body">
+                <div class="filter-bar">
+                    <select id="levelFilter" onchange="loadLogs()">
+                        <option value="">All Levels</option>
+                        <option value="Debug">Debug</option>
+                        <option value="Information">Info</option>
+                        <option value="Warning">Warning</option>
+                        <option value="Error">Error</option>
+                        <option value="Fatal">Fatal</option>
+                    </select>
+                    <input type="text" id="searchFilter" placeholder="Search..." onkeyup="debounceSearch()">
+                    <input type="number" id="countFilter" value="100" min="10" max="1000" style="width: 80px;">
+                    <button class="btn-primary" onclick="loadLogs()">Filter</button>
+                    <button class="btn-danger" onclick="clearLogs()">Clear All</button>
+                </div>
+                <div class="log-scroll">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Time</th>
+                                <th style="width: 80px;">Level</th>
+                                <th>Message</th>
+                                <th style="width: 100px;">User</th>
+                                <th style="width: 80px;">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <tr><td colspan="5">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Errors Tab -->
+    <div class="tab-content" id="tab-errors">
+        <div class="log-card">
+            <div class="log-card-header">
+                <span>❌ Error Logs</span>
+                <span id="errorLogCount">-</span>
+            </div>
+            <div class="log-card-body">
+                <div class="log-scroll">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Time</th>
+                                <th>Message</th>
+                                <th style="width: 100px;">User</th>
+                                <th style="width: 150px;">Path</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorsTableBody">
+                            <tr><td colspan="4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Requests Tab -->
+    <div class="tab-content" id="tab-requests">
+        <div class="log-card">
+            <div class="log-card-header">
+                <span>📊 Recent Requests</span>
+                <span id="requestCount">-</span>
+            </div>
+            <div class="log-card-body">
+                <div class="log-scroll">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Time</th>
+                                <th style="width: 60px;">Method</th>
+                                <th>Path</th>
+                                <th style="width: 70px;">Status</th>
+                                <th style="width: 80px;">Duration</th>
+                                <th style="width: 100px;">User</th>
+                                <th style="width: 100px;">IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsTableBody">
+                            <tr><td colspan="7">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slow Requests Tab -->
+    <div class="tab-content" id="tab-slow">
+        <div class="log-card">
+            <div class="log-card-header">
+                <span>🐢 Slow Requests (> 1s)</span>
+                <span id="slowCount">-</span>
+            </div>
+            <div class="log-card-body">
+                <div class="log-scroll">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Time</th>
+                                <th style="width: 60px;">Method</th>
+                                <th>Path</th>
+                                <th style="width: 100px;">Duration</th>
+                                <th style="width: 100px;">User</th>
+                            </tr>
+                        </thead>
+                        <tbody id="slowTableBody">
+                            <tr><td colspan="5">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Path Stats Tab -->
+    <div class="tab-content" id="tab-pathStats">
+        <div class="log-card">
+            <div class="log-card-header">
+                <span>📈 Request Statistics by Path</span>
+            </div>
+            <div class="log-card-body">
+                <div class="log-scroll">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Path</th>
+                                <th style="width: 80px;">Count</th>
+                                <th style="width: 100px;">Avg (ms)</th>
+                                <th style="width: 100px;">Max (ms)</th>
+                                <th style="width: 100px;">Min (ms)</th>
+                                <th style="width: 80px;">Errors</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pathStatsTableBody">
+                            <tr><td colspan="6">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let autoRefresh = true;
+    let refreshInterval;
+    let searchTimeout;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshAll();
+        startAutoRefresh();
+    });
+
+    function startAutoRefresh() {
+        refreshInterval = setInterval(refreshAll, 5000);
+    }
+
+    function stopAutoRefresh() {
+        clearInterval(refreshInterval);
+    }
+
+    function toggleAutoRefresh() {
+        autoRefresh = !autoRefresh;
+        const btn = document.getElementById('toggleRefreshBtn');
+        const indicator = document.getElementById('refreshIndicator');
+        const status = document.getElementById('refreshStatus');
+        
+        if (autoRefresh) {
+            startAutoRefresh();
+            btn.textContent = 'Pause';
+            indicator.className = 'refresh-indicator active';
+            status.textContent = 'Auto-refresh: 5s';
+        } else {
+            stopAutoRefresh();
+            btn.textContent = 'Resume';
+            indicator.className = 'refresh-indicator paused';
+            status.textContent = 'Auto-refresh: Paused';
+        }
+    }
+
+    function refreshAll() {
+        loadHealth();
+        loadLogs();
+        loadErrors();
+        loadRequests();
+        loadSlowRequests();
+        loadPathStats();
+    }
+
+    async function loadHealth() {
+        try {
+            const response = await fetch('/api/logs/health');
+            const data = await response.json();
+            if (data.success) {
+                const h = data.health;
+                document.getElementById('totalRequests').textContent = h.totalRequests.toLocaleString();
+                document.getElementById('avgResponseTime').textContent = h.averageResponseTimeMs.toFixed(1);
+                document.getElementById('errorCount').textContent = h.errorCount.toLocaleString();
+                document.getElementById('activeConnections').textContent = h.activeConnections;
+                document.getElementById('memoryUsage').textContent = h.workingSetMemoryMB;
+                document.getElementById('uptime').textContent = formatUptime(h.uptime);
+            }
+        } catch (err) {
+            console.error('Failed to load health:', err);
+        }
+    }
+
+    async function loadLogs() {
+        try {
+            const level = document.getElementById('levelFilter').value;
+            const search = document.getElementById('searchFilter').value;
+            const count = document.getElementById('countFilter').value || 100;
+            
+            let url = `/api/logs?count=${count}`;
+            if (level) url += `&level=${level}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            document.getElementById('logCount').textContent = `${data.count} entries`;
+            
+            const tbody = document.getElementById('logsTableBody');
+            if (data.logs && data.logs.length > 0) {
+                tbody.innerHTML = data.logs.map(log => `
+                    <tr>
+                        <td>${formatTime(log.timestamp)}</td>
+                        <td><span class="log-level ${log.level.toLowerCase()}">${log.level}</span></td>
+                        <td class="log-message">${escapeHtml(log.message)}${log.exception ? `<div class="log-exception">${escapeHtml(log.exception)}</div>` : ''}</td>
+                        <td>${log.userId || '-'}</td>
+                        <td>${log.durationMs ? log.durationMs + 'ms' : '-'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5">No logs found</td></tr>';
+            }
+        } catch (err) {
+            console.error('Failed to load logs:', err);
+        }
+    }
+
+    async function loadErrors() {
+        try {
+            const response = await fetch('/api/logs/errors?count=100');
+            const data = await response.json();
+            
+            document.getElementById('errorLogCount').textContent = `${data.count} errors`;
+            
+            const tbody = document.getElementById('errorsTableBody');
+            if (data.logs && data.logs.length > 0) {
+                tbody.innerHTML = data.logs.map(log => `
+                    <tr>
+                        <td>${formatTime(log.timestamp)}</td>
+                        <td class="log-message">${escapeHtml(log.message)}${log.exception ? `<div class="log-exception">${escapeHtml(log.exception)}</div>` : ''}</td>
+                        <td>${log.userId || '-'}</td>
+                        <td class="request-path">${log.path || '-'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4">No errors - Great! 🎉</td></tr>';
+            }
+        } catch (err) {
+            console.error('Failed to load errors:', err);
+        }
+    }
+
+    async function loadRequests() {
+        try {
+            const response = await fetch('/api/logs/requests?count=100');
+            const data = await response.json();
+            
+            document.getElementById('requestCount').textContent = `${data.count} requests`;
+            
+            const tbody = document.getElementById('requestsTableBody');
+            if (data.requests && data.requests.length > 0) {
+                tbody.innerHTML = data.requests.map(r => `
+                    <tr>
+                        <td>${formatTime(r.timestamp)}</td>
+                        <td><strong>${r.method}</strong></td>
+                        <td class="request-path">${escapeHtml(r.path)}</td>
+                        <td><span class="status-badge ${getStatusClass(r.statusCode)}">${r.statusCode}</span></td>
+                        <td>${r.durationMs}ms</td>
+                        <td>${r.userId || '-'}</td>
+                        <td>${r.clientIp || '-'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7">No requests yet</td></tr>';
+            }
+        } catch (err) {
+            console.error('Failed to load requests:', err);
+        }
+    }
+
+    async function loadSlowRequests() {
+        try {
+            const response = await fetch('/api/logs/slow?threshold=1000&count=50');
+            const data = await response.json();
+            
+            document.getElementById('slowCount').textContent = `${data.count} slow requests`;
+            
+            const tbody = document.getElementById('slowTableBody');
+            if (data.requests && data.requests.length > 0) {
+                tbody.innerHTML = data.requests.map(r => `
+                    <tr>
+                        <td>${formatTime(r.timestamp)}</td>
+                        <td><strong>${r.method}</strong></td>
+                        <td class="request-path">${escapeHtml(r.path)}</td>
+                        <td style="color: #dc2626; font-weight: 600;">${r.durationMs}ms</td>
+                        <td>${r.userId || '-'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5">No slow requests - Excellent! 🚀</td></tr>';
+            }
+        } catch (err) {
+            console.error('Failed to load slow requests:', err);
+        }
+    }
+
+    async function loadPathStats() {
+        try {
+            const response = await fetch('/api/logs/stats');
+            const data = await response.json();
+            
+            const tbody = document.getElementById('pathStatsTableBody');
+            if (data.pathStats && data.pathStats.length > 0) {
+                tbody.innerHTML = data.pathStats.map(s => `
+                    <tr>
+                        <td class="request-path">${escapeHtml(s.path)}</td>
+                        <td>${s.count}</td>
+                        <td>${s.avgDurationMs}ms</td>
+                        <td>${s.maxDurationMs}ms</td>
+                        <td>${s.minDurationMs}ms</td>
+                        <td style="${s.errorCount > 0 ? 'color: #dc2626; font-weight: 600;' : ''}">${s.errorCount}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6">No data yet</td></tr>';
+            }
+        } catch (err) {
+            console.error('Failed to load path stats:', err);
+        }
+    }
+
+    async function clearLogs() {
+        if (!confirm('Are you sure you want to clear all logs?')) return;
+        try {
+            const response = await fetch('/api/logs', { method: 'DELETE' });
+            const data = await response.json();
+            if (data.success) {
+                alert('Logs cleared successfully');
+                refreshAll();
+            } else {
+                alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Failed to clear logs: ' + err.message);
+        }
+    }
+
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function debounceSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(loadLogs, 300);
+    }
+
+    function formatTime(timestamp) {
+        const d = new Date(timestamp);
+        return d.toLocaleTimeString() + ' ' + d.toLocaleDateString();
+    }
+
+    function formatUptime(uptime) {
+        // uptime comes as "HH:MM:SS" or similar from C# TimeSpan
+        const parts = uptime.split(':');
+        if (parts.length >= 3) {
+            const hours = parseInt(parts[0]);
+            const mins = parseInt(parts[1]);
+            if (hours > 24) {
+                const days = Math.floor(hours / 24);
+                return days + 'd ' + (hours % 24) + 'h';
+            }
+            return hours + 'h ' + mins + 'm';
+        }
+        return uptime;
+    }
+
+    function getStatusClass(code) {
+        if (code >= 500) return 'server-error';
+        if (code >= 400) return 'client-error';
+        if (code >= 300) return 'redirect';
+        return 'success';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+}

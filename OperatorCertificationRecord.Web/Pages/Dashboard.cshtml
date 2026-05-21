@@ -1,0 +1,2324 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["ActivePage"] = "Dashboard";
+}
+
+
+<style>
+    /* ══════════════════════════════════════
+       Dashboard v2 — Clean & Modern
+       ══════════════════════════════════════ */
+
+    /* ── Hero Banner ── */
+    .db-hero {
+        background: linear-gradient(130deg, #7c2d12 0%, #c2410c 50%, #fb923c 100%);
+        border-radius: 16px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.25rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 6px 28px rgba(124,45,18,.18);
+    }
+    .db-hero::before {
+        content: '';
+        position: absolute;
+        right: -40px; top: -60px;
+        width: 220px; height: 220px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.08);
+        pointer-events: none;
+    }
+    .db-hero::after {
+        content: '';
+        position: absolute;
+        right: 80px; bottom: -50px;
+        width: 140px; height: 140px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.05);
+        pointer-events: none;
+    }
+    .db-hero-left { display: flex; align-items: center; gap: 1rem; position: relative; z-index: 1; }
+    .db-hero-avatar {
+        width: 64px; height: 64px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 24px; color: #fff;
+        background: rgba(255,255,255,.18);
+        border: 2px solid rgba(255,255,255,.25);
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .db-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .db-hero-name { font-size: 1.35rem; font-weight: 700; color: #fff; line-height: 1.2; }
+    .db-hero-dept { font-size: .82rem; color: rgba(255,255,255,.72); margin-top: 2px; }
+    .db-hero-right { text-align: right; position: relative; z-index: 1; }
+    .db-hero-date-label { font-size: .72rem; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .08em; }
+    .db-hero-date { font-size: .92rem; font-weight: 700; color: #fff; }
+    .db-hero-time {
+        font-size: .78rem;
+        color: rgba(255,255,255,.65);
+        margin-top: 2px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── KPI Row ── */
+    .db-kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+    .db-kpi {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid var(--gray-200);
+        padding: 1.15rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: .9rem;
+        transition: all .2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .db-kpi:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(0,0,0,.08);
+        border-color: var(--gray-300);
+    }
+    .db-kpi-icon {
+        width: 50px; height: 50px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; color: #fff;
+        flex-shrink: 0;
+    }
+    .db-kpi-icon.kpi-orange  { background: linear-gradient(135deg, #ea580c, #fb923c); }
+    .db-kpi-icon.kpi-violet  { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+    .db-kpi-icon.kpi-emerald { background: linear-gradient(135deg, #059669, #34d399); }
+    .db-kpi-body { flex: 1; min-width: 0; }
+    .db-kpi-label { font-size: .78rem; color: var(--gray-500); letter-spacing: .02em; }
+    .db-kpi-value { font-size: 1.75rem; font-weight: 900; color: var(--gray-900); line-height: 1.15; }
+    .db-kpi-sub { font-size: .72rem; color: var(--gray-400); margin-top: 2px; }
+    .db-kpi-delta {
+        display: inline-flex; align-items: center; gap: .2rem;
+        font-size: .72rem; font-weight: 700;
+        padding: 2px 7px; border-radius: 6px;
+        margin-left: .5rem;
+        vertical-align: middle;
+    }
+    .db-kpi-delta.up   { color: #dc2626; background: #fee2e2; }
+    .db-kpi-delta.down { color: #059669; background: #d1fae5; }
+    .db-kpi[role="button"] { cursor: pointer; }
+
+    /* Sparkline */
+    .db-kpi-spark { position: absolute; right: 16px; bottom: 12px; pointer-events: none; opacity: .5; }
+    .db-kpi-spark svg { width: 72px; height: 20px; display: block; }
+
+    /* ── Search wrapper override (match new theme) ── */
+    .qs-card {
+        border-radius: 16px !important;
+        border: 1px solid var(--gray-200) !important;
+        box-shadow: 0 2px 12px rgba(0,0,0,.06) !important;
+    }
+
+    /* ── Modals ── */
+    #expiringModal .modal-dialog { max-width: 900px; margin: auto; }
+    #expiringModal .modal-content { border-radius: 14px; box-shadow: 0 10px 40px rgba(12,38,64,0.12); }
+    #expiringModal .modal-header { background: linear-gradient(130deg, #7c2d12, #c2410c); color: #fff; border-radius: 14px 14px 0 0; border-bottom: none; }
+    #expiringModal .modal-title { font-weight: 800; font-size: 1.15rem; }
+    #expiringModal .modal-header .btn-close { filter: brightness(0) invert(1); }
+    #expiringModal .modal-body { max-height: calc(100vh - 220px); overflow-y: auto; padding: 1.25rem; }
+    #expiringModal .table { width: 100%; margin-bottom: 0; }
+    #expiringModal th, #expiringModal td { padding: 1rem 1.25rem; vertical-align: middle; }
+    #expiringModal thead th { background: var(--gray-50); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-600); }
+    #expiringModal tbody tr:nth-child(odd) { background: #fbfbfc; }
+    #expiringModal tbody tr:hover { background: #fff7ed; }
+    #expiringModal .btn-expiring { padding: .5rem .9rem; border-radius: .5rem; background:#f59e0b; color:#fff; border:none; }
+    #expiringModal .btn-expiring:hover { background:#d97706; color:#fff; }
+
+    /* Expiry date styling */
+    #expiringModal .expiry-date { font-weight:700; color: var(--danger); display: inline-flex; align-items: center; gap: .5rem; white-space: nowrap; font-size:1rem; letter-spacing:0.2px; }
+    #expiringModal .expiry-badge { margin-left: .25rem; font-size: .72rem; padding: .18rem .6rem; border-radius: 999px; color: #fff; vertical-align:middle; box-shadow: 0 2px 6px rgba(12,38,64,0.06); display:inline-flex; align-items:center; justify-content:center; min-width:56px; }
+    #expiringModal .expiry-soon { color: #b45309; }
+    #expiringModal .expiry-soon .expiry-badge { background: #facc15; color: #92400e; }
+    #expiringModal .expiry-soon .expiry-meta { color: #92400e; font-weight:600; }
+    #expiringModal .expiry-critical { color: #b91c1c; }
+    #expiringModal .expiry-critical .expiry-badge { background: #ef4444; }
+    #expiringModal .expiry-expired { color: #6b7280; opacity: .95; }
+    #expiringModal .expiry-expired .expiry-badge { background: #6b7280; }
+    #expiringModal .expiry-meta { font-size: .82rem; color: #6b7280; margin-left: .35rem; }
+    #expiringModal td.expiry-cell { text-align: center; width:160px; white-space: nowrap; }
+    #expiringModal thead th.expiry-col { text-align: center; }
+    &#64;media (max-width:576px){ #expiringModal td.expiry-cell{ white-space: normal; } }
+
+    /* Modal footer */
+    .expiring-modal-footer .btn-lg { padding: .55rem 1rem; font-size: .95rem; border-width:1px; }
+    .expiring-modal-footer .expiring-full-list { min-width:140px; border-radius:8px; }
+    .expiring-modal-footer .expiring-close { min-width:110px; border-radius:8px; box-shadow: 0 8px 20px rgba(16,24,40,0.12); }
+    .expiring-modal-footer .expiring-full-list i, .expiring-modal-footer .expiring-close i { vertical-align: -2px; }
+    .expiring-modal-footer .expiring-close:hover { transform: translateY(-1px); }
+    &#64;media (max-width:575px){ .expiring-modal-footer .btn-lg{width:100%; display:block; margin-bottom:.5rem} .expiring-modal-footer .me-auto{display:none} }
+
+    /* Employee modal */
+    #employeeExpiriesModal { z-index: 2150 !important; }
+    .modal-backdrop.employee-modal-backdrop { z-index: 2140 !important; background: rgba(0,0,0,0.45); }
+    #employeeExpiriesModal.modal.show { display: flex !important; align-items: center; justify-content: center; padding: 1.25rem !important; }
+    #employeeExpiriesModal .modal-dialog { margin: 0; max-width: 780px; width: min(780px, calc(100% - 3rem)); }
+    #employeeExpiriesModal .modal-content { transform: translateY(-8px) scale(.995); opacity: 0; transition: transform .28s cubic-bezier(.2,.9,.2,1), opacity .18s ease; border-radius:14px; }
+    #employeeExpiriesModal.modal.show .modal-content { transform: none; opacity: 1; }
+    &#64;media (max-width:767px){ #employeeExpiriesModal .modal-dialog{ width: calc(100% - 2rem); max-width:none } }
+
+    /* ── Responsive ── */
+    &#64;media (max-width:768px) {
+        .db-hero { flex-direction: column; align-items: flex-start; }
+        .db-hero-right { text-align: left; margin-top: .25rem; }
+        .db-kpi-row { grid-template-columns: 1fr 1fr; }
+        .db-kpi-value { font-size: 1.25rem; }
+    }
+    &#64;media (max-width:480px) {
+        .db-kpi-row { grid-template-columns: 1fr; }
+    }
+
+    /* ══════════════════════════════
+       Operator Training Record (OTR)
+       ══════════════════════════════ */
+    .otr-section {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid var(--gray-200);
+        box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    .otr-header {
+        background: linear-gradient(130deg, #1e3a5f 0%, #1d4ed8 100%);
+        color: #fff;
+        font-weight: 700;
+        font-size: .95rem;
+        padding: .65rem 1.25rem;
+        display: flex;
+        align-items: center;
+    }
+    .otr-body { padding: 0; }
+    .otr-row {
+        display: flex;
+        align-items: center;
+        padding: .65rem 1.25rem;
+        border-bottom: 1px solid var(--gray-100);
+        gap: 0;
+    }
+    .otr-row:last-child { border-bottom: none; }
+    .otr-row-alt { background: #f8fafc; }
+    .otr-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 110px;
+        padding: .35rem .5rem;
+        border-right: 1px solid var(--gray-200);
+        text-align: center;
+    }
+    .otr-label { font-size: .7rem; color: var(--gray-500); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 2px; }
+    .otr-val { font-size: 1.55rem; font-weight: 800; color: #1e3a5f; line-height: 1.1; }
+    .otr-unit { font-size: .7rem; color: var(--gray-400); }
+    .otr-dept-group {
+        display: flex;
+        flex-direction: column;
+        gap: .4rem;
+        padding-left: 1.25rem;
+        flex: 0 0 auto;
+    }
+    /* KPI Grid Layout */
+    .otr-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.65rem;
+        padding: 0.8rem;
+        align-items: stretch;
+    }
+    .otr-kpi-card {
+        background: #fff;
+        border: 1.5px solid #fed7aa;
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 72px;
+        transition: all .2s ease;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(249,115,22,.07);
+    }
+    .otr-kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #ea580c, #fb923c);
+    }
+    .otr-kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(249,115,22,.18);
+        border-color: #fb923c;
+    }
+    .otr-kpi-card-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        flex: 1;
+    }
+    .otr-kpi-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #fff7ed, #fed7aa);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .9rem;
+        color: #ea580c;
+        flex-shrink: 0;
+    }
+    .otr-kpi-label {
+        font-size: .55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #94a3b8;
+        letter-spacing: .05em;
+    }
+    .otr-kpi-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #ea580c;
+        line-height: 1.1;
+    }
+    .otr-kpi-unit {
+        font-size: .52rem;
+        color: #cbd5e1;
+        font-weight: 600;
+    }
+    
+    /* Process Cards Grid */
+    .otr-process-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+        padding: 0.8rem;
+        align-items: stretch;
+    }
+    .otr-process-card {
+        background: #fff;
+        border: 1.5px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 0.75rem;
+        min-height: 72px;
+        transition: all .2s ease;
+        text-align: left;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 0 1px 4px rgba(29,78,216,.06);
+    }
+    .otr-process-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #1d4ed8, #3b82f6);
+    }
+    .otr-process-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(29,78,216,.18);
+        border-color: #3b82f6;
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    }
+    .otr-process-card.active-dept {
+        background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+        border-color: #1d4ed8;
+        box-shadow: 0 6px 20px rgba(29,78,216,.35);
+    }
+    .otr-process-card.active-dept .otr-process-name { color: #fff; }
+
+    .otr-process-card.active-dept .otr-process-icon {
+        background: rgba(255,255,255,.2);
+        color: #fff;
+    }
+    .otr-process-card:active {
+        transform: translateY(-1px);
+    }
+    .otr-process-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #eff6ff, #bfdbfe);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .9rem;
+        color: #1d4ed8;
+        flex-shrink: 0;
+    }
+    .otr-process-text { display: flex; flex-direction: column; gap: 0.1rem; }
+    .otr-process-name {
+        font-size: .88rem;
+        font-weight: 700;
+        color: #1e3a5f;
+        line-height: 1.3;
+    }
+    
+    /* Grid wrapper for KPI + Process */
+    .otr-grid-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        padding: 0;
+    }
+    
+    @@media (max-width: 1024px) {
+        .otr-grid-container {
+            grid-template-columns: 1fr;
+        }
+        .otr-kpi-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .otr-process-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @@media (max-width: 768px) {
+        .otr-kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            padding: 0.65rem;
+        }
+        .otr-process-grid {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            padding: 0.65rem;
+        }
+        .otr-kpi-card {
+            padding: 0.7rem;
+            min-height: 60px;
+        }
+        .otr-process-card {
+            padding: 0.8rem;
+            min-height: 60px;
+        }
+        .otr-kpi-value {
+            font-size: 1.25rem;
+        }
+        .otr-process-name {
+            font-size: .65rem;
+        }
+    }
+    
+    /* KPI Department Filter */
+    .kpi-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    .kpi-filter-label {
+        font-size: .75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--gray-600);
+        letter-spacing: .04em;
+    }
+    .kpi-dept-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .kpi-dept-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem 0.95rem;
+        background: #1d4ed8;
+        color: #fff;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        font-size: .75rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .2s ease;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+    .kpi-dept-btn:hover {
+        background: #1e40af;
+        transform: translateY(-2px);
+    }
+    .kpi-dept-btn.active {
+        background: linear-gradient(135deg, #ea580c, #fb923c);
+        border-color: #c2410c;
+        box-shadow: 0 4px 12px rgba(249,115,22,.25);
+    }
+    .kpi-dept-btn.all-data {
+        background: #0f172a;
+    }
+    .kpi-dept-btn.all-data:hover {
+        background: #1e293b;
+    }
+    .kpi-dept-btn.all-data.active {
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        border-color: #475569;
+    }
+    @@media (max-width: 768px) {
+        .otr-row { flex-wrap: wrap; gap: .5rem; padding: .75rem; }
+        .otr-stat { min-width: 90px; border-right: none; }
+        .otr-dept-group { flex-direction: row; flex-wrap: wrap; padding-left: 0; }
+    }
+
+    /* ══════════════════════════════
+       Skill Level Chart
+       ══════════════════════════════ */
+    .sl-section {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid var(--gray-200);
+        box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    .sl-header {
+        background: linear-gradient(130deg, #1e3a5f 0%, #1d4ed8 100%);
+        color: #fff;
+        font-weight: 700;
+        font-size: .95rem;
+        padding: .65rem 1.25rem;
+        display: flex;
+        align-items: center;
+    }
+    .sl-body { padding: 1.25rem; }
+    .sl-chart-wrap { position: relative; height: 280px; }
+    .sl-legend {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: .85rem;
+        flex-wrap: wrap;
+    }
+    .sl-legend-title { font-size: .78rem; font-weight: 700; color: var(--gray-600); }
+    .sl-legend-items { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .sl-legend-item {
+        display: flex; align-items: center; gap: .3rem;
+        font-size: .78rem; font-weight: 600; color: var(--gray-700);
+    }
+    .sl-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; display: inline-block; }
+
+    /* ══════════════════════════════
+       Bottom two-column grid (legacy - kept for reference)
+       ══════════════════════════════ */
+    .db-col-search, .db-col-download { min-width: 0; }
+    .dbc-search-header {
+        background: linear-gradient(130deg, #1e3a5f 0%, #1d4ed8 100%);
+        color: #fff;
+        font-weight: 700;
+        font-size: .95rem;
+        padding: .65rem 1.25rem;
+        border-radius: 14px 14px 0 0;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0;
+    }
+    .db-col-search .qs-card {
+        border-radius: 0 0 14px 14px !important;
+        border-top: none !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,.07) !important;
+        margin-bottom: 0 !important;
+    }
+    .db-col-search .qs-header { display: none; }
+
+    /* ══════════════════════════════
+       Main layout: Download+Search (left) / Quick Actions (right)
+       ══════════════════════════════ */
+    .db-main-layout {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 1.25rem;
+        align-items: start;
+        margin-bottom: 1.5rem;
+    }
+    .db-left-col {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 0;
+    }
+    .db-right-col {
+        min-width: 0;
+        height: auto;
+    }
+    /* Remove any fixed/min-height that creates blank space */
+    .db-main-layout .otr-section {
+        height: auto;
+        min-height: unset;
+    }
+
+    @@media (max-width: 1100px) {
+        .db-main-layout {
+            grid-template-columns: 1fr;
+        }
+        .db-dl-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .db-qa-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    @@media (max-width: 768px) {
+        .db-dl-grid { grid-template-columns: repeat(3, 1fr); }
+        .db-qa-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @@media (max-width: 600px) {
+        .db-dl-grid { grid-template-columns: repeat(2, 1fr); }
+        .db-qa-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @@media (max-width: 380px) {
+        .db-dl-grid { grid-template-columns: repeat(2, 1fr); }
+        .db-qa-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ══════════════════════════════
+       Download Reports Cards
+       ══════════════════════════════ */
+    .db-dl-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: .75rem;
+        padding: 1rem 1.15rem;
+    }
+    
+    .db-qa-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: .75rem;
+        padding: 1rem 1.15rem;
+    }
+    
+    .db-dl-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        padding: 1rem .65rem .85rem;
+        background: var(--gray-50);
+        border: 1.5px solid var(--gray-200);
+        border-radius: 14px;
+        text-decoration: none;
+        cursor: pointer;
+        text-align: center;
+        height: auto;
+        min-height: unset;
+        transition: all .18s ease;
+        position: relative;
+        overflow: hidden;
+        font-family: inherit;
+        width: 100%;
+    }
+    .db-dl-card:hover {
+        background: #fff;
+        box-shadow: 0 6px 20px rgba(0,0,0,.10);
+        transform: translateY(-3px);
+        text-decoration: none;
+        border-color: transparent;
+    }
+    .db-dl-card-strip {
+        position: absolute; top: 0; left: 0; right: 0;
+        height: 4px; border-radius: 14px 14px 0 0;
+    }
+    .db-dl-card-icon {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.45rem;
+        flex-shrink: 0;
+        transition: transform .15s;
+    }
+    .db-dl-card:hover .db-dl-card-icon { transform: scale(1.1); }
+    .db-dl-card-title {
+        font-size: .8rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.3;
+    }
+    
+    /* Quick Actions */
+    .db-qa-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        padding: .85rem .65rem;
+        background: var(--gray-50);
+        border: 1.5px solid var(--gray-200);
+        border-radius: 12px;
+        text-decoration: none;
+        cursor: pointer;
+        text-align: center;
+        height: auto;
+        min-height: unset;
+        transition: all .18s ease;
+        position: relative;
+        overflow: hidden;
+        font-family: inherit;
+    }
+    .db-qa-card:hover {
+        background: #fff;
+        box-shadow: 0 6px 20px rgba(0,0,0,.10);
+        transform: translateY(-3px);
+        text-decoration: none;
+        border-color: transparent;
+    }
+    .db-qa-card-badge {
+        display: inline-block;
+        font-size: .6rem;
+        font-weight: 700;
+        background: #fcd34d;
+        color: #92400e;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        margin-bottom: .15rem;
+    }
+    .db-qa-card-icon {
+        width: 44px; height: 44px;
+        border-radius: 11px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+        transition: transform .15s;
+    }
+    .db-qa-card:hover .db-qa-card-icon { transform: scale(1.1); }
+    .db-qa-card-title {
+        font-size: .74rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    /* ════════════════════════════════════════════════════
+       Design Enhancement Layer (frontend-design skill)
+       ════════════════════════════════════════════════════ */
+
+    @@keyframes db-rise {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @@keyframes db-rise-fast {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @@keyframes db-avatar-glow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(251,146,60,.45), 0 0 0 0 rgba(251,146,60,.2); }
+        50%       { box-shadow: 0 0 0 7px rgba(251,146,60,.18), 0 0 0 16px rgba(251,146,60,.05); }
+    }
+    @@keyframes db-header-shimmer {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(500%); }
+    }
+
+    /* Staggered page-load reveal */
+    .db-hero         { animation: db-rise 0.52s cubic-bezier(.22,.9,.36,1) both; }
+    .otr-section     { animation: db-rise 0.52s cubic-bezier(.22,.9,.36,1) 0.06s both; }
+    .sl-section      { animation: db-rise 0.52s cubic-bezier(.22,.9,.36,1) 0.12s both; }
+    .db-main-layout  { animation: db-rise 0.52s cubic-bezier(.22,.9,.36,1) 0.18s both; }
+
+    .otr-kpi-card:nth-child(1) { animation: db-rise-fast .4s ease .08s both; }
+    .otr-kpi-card:nth-child(2) { animation: db-rise-fast .4s ease .15s both; }
+    .otr-kpi-card:nth-child(3) { animation: db-rise-fast .4s ease .22s both; }
+    .otr-kpi-card:nth-child(4) { animation: db-rise-fast .4s ease .29s both; }
+    .otr-kpi-card:nth-child(5) { animation: db-rise-fast .4s ease .36s both; }
+    .otr-kpi-card:nth-child(6) { animation: db-rise-fast .4s ease .43s both; }
+
+    .otr-process-card:nth-child(1) { animation: db-rise-fast .4s ease .10s both; }
+    .otr-process-card:nth-child(2) { animation: db-rise-fast .4s ease .18s both; }
+    .otr-process-card:nth-child(3) { animation: db-rise-fast .4s ease .26s both; }
+    .otr-process-card:nth-child(4) { animation: db-rise-fast .4s ease .34s both; }
+
+    .db-dl-card:nth-child(1) { animation: db-rise-fast .4s ease .08s both; }
+    .db-dl-card:nth-child(2) { animation: db-rise-fast .4s ease .13s both; }
+    .db-dl-card:nth-child(3) { animation: db-rise-fast .4s ease .18s both; }
+    .db-dl-card:nth-child(4) { animation: db-rise-fast .4s ease .23s both; }
+    .db-dl-card:nth-child(5) { animation: db-rise-fast .4s ease .28s both; }
+    .db-dl-card:nth-child(6) { animation: db-rise-fast .4s ease .33s both; }
+
+    /* Avatar: pulsing orange glow */
+    .db-hero-avatar { animation: db-avatar-glow 3.5s ease-in-out infinite; }
+
+    /* Hero name: heavier display weight */
+    .db-hero-name {
+        font-family: 'Akt', sans-serif;
+        font-size: 1.4rem; font-weight: 800; letter-spacing: -.025em;
+    }
+
+    /* KPI numbers: distinctive tabular display font */
+    .otr-kpi-value, .db-kpi-value {
+        font-family: 'Akt', sans-serif;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -.04em;
+    }
+
+    /* Section headers: sweeping shimmer gloss */
+    .otr-header, .sl-header, .dbc-search-header { overflow: hidden; }
+    .otr-header::after, .sl-header::after, .dbc-search-header::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; bottom: 0; width: 18%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+        animation: db-header-shimmer 5s linear 1.2s infinite;
+        pointer-events: none;
+    }
+
+    /* OTR KPI cards: left-edge accent on hover + glow */
+    .otr-kpi-card::after {
+        content: '';
+        position: absolute;
+        left: 0; top: 20%; bottom: 20%;
+        width: 3px;
+        background: linear-gradient(180deg, #fb923c, #ea580c);
+        border-radius: 0 2px 2px 0;
+        opacity: 0;
+        transition: opacity .2s;
+    }
+    .otr-kpi-card:hover::after { opacity: 1; }
+    .otr-kpi-card:hover {
+        box-shadow: 0 8px 28px rgba(249,115,22,.2), 0 0 0 1.5px rgba(249,115,22,.35);
+    }
+
+    /* Download card strip: brighter on hover */
+    .db-dl-card:hover .db-dl-card-strip { filter: brightness(1.2) saturate(1.15); }
+
+    /* Department filter buttons: pill shape */
+    .kpi-dept-btn { border-radius: 50px; }
+
+    /* Quick action cards: deeper lift shadow */
+    .db-qa-card:hover {
+        box-shadow: 0 12px 32px rgba(0,0,0,.13), 0 0 0 1.5px rgba(0,0,0,.07);
+    }
+
+    /* ═══ FORCE Modal Centering ═══ */
+    .modal {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1050 !important;
+    }
+
+    .modal.show {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 1rem !important;
+        box-sizing: border-box !important;
+    }
+
+    .modal-dialog {
+        position: relative !important;
+        width: auto !important;
+        margin: 0 auto !important;
+    }
+
+    .modal-dialog-centered {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .modal-content {
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+
+    .modal-backdrop {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1040 !important;
+    }
+</style>
+
+<!-- ═══════════ Hero Banner ═══════════ -->
+<div class="db-hero">
+    <div class="db-hero-left">
+        @{
+            var userInitials = !string.IsNullOrWhiteSpace(Model.UserName) ? Model.UserName.Substring(0, 1).ToUpper() : "U";
+        }
+        <div class="db-hero-avatar">
+            @if (!string.IsNullOrEmpty(Model.UserPhotoPath))
+            {
+                <img src="/api/photo/@Uri.EscapeDataString(Model.UserPhotoPath)" alt="@Model.UserName"
+                     onerror="this.onerror=null;this.parentElement.innerHTML='<span style=&quot;display:flex;align-items:center;justify-content:center;width:100%;height:100%;&quot;>@userInitials</span>';" />
+            }
+            else
+            {
+                @userInitials
+            }
+        </div>
+        <div>
+            <div class="db-hero-name">Welcome back, @Model.UserName</div>
+            <div class="db-hero-dept">@Model.DepartmentName &bull; <span id="currentDate"></span></div>
+        </div>
+    </div>
+    <div class="db-hero-right">
+        <div class="db-hero-date-label">Logged In</div>
+        <div class="db-hero-date">@Model.LoginDate</div>
+        <div class="db-hero-time" id="currentTime"></div>
+    </div>
+</div>
+
+<!-- ═══════════ Operator Training Record ═══════════ -->
+@if (Model.IsCurrentUserAdmin)
+{
+<div class="otr-section">
+    <div class="otr-header">
+        <i class="bi bi-clipboard2-data-fill me-2"></i>Operator Training record
+    </div>
+    
+    <!-- Department Filter -->
+    <div style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--gray-200); background: #f8fafc;">
+        <div class="kpi-filter-row">
+            <span class="kpi-filter-label"><i class="bi bi-funnel-fill me-2"></i>Filter by Department:</span>
+            <div class="kpi-dept-buttons">
+                <button type="button" class="kpi-dept-btn active all-data" onclick="filterKpiByDept('all', this)">All Data</button>
+                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('ta', this)">TA Dept</button>
+                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('qa', this)">QA Dept</button>
+                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('sc', this)">SC Dept</button>
+                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('planning', this)">Planning</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="otr-body">
+        <div class="otr-grid-container">
+            <!-- KPI Cards (Left) -->
+            <div class="otr-kpi-grid">
+                <div class="otr-kpi-card">
+                    <div class="otr-kpi-card-left">
+                        <div class="otr-kpi-label">Operator</div>
+                        <div class="otr-kpi-value" id="kpiOperator" data-all="@Model.TotalEmployees">@Model.TotalEmployees</div>
+                        <div class="otr-kpi-unit">person</div>
+                    </div>
+                    <div class="otr-kpi-icon"><i class="bi bi-people-fill"></i></div>
+                </div>
+                <div class="otr-kpi-card">
+                    <div class="otr-kpi-card-left">
+                        <div class="otr-kpi-label">Total Process</div>
+                        <div class="otr-kpi-value" id="kpiProcess" data-all="@Model.TotalProcesses">@Model.TotalProcesses</div>
+                        <div class="otr-kpi-unit">process</div>
+                    </div>
+                    <div class="otr-kpi-icon"><i class="bi bi-diagram-3-fill"></i></div>
+                </div>
+                <div class="otr-kpi-card">
+                    <div class="otr-kpi-card-left">
+                        <div class="otr-kpi-label">Total Skill</div>
+                        <div class="otr-kpi-value" id="kpiSkill" data-all="@Model.TotalSkills">@Model.TotalSkills</div>
+                        <div class="otr-kpi-unit">skill</div>
+                    </div>
+                    <div class="otr-kpi-icon"><i class="bi bi-stars"></i></div>
+                </div>
+                <div class="otr-kpi-card">
+                    <div class="otr-kpi-card-left">
+                        <div class="otr-kpi-label">Handicap</div>
+                        <div class="otr-kpi-value" id="kpiHandicap" data-all="@Model.HandicapCount">@Model.HandicapCount</div>
+                        <div class="otr-kpi-unit">person</div>
+                    </div>
+                    <div class="otr-kpi-icon"><i class="bi bi-heart-pulse-fill"></i></div>
+                </div>
+                <div class="otr-kpi-card">
+                    <div class="otr-kpi-card-left">
+                        <div class="otr-kpi-label">Operator 1 skill</div>
+                        <div class="otr-kpi-value" id="kpiOneSkill" data-all="@Model.OneSkillCount">@Model.OneSkillCount</div>
+                        <div class="otr-kpi-unit">person</div>
+                    </div>
+                    <div class="otr-kpi-icon"><i class="bi bi-person-check-fill"></i></div>
+                </div>
+                <div class="otr-kpi-card">
+                    <div class="otr-kpi-card-left">
+                        <div class="otr-kpi-label">Operator no skill</div>
+                        <div class="otr-kpi-value" id="kpiNoSkill" data-all="@Model.NoSkillCount">@Model.NoSkillCount</div>
+                        <div class="otr-kpi-unit">person</div>
+                    </div>
+                    <div class="otr-kpi-icon"><i class="bi bi-person-x-fill"></i></div>
+                </div>
+            </div>
+            
+            <!-- Process Category Cards (Right) -->
+            <div class="otr-process-grid">
+                <button type="button" class="otr-process-card" id="pcTa" onclick="handleProcessClick('Ta Manufacturing')">
+                    <div class="otr-process-icon"><i class="bi bi-gear-fill"></i></div>
+                    <div class="otr-process-text">
+                        <div class="otr-process-name">Ta Manufacturing</div>
+                    </div>
+                </button>
+                <button type="button" class="otr-process-card" id="pcQa" onclick="handleProcessClick('QA')">
+                    <div class="otr-process-icon"><i class="bi bi-shield-check"></i></div>
+                    <div class="otr-process-text">
+                        <div class="otr-process-name">QA</div>
+                    </div>
+                </button>
+                <button type="button" class="otr-process-card" id="pcSc" onclick="handleProcessClick('SC Manufacturing')">
+                    <div class="otr-process-icon"><i class="bi bi-lightning-charge-fill"></i></div>
+                    <div class="otr-process-text">
+                        <div class="otr-process-name">SC Manufacturing</div>
+                    </div>
+                </button>
+                <button type="button" class="otr-process-card" id="pcPlanning" onclick="handleProcessClick('Production & Material Planning')">
+                    <div class="otr-process-icon"><i class="bi bi-clipboard2-check-fill"></i></div>
+                    <div class="otr-process-text">
+                        <div class="otr-process-name">Production & Material Planning</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+<!-- ═══════════ Skill Level Chart ═══════════ -->
+@if (Model.IsCurrentUserAdmin)
+{
+<div class="sl-section">
+    <div class="sl-header">
+        <i class="bi bi-bar-chart-fill me-2"></i>Skill level
+    </div>
+    <div class="sl-body">
+        <div class="sl-chart-wrap">
+            <canvas id="skillLevelChart"></canvas>
+        </div>
+        <div class="sl-legend">
+            <div class="sl-legend-title">Meaning:</div>
+            <div class="sl-legend-items">
+                <span class="sl-legend-item"><span class="sl-dot" style="background:#ef4444"></span>X</span>
+                <span class="sl-legend-item"><span class="sl-dot" style="background:#86efac"></span>I</span>
+                <span class="sl-legend-item"><span class="sl-dot" style="background:#16a34a"></span>L</span>
+                <span class="sl-legend-item"><span class="sl-dot" style="background:#facc15"></span>U</span>
+                <span class="sl-legend-item"><span class="sl-dot" style="background:#f97316"></span>O</span>
+                <span class="sl-legend-item"><span class="sl-dot" style="background:#0f172a"></span>TTL</span>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+<!-- ═══════════ Download Reports / Quick Actions / Search ═══════════ -->
+<div class="db-main-layout">
+
+    <!-- LEFT COLUMN: Download Reports + Search -->
+    <div class="db-left-col">
+
+        <!-- Download Reports -->
+        <div class="otr-section">
+            <div class="otr-header">
+                <i class="bi bi-download me-2"></i>Download Reports
+            </div>
+            <div class="db-dl-grid">
+                <button type="button" class="db-dl-card" onclick="openSkillInventoryModal()">
+                    <span class="db-dl-card-strip" style="background:linear-gradient(90deg,#0ea5e9,#6366f1);"></span>
+                    <span class="db-dl-card-icon" style="background:#e0f2fe;color:#0284c7;"><i class="bi bi-grid-3x3-gap-fill"></i></span>
+                    <span class="db-dl-card-title">Skill Inventory</span>
+                </button>
+                <button type="button" class="db-dl-card" data-bs-toggle="modal" data-bs-target="#operatorNoSkillModal">
+                    <span class="db-dl-card-strip" style="background:linear-gradient(90deg,#14b8a6,#06b6d4);"></span>
+                    <span class="db-dl-card-icon" style="background:#f0fdfa;color:#0d9488;"><i class="bi bi-person-x-fill"></i></span>
+                    <span class="db-dl-card-title">Operator No-skill</span>
+                </button>
+                <button type="button" class="db-dl-card" data-bs-toggle="modal" data-bs-target="#expiryModal">
+                    <span class="db-dl-card-strip" style="background:linear-gradient(90deg,#f59e0b,#ef4444);"></span>
+                    <span class="db-dl-card-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-calendar-x-fill"></i></span>
+                    <span class="db-dl-card-title">Expiry Date</span>
+                </button>
+                <button type="button" class="db-dl-card" data-bs-toggle="modal" data-bs-target="#disqualificationModal">
+                    <span class="db-dl-card-strip" style="background:linear-gradient(90deg,#dc2626,#7c3aed);"></span>
+                    <span class="db-dl-card-icon" style="background:#fee2e2;color:#dc2626;"><i class="bi bi-slash-circle-fill"></i></span>
+                    <span class="db-dl-card-title">Disqualification</span>
+                </button>
+                <button type="button" class="db-dl-card" onclick="openObsoletedModal()">
+                    <span class="db-dl-card-strip" style="background:linear-gradient(90deg,#92400e,#b45309);"></span>
+                    <span class="db-dl-card-icon" style="background:#fef3c7;color:#b45309;"><i class="bi bi-archive-fill"></i></span>
+                    <span class="db-dl-card-title">Obsoleted</span>
+                </button>
+                <button type="button" class="db-dl-card" data-bs-toggle="modal" data-bs-target="#resignModal">
+                    <span class="db-dl-card-strip" style="background:linear-gradient(90deg,#1e3a8a,#334155);"></span>
+                    <span class="db-dl-card-icon" style="background:#f1f5f9;color:#334155;"><i class="bi bi-box-arrow-right"></i></span>
+                    <span class="db-dl-card-title">Resignation</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Individual Training Record Search -->
+        <div class="db-col-search">
+            <div class="dbc-search-header">
+                <i class="bi bi-person-lines-fill me-2"></i>Individual Training Record:
+            </div>
+        <!-- Search card content -->
+        @if (string.IsNullOrEmpty(Model.CurrentUserCode))
+        {
+        <!-- Guest: prompt to log in -->
+        <div class="qs-card">
+            <div class="qs-header">
+                <i class="bi bi-lock-fill qs-header-icon"></i>
+                <div class="qs-header-title">Login to Access Records</div>
+            </div>
+            <div class="qs-body" style="padding:1.75rem 1.25rem;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;">
+                    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#3b82f6);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-person-lock" style="font-size:2rem;color:#fff;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700;font-size:1rem;color:#0f172a;">Employee Search Requires Login</div>
+                        <div style="font-size:0.82rem;color:#6b7280;margin-top:0.3rem;">Sign in to view training records and employee profiles.</div>
+                    </div>
+                    <a href="/Login"
+                       style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.8rem;
+                              background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;
+                              border-radius:50px;font-weight:700;font-size:0.95rem;
+                              text-decoration:none;transition:opacity 0.15s,transform 0.12s;"
+                       onmouseover="this.style.opacity='0.88';this.style.transform='scale(1.03)'"
+                       onmouseout="this.style.opacity='1';this.style.transform='scale(1)'">
+                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    </a>
+                </div>
+            </div>
+        </div>
+        }
+        else if (Model.IsCurrentUserAdmin)
+        {
+        <div class="qs-card">
+            <style>
+                /* ── Quick Search Card ── */
+                .qs-card {
+                    background: #fff;
+                    border-radius: 18px;
+                box-shadow: 0 4px 24px rgba(249,115,22,0.10), 0 1px 4px rgba(0,0,0,0.04);
+                overflow: hidden;
+                border: 1px solid rgba(249,115,22,0.15);
+            }
+            .qs-header {
+                background: linear-gradient(130deg, #7c2d12 0%, #c2410c 55%, #fb923c 100%);
+                padding: 0.6rem 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+            }
+            .qs-header-icon {
+                font-size: 0.95rem; color: rgba(255,255,255,0.8);
+                flex-shrink: 0;
+            }
+            .qs-header-title { color: #fff; font-weight: 600; font-size: 0.88rem; margin: 0; }
+            .qs-header-sub   { display: none; }
+            .qs-body { padding: 1rem 1.25rem; }
+
+            /* Input row */
+            .qs-input-wrap {
+                display: flex;
+                align-items: center;
+                background: var(--gray-50);
+                border: 2px solid #fed7aa;
+                border-radius: 50px;
+                padding: 0.38rem 0.5rem 0.38rem 1.1rem;
+                gap: 0.5rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            max-width: 680px;
+        }
+        .qs-input-wrap:focus-within {
+            border-color: #f97316;
+            box-shadow: 0 0 0 3px rgba(249,115,22,0.14);
+            background: #fff;
+        }
+        .qs-input-icon { color: #f97316; font-size: 1rem; flex-shrink: 0; }
+        #qs-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.97rem;
+            color: #0f172a;
+            padding: 0.25rem 0;
+        }
+        #qs-input::placeholder { color: #9ca3af; }
+        #qs-clear-btn {
+            border: none; background: transparent; color: #9ca3af; cursor: pointer;
+            padding: 0.2rem 0.4rem; border-radius: 50px; line-height: 1;
+            display: none;
+            transition: color 0.15s, background 0.15s;
+        }
+        #qs-clear-btn:hover { color: var(--danger); background: var(--danger-light); }
+        #qs-spinner {
+            width: 18px; height: 18px;
+            border: 2px solid #fed7aa;
+            border-top-color: #f97316;
+            border-radius: 50%;
+            animation: qs-spin 0.6s linear infinite;
+            display: none;
+            flex-shrink: 0;
+        }
+        @@keyframes qs-spin { to { transform: rotate(360deg); } }
+        #qs-search-btn {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 0.45rem 1.1rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 0.35rem;
+            transition: opacity 0.15s, transform 0.12s;
+            flex-shrink: 0;
+        }
+        #qs-search-btn:hover { opacity: 0.9; transform: scale(1.03); }
+
+        /* Hint pills */
+        .qs-hint {
+            display: flex; flex-wrap: wrap; gap: 0.45rem;
+            margin-top: 0.75rem; align-items: center;
+        }
+        .qs-hint-label { font-size: 0.78rem; color: #9ca3af; }
+        .qs-hint-pill {
+            font-size: 0.76rem; padding: 0.15rem 0.65rem;
+            border-radius: 999px; border: 1px solid #fed7aa;
+            color: #ea580c; background: #fff7ed;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        }
+        .qs-hint-pill:hover { background: #ffedd5; border-color: #f97316; }
+
+        /* Results area - scrollable container */
+        #qs-results-area {
+            margin-top: 1.1rem;
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: #f97316 #f5f5f5;
+        }
+        /* Scrollbar styling for Chromium browsers */
+        #qs-results-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        #qs-results-area::-webkit-scrollbar-track {
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+        #qs-results-area::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #f97316, #ea580c);
+            border-radius: 10px;
+            border: 2px solid #f5f5f5;
+        }
+        #qs-results-area::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #fb923c, #f97316);
+        }
+
+        /* result count bar */
+        .qs-count-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 0.7rem;
+            animation: qs-fadein 0.22s ease both;
+        }
+        .qs-count-badge {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #fff; border-radius: 999px;
+            padding: 0.18rem 0.65rem; font-size: 0.8rem; font-weight: 700;
+        }
+        .qs-count-text { color: #6b7280; font-size: 0.85rem; }
+        .qs-query-pill {
+            background: #fff7ed; color: #ea580c;
+            border: 1px solid #fed7aa; border-radius: 999px;
+            padding: 0.15rem 0.65rem; font-size: 0.78rem; font-weight: 600;
+        }
+
+        /* Result cards */
+        .qs-results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.75rem;
+        }
+        .qs-emp-card {
+            border: 1.5px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+            background: #fff;
+            display: flex; flex-direction: column; gap: 0.55rem;
+            transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+            animation: qs-fadein 0.28s cubic-bezier(0.22,1,0.36,1) both;
+            cursor: default;
+        }
+        .qs-emp-card:hover {
+            border-color: #f97316;
+            box-shadow: 0 6px 20px rgba(249,115,22,0.13);
+            transform: translateY(-2px);
+        }
+        .qs-emp-card.qs-exact {
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--success-light), #fff);
+            box-shadow: 0 4px 14px rgba(5,150,105,0.09);
+        }
+        .qs-emp-top { display: flex; align-items: center; gap: 0.65rem; }
+        .qs-emp-avatar {
+            width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: #f97316; font-weight: 700; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .qs-exact .qs-emp-avatar { background: linear-gradient(135deg, var(--success), #10b981); color: #fff; }
+        .qs-emp-name { font-weight: 700; font-size: 0.95rem; color: #0f172a; line-height: 1.25; }
+        .qs-emp-code { font-size: 0.78rem; color: #6b7280; margin-top: 1px; }
+        .qs-exact-tag {
+            margin-left: auto; flex-shrink: 0;
+            font-size: 0.7rem; font-weight: 700;
+            background: var(--success-light); color: var(--success-dark);
+            border: 1px solid #6ee7b7;
+            border-radius: 999px; padding: 0.1rem 0.5rem;
+        }
+        .qs-resigned-tag {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+            background: #fee2e2; color: #b91c1c;
+            border: 1px solid #fca5a5; border-radius: 999px;
+            padding: 0.1rem 0.5rem; white-space: nowrap;
+        }
+        .qs-emp-card.qs-resigned { opacity: 0.72; }
+        .qs-emp-card.qs-resigned .qs-emp-avatar { filter: grayscale(60%); }
+        .qs-emp-meta {
+            display: flex; flex-wrap: wrap; gap: 0.4rem;
+            font-size: 0.78rem; color: #6b7280;
+        }
+        .qs-meta-chip {
+            background: var(--gray-100); border-radius: 6px;
+            padding: 0.15rem 0.55rem;
+            display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .qs-grade-chip {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #fff; border-radius: 6px;
+            padding: 0.15rem 0.55rem; font-weight: 700;
+        }
+        .qs-exact .qs-grade-chip { background: linear-gradient(135deg, var(--success), #10b981); }
+        .qs-emp-actions { display: flex; gap: 0.45rem; margin-top: 0.2rem; }
+        .qs-btn-view {
+            flex: 1; text-align: center;
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: #fff; border: none; border-radius: 8px;
+            padding: 0.4rem 0.6rem; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; text-decoration: none;
+            transition: opacity 0.15s, transform 0.12s;
+        }
+        .qs-exact .qs-btn-view { background: linear-gradient(135deg, var(--success), #10b981); }
+        .qs-btn-view:hover { opacity: 0.88; transform: scale(1.02); color: #fff; text-decoration: none; }
+        .qs-btn-edit {
+            flex: 1; text-align: center;
+            background: var(--gray-100); color: #0f172a; border: 1.5px solid var(--gray-200);
+            border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; text-decoration: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .qs-btn-edit:hover { background: #fff7ed; border-color: #f97316; color: #ea580c; text-decoration: none; }
+
+        /* Empty state */
+        .qs-empty {
+            text-align: center; padding: 2.5rem 1rem;
+            animation: qs-fadein 0.3s ease both;
+        }
+        .qs-empty-icon { font-size: 2.8rem; color: #fdba74; margin-bottom: 0.6rem; }
+        .qs-empty-title { font-weight: 700; color: #374151; font-size: 1rem; }
+        .qs-empty-sub { color: #9ca3af; font-size: 0.85rem; margin-top: 0.3rem; }
+
+        @@keyframes qs-fadein {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* stagger cards */
+        .qs-emp-card:nth-child(2) { animation-delay: 0.04s; }
+        .qs-emp-card:nth-child(3) { animation-delay: 0.08s; }
+        .qs-emp-card:nth-child(4) { animation-delay: 0.12s; }
+        .qs-emp-card:nth-child(5) { animation-delay: 0.16s; }
+        .qs-emp-card:nth-child(6) { animation-delay: 0.20s; }
+    </style>
+
+    <!-- Header bar -->
+    <div class="qs-header">
+        <i class="bi bi-search qs-header-icon"></i>
+        <div class="qs-header-title">Quick Employee Search</div>
+    </div>
+
+    <!-- Body -->
+    <div class="qs-body">
+        <!-- Input row -->
+        <div class="qs-input-wrap" id="qs-input-wrap">
+            <i class="bi bi-person-search qs-input-icon"></i>
+            <input type="text" id="qs-input" placeholder="Employee ID or name..." autocomplete="off" />
+            <div id="qs-spinner"></div>
+            <button type="button" id="qs-clear-btn" title="Clear search"><i class="bi bi-x-lg"></i></button>
+            <button type="button" id="qs-search-btn"><i class="bi bi-search"></i> Search</button>
+        </div>
+
+        <!-- Hint pills -->
+        <div class="qs-hint">
+            <span class="qs-hint-label">Try:</span>
+        </div>
+
+        <!-- Results -->
+        <div id="qs-results-area"></div>
+    </div>
+</div>
+        }
+        else
+        {
+        <!-- Non-admin: show own profile link -->
+        <div class="qs-card">
+            <div class="qs-header">
+                <i class="bi bi-person-fill qs-header-icon"></i>
+                <div class="qs-header-title">My Training Record</div>
+            </div>
+            <div class="qs-body" style="padding: 1.5rem 1.25rem;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;">
+                    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-person-fill" style="font-size:2rem;color:#fff;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700;font-size:1rem;color:#0f172a;">@Model.UserName</div>
+                        <div style="font-size:0.82rem;color:#6b7280;margin-top:0.2rem;">@Model.CurrentUserCode</div>
+                    </div>
+                    <a href="/ViewUser?empCode=@Model.CurrentUserCode"
+                       style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.6rem;
+                              background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;
+                              border-radius:50px;font-weight:700;font-size:0.95rem;
+                              text-decoration:none;transition:opacity 0.15s,transform 0.12s;"
+                       onmouseover="this.style.opacity='0.88';this.style.transform='scale(1.03)'"
+                       onmouseout="this.style.opacity='1';this.style.transform='scale(1)'">
+                        <i class="bi bi-eye-fill"></i> View My Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+        }
+        </div><!-- end db-col-search -->
+    </div><!-- end db-left-col -->
+
+    <!-- RIGHT COLUMN: Quick Actions -->
+    <div class="otr-section db-right-col">
+        <div class="otr-header" style="background: linear-gradient(130deg, #b45309, #ea580c); color: #fff;">
+            <i class="bi bi-lightning-fill me-2"></i>Quick Actions
+        </div>
+        <div class="db-qa-grid">
+            <button type="button" class="db-qa-card" onclick="window.location.href='/AddUser'">
+                <span class="db-qa-card-badge">ADMIN</span>
+                <span class="db-qa-card-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-person-plus-fill"></i></span>
+                <span class="db-qa-card-title">Add Employee</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/Reports/CustomReport'">
+                <span class="db-qa-card-badge">ADMIN</span>
+                <span class="db-qa-card-icon" style="background:#dbeafe;color:#0284c7;"><i class="bi bi-file-earmark-pdf"></i></span>
+                <span class="db-qa-card-title">Custom Report</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/Reports/Analyzer'">
+                <span class="db-qa-card-badge">ADMIN</span>
+                <span class="db-qa-card-icon" style="background:#f3e8ff;color:#9333ea;"><i class="bi bi-graph-up"></i></span>
+                <span class="db-qa-card-title">Report Analyzer</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/Reports/Automation'">
+                <span class="db-qa-card-badge">ADMIN</span>
+                <span class="db-qa-card-icon" style="background:#fee2e2;color:#dc2626;"><i class="bi bi-arrow-repeat"></i></span>
+                <span class="db-qa-card-title">Report Automation</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/DownloadExpiryDate'">
+                <span class="db-qa-card-badge">ADMIN</span>
+                <span class="db-qa-card-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-calendar-event"></i></span>
+                <span class="db-qa-card-title">Skill Expiry Report</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/DownloadSection'">
+                <span class="db-qa-card-badge">ADMIN</span>
+                <span class="db-qa-card-icon" style="background:#e0e7ff;color:#4f46e5;"><i class="bi bi-download"></i></span>
+                <span class="db-qa-card-title">Download Reports</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/SkillMatrix'">
+                <span class="db-qa-card-icon" style="background:#f0f9ff;color:#0284c7;"><i class="bi bi-grid-3x3"></i></span>
+                <span class="db-qa-card-title">Skill Matrix</span>
+            </button>
+            <button type="button" class="db-qa-card" onclick="window.location.href='/Disqualification'">
+                <span class="db-qa-card-icon" style="background:#fee2e2;color:#dc2626;"><i class="bi bi-exclamation-triangle-fill"></i></span>
+                <span class="db-qa-card-title">Disqualification</span>
+            </button>
+        </div>
+    </div><!-- end db-right-col -->
+
+</div><!-- end db-main-layout -->
+
+
+            <!-- Expiring Soon Modal -->
+              <div class="modal fade" id="expiringModal" tabindex="-1" aria-labelledby="expiringModalLabel" aria-hidden="true">
+                  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="expiringModalLabel"><i class="bi bi-clock-history me-2"></i>Expiring Soon — next 30 days (@Model.ExpiringCount)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            @if (Model.ExpiringSoonList != null && Model.ExpiringSoonList.Count > 0)
+                            {
+                                    var previewLimit = 20;
+                                    var previewList = Model.ExpiringSoonList.Take(previewLimit).ToList();
+                                    var previewCount = previewList.Count;
+                                    var totalCount = Model.ExpiringSoonList.Count;
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>EmpCode</th>
+                                                    <th>Name</th>
+                                                    <th>Process</th>
+                                                    <th class="expiry-col">Expiry Date</th>
+                                                    <th style="width:120px; text-align:right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="expiringPreviewBody">
+                                                @foreach (var it in previewList)
+                                                {
+                                                    var daysUntilExpiry = it.ExpiryDate.HasValue ? (it.ExpiryDate.Value.Date - DateTime.Now.Date).TotalDays : double.NaN;
+                                                    var badgeText = string.Empty;
+                                                    var badgeClass = string.Empty;
+                                                    if (!double.IsNaN(daysUntilExpiry))
+                                                    {
+                                                        if (daysUntilExpiry < 0) { badgeText = "Expired"; badgeClass = "expiry-expired"; }
+                                                        else if (daysUntilExpiry <= 10) { badgeText = (daysUntilExpiry == 0) ? "Today" : ($"in {(int)daysUntilExpiry}d"); badgeClass = "expiry-critical"; }
+                                                        else if (daysUntilExpiry <= 30) { badgeText = ($"in {(int)daysUntilExpiry}d"); badgeClass = "expiry-soon"; }
+                                                    }
+                                                    <tr style="cursor:pointer" data-empcode="@it.EmpCode" onclick="openEmployeeExpiries('@it.EmpCode')">
+                                                        <td>@it.EmpCode</td>
+                                                        <td>@(string.IsNullOrWhiteSpace(it.FirstNameEng) ? it.EmpCode : it.FirstNameEng + " " + it.LastNameEng)</td>
+                                                        <td>@it.Process</td>
+                                                        <td class="expiry-cell">
+                                                            <span class="expiry-date @(badgeClass)" data-expiry="@it.ExpiryDate?.ToString("yyyy-MM-dd")">@it.ExpiryDate?.ToString("dd MMM yyyy")
+                                                                @if (!string.IsNullOrEmpty(badgeText)) { <span class="expiry-badge">@badgeText</span> }
+                                                            </span>
+                                                        </td>
+                                                        <td style="text-align:right"><a class="btn btn-sm btn-expiring" onclick="event.stopPropagation()" href="/ViewUser?empCode=@it.EmpCode"><i class="bi bi-eye"></i> View</a></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    @if (totalCount > previewCount)
+                                    {
+                                        <div id="expiringLoadMoreWrap" class="d-flex align-items-center justify-content-between mt-2">
+                                            <div id="expiringPreviewInfo" class="text-muted small">Showing first @previewCount of @totalCount results.</div>
+                                            <div>
+                                                <button id="expiringLoadMoreBtn" type="button" class="btn btn-outline-primary btn-sm" aria-controls="expiringPreviewBody" aria-label="Load more expiring items">
+                                                    <span id="expiringLoadMoreLabel">Load more</span>
+                                                    <span id="expiringLoadMoreCount" class="ms-2 text-muted small"></span>
+                                                    <span id="expiringLoadMoreSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display:none"></span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                            }
+                            else
+                            {
+                                    <p class="text-muted">No upcoming expirations in the next 30 days.</p>
+                            }
+                        </div>
+                        <div class="modal-footer expiring-modal-footer">
+                            @if (Model.ExpiringSoonList != null && Model.ExpiringSoonList.Count > 0) {
+                                var previewLimit = 20;
+                                var previewCount = Math.Min(previewLimit, Model.ExpiringSoonList.Count);
+                                var totalCount = Model.ExpiringSoonList.Count;
+                                <div id="expiringPreviewFooterInfo" class="me-auto text-muted small">Showing first @previewCount of @totalCount</div>
+                            }
+                            <button id="expiringLoadMoreFooterBtn" type="button" class="btn btn-outline-secondary btn-lg me-2" aria-controls="expiringPreviewBody" aria-label="Load more expiring items">
+                                <span id="expiringLoadMoreFooterLabel">Load more</span>
+                                <span id="expiringLoadMoreFooterCount" class="ms-2 text-muted small"></span>
+                                <span id="expiringLoadMoreFooterSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display:none"></span>
+                            </button>
+                            <a href="/DownloadExpiryDate" class="btn btn-outline-primary btn-lg me-2 expiring-full-list">
+                                <i class="bi bi-list-check me-1"></i> View full list
+                            </a>
+                            <button type="button" class="btn btn-primary btn-lg expiring-close" data-bs-dismiss="modal">
+                                <i class="bi bi-x-lg me-1"></i> Close
+                            </button>
+                            <var validated="true" id="requiredLoadCount" data-count="@Model.ExpiringSoonList?.Count"></var>
+                            <a id="employeeProfileLink" href="/Employee/Profile" class="d-none"></a>
+                            <a id="employeeExpiriesLink" href="/Employee/Expiries" class="d-none"></a>
+                            <a id="employeeExpiriesApi" href="/api/employee/expiries" class="d-none"></a>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+@section Modals {
+    @await Html.PartialAsync("Shared/_SectionDownloadModal")
+    @await Html.PartialAsync("Shared/_SkillInventoryDownloadModal")
+    @await Html.PartialAsync("Shared/_ExpiryDownloadModal")
+    @await Html.PartialAsync("Shared/_DisqualificationDownloadModal")
+    @await Html.PartialAsync("Shared/_ResignDownloadModal")
+    @await Html.PartialAsync("Shared/_ObsoletedDownloadModal")
+    @await Html.PartialAsync("Shared/_OperatorNoSkillDownloadModal")
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+    /* ===== Skill Level Bar Chart ===== */
+    (function(){
+        var rawChartData = '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(System.Text.Json.JsonSerializer.Serialize(Model.SkillLevelTrend ?? new System.Collections.Generic.List<OperatorCertificationRecord.Web.Models.SkillLevelMonthData>())))';
+        var trendData = [];
+        try { trendData = JSON.parse(rawChartData); } catch(e) { console.warn('[SkillChart] parse failed', e); }
+
+        // Collect unique month keys sorted
+        var monthMap = {};
+        trendData.forEach(function(d){ var k = d.Year+'-'+String(d.Month).padStart(2,'0'); monthMap[k]={y:d.Year,m:d.Month}; });
+        var sortedKeys = Object.keys(monthMap).sort();
+
+        // Build labels (e.g. "Jan 24")
+        var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var labels = sortedKeys.map(function(k){ var p=monthMap[k]; return monthNames[p.m-1]+' '+String(p.y).slice(2); });
+
+        var levels = ['X','I','L','U','O'];
+        var levelColors = { 'X':'#ef4444','I':'#86efac','L':'#16a34a','U':'#facc15','O':'#f97316' };
+
+        var datasets = levels.map(function(lv){
+            return {
+                label: lv,
+                data: sortedKeys.map(function(k){
+                    var p=monthMap[k];
+                    var row=trendData.find(function(d){return d.Year===p.y&&d.Month===p.m&&d.SkillLevel===lv;});
+                    return row?row.Count:0;
+                }),
+                backgroundColor: levelColors[lv],
+                stack: 'stack1',
+                order: 1
+            };
+        });
+
+        // TTL as line on secondary axis
+        datasets.push({
+            label:'TTL',
+            type:'line',
+            data: sortedKeys.map(function(k){
+                var p=monthMap[k];
+                return trendData.filter(function(d){return d.Year===p.y&&d.Month===p.m;}).reduce(function(s,d){return s+d.Count;},0);
+            }),
+            borderColor:'#0f172a',
+            backgroundColor:'rgba(15,23,42,0.08)',
+            borderWidth:2,
+            pointRadius:4,
+            fill:false,
+            yAxisID:'ttl',
+            order:0
+        });
+
+        var ctx = document.getElementById('skillLevelChart');
+        if(!ctx||typeof Chart==='undefined') return;
+        new Chart(ctx, {
+            type:'bar',
+            data:{ labels:labels, datasets:datasets },
+            options:{
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{ legend:{ position:'bottom' }, tooltip:{ mode:'index' } },
+                scales:{
+                    x:{ stacked:true, grid:{ color:'rgba(0,0,0,.05)' } },
+                    y:{ stacked:true, beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)' } },
+                    ttl:{ position:'right', beginAtZero:true, grid:{ drawOnChartArea:false }, ticks:{ color:'#64748b' } }
+                }
+            }
+        });
+    })();
+    </script>
+    <script>
+    /* ===== AJAX Quick Search ===== */
+    (function(){
+        var input    = document.getElementById('qs-input');
+        var clearBtn = document.getElementById('qs-clear-btn');
+        var spinner  = document.getElementById('qs-spinner');
+        var results  = document.getElementById('qs-results-area');
+        var hint     = document.querySelector('.qs-hint');
+        var lastQ    = '';
+        var debTimer = null;
+        var controller = null;
+
+        /* hint pills – auto-populate from URL params or defaults */
+        var hints = [];
+        if (hints.length === 0) hints = ['E001', 'E002', 'John'];
+        hints.forEach(function(h){
+            var pill = document.createElement('span');
+            pill.className = 'qs-hint-pill';
+            pill.textContent = h;
+            pill.addEventListener('click', function(){ input.value = h; doSearch(h); });
+            hint.appendChild(pill);
+        });
+
+        function initials(first, last){
+            return ((first||'').charAt(0) + (last||'').charAt(0)).toUpperCase() || '?';
+        }
+
+        function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+        function renderEmpty(q){
+            results.innerHTML =
+                '<div class="qs-empty">' +
+                '<div class="qs-empty-icon"><i class="bi bi-person-x"></i></div>' +
+                '<div class="qs-empty-title">No employees found</div>' +
+                '<div class="qs-empty-sub">No match for <strong>' + esc(q) + '</strong>. Try a different ID or name.</div>' +
+                '</div>';
+        }
+
+        function renderResults(data, q){
+            if (!data || data.length === 0){ renderEmpty(q); return; }
+            var countBar =
+                '<div class="qs-count-bar">' +
+                '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                '<span class="qs-count-badge">' + data.length + '</span>' +
+                '<span class="qs-count-text">result' + (data.length!==1?'s':'') + ' for</span>' +
+                '<span class="qs-query-pill">' + esc(q) + '</span>' +
+                '</div></div>';
+            var grid = '<div class="qs-results-grid">';
+            data.forEach(function(e){
+                var exact = e.isExact;
+                var ini = initials(e.firstName, e.lastName);
+                var avatarHtml = e.photoPath
+                    ? '<img src="/api/photo/' + encodeURIComponent(e.photoPath) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.onerror=null;var p=this.parentNode;p.innerHTML=p.getAttribute(\'data-ini\');">'
+                    : esc(ini);
+                var fullName = esc((e.prefixEng||'') + ' ' + (e.firstName||'') + ' ' + (e.lastName||'')).trim();
+                grid +=
+                    '<div class="qs-emp-card ' + (exact?'qs-exact':'') + (e.isResigned?' qs-resigned':'') + '">' +
+                    '<div class="qs-emp-top">' +
+                    '<div class="qs-emp-avatar" data-ini="' + esc(ini) + '">' + avatarHtml + '</div>' +
+                    '<div style="min-width:0">' +
+                    '<div class="qs-emp-name">' + fullName + '</div>' +
+                    '<div class="qs-emp-code"><i class="bi bi-hash"></i> ' + esc(e.empCode) + '</div>' +
+                    '</div>' +
+                    (exact?'<span class="qs-exact-tag">Exact</span>':'') +
+                    (e.isResigned?'<span class="qs-resigned-tag"><i class="bi bi-person-x"></i> Resigned</span>':'') +
+                    '</div>' +
+                    '<div class="qs-emp-meta">' +
+                    (e.department?'<span class="qs-meta-chip"><i class="bi bi-building"></i> ' + esc(e.department) + '</span>':'') +
+                    (e.shift?'<span class="qs-meta-chip"><i class="bi bi-clock"></i> ' + esc(e.shift) + '</span>':'') +
+                    (e.jobGrade?'<span class="qs-grade-chip">' + esc(e.jobGrade) + '</span>':'') +
+                    '</div>' +
+                    '<div class="qs-emp-actions">' +
+                    '<a href="/ViewUser?empCode=' + encodeURIComponent(e.empCode) + '" class="qs-btn-view"><i class="bi bi-eye"></i> View</a>' +
+                    '<a href="/UpdateUser?empCode=' + encodeURIComponent(e.empCode) + '" class="qs-btn-edit"><i class="bi bi-pencil"></i> Edit</a>' +
+                    '</div>' +
+                    '</div>';
+            });
+            grid += '</div>';
+            results.innerHTML = countBar + grid;
+        }
+
+        function setLoading(on){
+            spinner.style.display = on ? 'block' : 'none';
+        }
+
+        function doSearch(q){
+            q = (q||'').trim();
+            if (q === lastQ) return;
+            lastQ = q;
+            clearTimeout(debTimer);
+
+            if (q.length < 2){
+                results.innerHTML = '';
+                setLoading(false);
+                return;
+            }
+
+            if (controller) controller.abort();
+            controller = new AbortController();
+            setLoading(true);
+
+            fetch('/Dashboard?handler=Search&q=' + encodeURIComponent(q), {
+                signal: controller.signal,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                setLoading(false);
+                renderResults(data, q);
+            })
+            .catch(function(err){
+                if (err && err.name === 'AbortError') return;
+                setLoading(false);
+                results.innerHTML = '<div class="qs-empty"><div class="qs-empty-icon"><i class="bi bi-wifi-off"></i></div><div class="qs-empty-title">Search failed</div><div class="qs-empty-sub">Could not reach the server. Please try again.</div></div>';
+            });
+        }
+
+        input.addEventListener('input', function(){
+            var q = input.value.trim();
+            clearBtn.style.display = q ? 'inline-flex' : 'none';
+            clearTimeout(debTimer);
+            debTimer = setTimeout(function(){ doSearch(q); }, 320);
+        });
+
+        input.addEventListener('keydown', function(e){
+            if (e.key === 'Enter'){ clearTimeout(debTimer); doSearch(input.value.trim()); }
+        });
+
+        clearBtn.addEventListener('click', function(){
+            input.value = '';
+            clearBtn.style.display = 'none';
+            results.innerHTML = '';
+            lastQ = '';
+            if (controller) controller.abort();
+            setLoading(false);
+            input.focus();
+        });
+
+        document.getElementById('qs-search-btn').addEventListener('click', function(){
+            clearTimeout(debTimer);
+            doSearch(input.value.trim());
+        });
+    })();
+    </script>
+    <script>
+        // embed the server-side expiring list for client-side filtering (exposed on window for all scripts)
+        window.expiringItems = window.expiringItems || [];
+        var expiringItems = window.expiringItems;
+        try {
+            // Serialize on server but emit as a JS string so any embedded '<' or '<\/script>' fragments won't break page parsing.
+            var _raw = '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(System.Text.Json.JsonSerializer.Serialize(Model.ExpiringSoonList ?? new System.Collections.Generic.List<OperatorCertificationRecord.Web.Models.ExpiringSkill>())))';
+            try {
+                window.expiringItems = expiringItems = JSON.parse(_raw);
+                console.debug('[Expiring] embedded expiringItems count:', (window.expiringItems || []).length);
+            } catch(e) {
+                console.warn('[Expiring] JSON parse failed, falling back to empty array', e);
+                window.expiringItems = expiringItems = [];
+            }
+        } catch(e) {
+            console.warn('[Expiring] failed to embed expiringItems', e);
+            window.expiringItems = expiringItems = [];
+        }
+    </script>
+    <script>
+        function updateDateTime() {
+            const now = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateEl = document.getElementById('currentDate');
+            const timeEl = document.getElementById('currentTime');
+            
+            if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', dateOptions);
+            if (timeEl) timeEl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
+        }
+        
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+    </script>
+    <script>
+        function openExpiringModal() {
+            const el = document.getElementById('expiringModal');
+            if (!el) return;
+            // move modal to body so no ancestor transforms interfere with Bootstrap centering
+            if (el.parentElement !== document.body) {
+                el._originalParent = el.parentElement;
+                document.body.appendChild(el);
+            }
+
+            const m = new bootstrap.Modal(el);
+
+            // restore original parent on hide
+            el.addEventListener('hidden.bs.modal', function handler() {
+                el.removeEventListener('hidden.bs.modal', handler);
+                if (el._originalParent) {
+                    el._originalParent.appendChild(el);
+                    delete el._originalParent;
+                }
+            });
+
+            // Defensive: ensure expiry highlighting runs immediately after the modal is shown
+            // (covers cases where global handlers may not have been bound yet).
+            el.addEventListener('shown.bs.modal', function once(){
+                try { if (typeof highlightExpiryDatesInModal === 'function') highlightExpiryDatesInModal(); } catch(e) { /* ignore */ }
+                el.removeEventListener('shown.bs.modal', once);
+            });
+
+            m.show();
+        }
+    </script>
+    <script>
+        function openEmployeeExpiries(empCode){
+            if(!empCode) return;
+            // find items for this employee
+            const items = (expiringItems || []).filter(i => i.EmpCode === empCode);
+            const modal = document.getElementById('employeeExpiriesModal');
+            if(!modal) return;
+
+            // ensure modal is a direct child of body so it stacks above other modals
+            if(modal.parentElement !== document.body){
+                modal._originalParent = modal.parentElement;
+                document.body.appendChild(modal);
+            }
+
+            const title = modal.querySelector('.modal-title');
+            const body = modal.querySelector('.modal-body');
+            title.textContent = `Expiring items for ${empCode} (${items.length})`;
+            const profileLink = modal.querySelector('#employeeProfileLink');
+            if(profileLink) profileLink.href = '/ViewUser?empCode=' + encodeURIComponent(empCode);
+
+            if(items.length === 0){
+                body.innerHTML = '<p class="text-muted">No expiring items found for this employee.</p>';
+            } else {
+                let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Process</th><th class="expiry-col">Expiry Date</th></tr></thead><tbody>';
+                for(const it of items){
+                    const d = it.expiryDate || it.ExpiryDate || null;
+                    let dateStr = '';
+                    if(d){
+                        // Try to format ISO-like date strings
+                        const dt = new Date(d);
+                        if(!isNaN(dt)) dateStr = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+                        else dateStr = d;
+                    }
+                    html += `<tr><td>${it.Process || ''}</td><td class="expiry-cell"><span class="expiry-date" data-expiry="${(it.ExpiryDate||it.expiryDate)?(new Date(it.ExpiryDate||it.expiryDate)).toISOString().slice(0,10):''}">${dateStr}</span></td></tr>`;
+                }
+                html += '</tbody></table></div>';
+                body.innerHTML = html;
+            }
+
+            try{
+                const m = new bootstrap.Modal(modal);
+
+                modal.addEventListener('show.bs.modal', function onShow(){
+                    // add an "opening" class so CSS animation runs from the start
+                    modal.classList.add('is-opening');
+                });
+
+                modal.addEventListener('shown.bs.modal', function onShown(){
+                    // ensure this modal and its backdrop sit above any open modals
+                    modal.style.zIndex = 2150;
+                    const backdrops = document.querySelectorAll('.modal-backdrop.show');
+                    const lastBackdrop = backdrops[backdrops.length - 1];
+                    if(lastBackdrop){
+                        lastBackdrop.classList.add('employee-modal-backdrop');
+                        lastBackdrop.style.zIndex = 2140;
+                    }
+
+                    // run expiry highlighting inside this modal
+                    const today = new Date();
+                    for(const el of modal.querySelectorAll('.expiry-date')){
+                        if(el.dataset._processed === '1') continue;
+                        const raw = el.getAttribute('data-expiry');
+                        const d = raw ? new Date(raw) : null;
+                        if(!d || isNaN(d)) continue;
+                        const diff = Math.floor((d - today) / (24*60*60*1000));
+                        if(diff < 0){ el.classList.add('expiry-expired'); const badge = document.createElement('span'); badge.className='expiry-badge'; badge.textContent='Expired'; el.appendChild(badge); }
+                        else if(diff <= 10){ el.classList.add('expiry-critical'); const badge = document.createElement('span'); badge.className='expiry-badge'; badge.textContent = diff===0 ? 'Today' : `in ${diff}d`; el.appendChild(badge); }
+                        else if(diff <= 10){ el.classList.add('expiry-soon'); const badge = document.createElement('span'); badge.className='expiry-badge'; badge.textContent = `in ${diff}d`; el.appendChild(badge); }
+                        el.dataset._processed = '1';
+                    }
+
+                    // remove opening flag after animation ends
+                    modal.classList.remove('is-opening');
+                    modal.removeEventListener('shown.bs.modal', onShown);
+                });
+
+                modal.addEventListener('hidden.bs.modal', function onHidden(){
+                    // cleanup backdrop z-index & restore original parent
+                    const backdrops = document.querySelectorAll('.modal-backdrop.employee-modal-backdrop');
+                    backdrops.forEach(b=>{ b.classList.remove('employee-modal-backdrop'); b.style.zIndex = ''; });
+                    modal.style.zIndex = '';
+                    if(modal._originalParent){ modal._originalParent.appendChild(modal); delete modal._originalParent; }
+                    modal.removeEventListener('hidden.bs.modal', onHidden);
+                });
+
+                m.show();
+            }catch(e){ modal.style.display='block'; }
+        }
+
+        // client-side "Load more" for Expiring preview
+        (function(){
+            const pageSize = 20;
+            function formatDate(d){
+                if(!d) return '';
+                const dt = new Date(d);
+                if(isNaN(dt)) return d;
+                return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+            }
+            function appendRows(startIndex){
+                const tbody = document.getElementById('expiringPreviewBody');
+                const items = (window.expiringItems || typeof expiringItems !== 'undefined' && expiringItems) || [];
+                if(!tbody || !items || items.length === 0) return;
+                const end = Math.min(startIndex + pageSize, items.length);
+                const frag = document.createDocumentFragment();
+                for(let i = startIndex; i < end; i++){
+                    const it = items[i];
+                    const tr = document.createElement('tr');
+                    tr.style.cursor = 'pointer';
+                    tr.setAttribute('data-empcode', it.EmpCode);
+                    tr.onclick = function(){ openEmployeeExpiries(it.EmpCode); };
+                    const name = (it.FirstNameEng && it.LastNameEng) ? (it.FirstNameEng + ' ' + it.LastNameEng) : it.EmpCode;
+                    const expDate = formatDate(it.ExpiryDate || it.expiryDate);
+                    tr.innerHTML = `<td>${it.EmpCode}</td><td>${name}</td><td>${it.Process || ''}</td><td class="expiry-cell"><span class="expiry-date" data-expiry="${(it.ExpiryDate || it.expiryDate) ? (new Date(it.ExpiryDate || it.expiryDate)).toISOString().slice(0,10) : ''}">${expDate}</span></td><td style="text-align:right"><a class="btn btn-sm btn-expiring" onclick="event.stopPropagation()" href="/ViewUser?empCode=${encodeURIComponent(it.EmpCode)}"><i class="bi bi-eye"></i> View</a></td>`;
+                    frag.appendChild(tr);
+                }
+                tbody.appendChild(frag);
+                // after appending new rows, re-run expiry highlighting
+                highlightExpiryDatesInModal();
+            }
+            function updatePreviewInfo(){
+                const total = (window.expiringItems || []).length;
+                const current = document.getElementById('expiringPreviewBody')?.children.length || 0;
+                const info = document.getElementById('expiringPreviewInfo');
+                const footer = document.getElementById('expiringPreviewFooterInfo');
+                if(info) info.textContent = (total > current) ? `Showing first ${current} of ${total} results.` : `Showing ${current} of ${total} results.`;
+                if(footer) footer.textContent = (total > current) ? `Showing first ${current} of ${total}` : `Showing ${current} of ${total}`;
+                const wrap = document.getElementById('expiringLoadMoreWrap');
+                if(wrap) wrap.style.display = (current < total) ? 'flex' : 'none'; 
+                // update Load more button state and remaining count (body + footer)
+                const remaining = Math.max(0, total - current);
+                const btnCountEl = document.getElementById('expiringLoadMoreCount');
+                const loadBtn = document.getElementById('expiringLoadMoreBtn');
+                if(btnCountEl) btnCountEl.textContent = remaining > 0 ? `(${remaining} more)` : '';
+                if(loadBtn) loadBtn.disabled = remaining <= 0;
+                if(footer) footer.textContent = remaining > 0 ? `Showing first ${current} of ${total}` : `Showing ${current} of ${total}`;
+                const footerCountEl = document.getElementById('expiringLoadMoreFooterCount');
+                const footerBtn = document.getElementById('expiringLoadMoreFooterBtn');
+                if(footerCountEl) footerCountEl.textContent = remaining > 0 ? `(${remaining} more)` : '';
+                if(footerBtn) footerBtn.disabled = remaining <= 0;
+            }
+
+            // highlight expiry dates inside the Expiring modal (expired, critical, soon)
+            function highlightExpiryDatesInModal(){
+                const modal = document.getElementById('expiringModal');
+                if(!modal) return;
+                const today = new Date();
+                for(const el of modal.querySelectorAll('.expiry-date')){
+                    // skip already-processed
+                    if(el.dataset._processed === '1') continue;
+                    const raw = el.getAttribute('data-expiry');
+                    if(!raw) continue;
+                    const d = new Date(raw);
+                    if(isNaN(d)) continue;
+                    const diff = Math.floor((d - today) / (24*60*60*1000));
+                    if(diff < 0){
+                        el.classList.add('expiry-expired');
+                        const badge = document.createElement('span');
+                        badge.className = 'expiry-badge';
+                        badge.textContent = 'Expired';
+                        el.appendChild(badge);
+                    } else if(diff <= 10){
+                        el.classList.add('expiry-critical');
+                        const badge = document.createElement('span');
+                        badge.className = 'expiry-badge';
+                        badge.textContent = diff === 0 ? 'Today' : `in ${diff}d`;
+                        el.appendChild(badge);
+                    } else if(diff <= 20){
+                        el.classList.add('expiry-soon');
+                        const badge = document.createElement('span');
+                        badge.className = 'expiry-badge';
+                        badge.textContent = `in ${diff}d`;
+                        el.appendChild(badge);
+                    }
+                    el.dataset._processed = '1';
+                }
+            }
+
+            async function handleLoadMore(){
+                console.debug('[Expiring] handleLoadMore called');
+                const btn = document.getElementById('expiringLoadMoreBtn');
+                const footerBtn = document.getElementById('expiringLoadMoreFooterBtn');
+                const spinner = document.getElementById('expiringLoadMoreSpinner');
+                const footerSpinner = document.getElementById('expiringLoadMoreFooterSpinner');
+                try{
+                    if(btn){ btn.disabled = true; btn.setAttribute('aria-busy','true'); }
+                    if(footerBtn){ footerBtn.disabled = true; footerBtn.setAttribute('aria-busy','true'); }
+                    if(spinner) spinner.style.display = 'inline-block';
+                    if(footerSpinner) footerSpinner.style.display = 'inline-block';
+
+                    // if embedded list is empty (e.g. parsing failed), fetch preview JSON from server as a fallback
+                    if(!((window.expiringItems || []).length > 0)){
+                        console.debug('[Expiring] embedded list empty — fetching preview from server');
+                        try{
+                            const resp = await fetch('/api/download/expiry/preview?days=30&top=1000');
+                            if(!resp.ok){
+                                console.warn('[Expiring] preview fetch failed status=', resp.status);
+                            } else {
+                                const ct = (resp.headers.get('content-type') || '').toLowerCase();
+                                if(!ct.includes('application/json')){
+                                    const txt = await resp.text();
+                                    console.warn('[Expiring] preview returned non-JSON (possible login/html). snippet=', txt.slice(0,200));
+                                    // If the server returned HTML (login page), redirect so user can re-authenticate
+                                    if(txt.trim().startsWith('<')){
+                                        if(window.Toast) window.Toast.error('Session', 'Your session may have expired — please sign in again');
+                                        // stop further client parsing to avoid "Unexpected token '<'"
+                                        return;
+                                    }
+                                } else {
+                                    const json = await resp.json();
+                                    window.expiringItems = json || [];
+                                }
+                            }
+                        }catch(fetchErr){
+                            console.warn('[Expiring] preview fetch error', fetchErr);
+                        }
+                    }
+
+                    const current = document.getElementById('expiringPreviewBody')?.children.length || 0;
+                    console.debug('[Expiring] appending rows from', current);
+                    // client-side append (uses embedded expiringItems)
+                    appendRows(current);
+                    updatePreviewInfo();
+                }finally{
+                    if(spinner) spinner.style.display = 'none';
+                    if(footerSpinner) footerSpinner.style.display = 'none';
+                    if(btn){ btn.disabled = false; btn.removeAttribute('aria-busy'); }
+                    if(footerBtn){ footerBtn.disabled = false; footerBtn.removeAttribute('aria-busy'); }
+                }
+            }
+
+            // Attach handlers immediately and add a delegated fallback so buttons work even
+            // if the DOMContentLoaded event already fired or elements are replaced dynamically.
+            function delegatedExpiringClick(ev){
+                const t = ev.target && (ev.target.closest ? ev.target.closest('#expiringLoadMoreBtn, #expiringLoadMoreFooterBtn') : null);
+                if(t){
+                    ev.preventDefault();
+                    handleLoadMore();
+                }
+            }
+
+            function bindExpiringHandlers(){
+                console.debug('[Expiring] bindExpiringHandlers running; readyState=', document.readyState);
+                // immediate binding for both body and footer buttons
+                const btn = document.getElementById('expiringLoadMoreBtn');
+                const fbtn = document.getElementById('expiringLoadMoreFooterBtn');
+                if(btn){ btn.removeEventListener('click', handleLoadMore); btn.addEventListener('click', handleLoadMore); }
+                if(fbtn){ fbtn.removeEventListener('click', handleLoadMore); fbtn.addEventListener('click', handleLoadMore); }
+
+                // expose a debug helper so you can force-append rows from the console if needed
+                try{ window.expiringDebugAppendMore = async function(){ console.debug('[Expiring] debug append invoked'); await handleLoadMore(); }; }catch(e){ /* ignore */ }
+
+                // ensure initial UI counts are correct even before modal is shown
+                try{ updatePreviewInfo(); }catch(e){ /* ignore */ }
+
+                // delegated fallback so clicks are handled even if elements are swapped/re-rendered
+                document.removeEventListener('click', delegatedExpiringClick);
+                document.addEventListener('click', delegatedExpiringClick);
+
+                const modal = document.getElementById('expiringModal');
+                if(!modal) return;
+                // refresh preview state when modal opens
+                modal.addEventListener('shown.bs.modal', function(){
+                    updatePreviewInfo();
+                    highlightExpiryDatesInModal();
+                });
+            }
+
+            if(document.readyState === 'loading'){
+                document.addEventListener('DOMContentLoaded', bindExpiringHandlers);
+            } else {
+                bindExpiringHandlers();
+            }
+        })();
+
+    </script>
+
+    <script>
+        // KPI Department Filter
+        window.filterKpiByDept = function(dept, button) {
+            const allBtn = document.querySelector('.kpi-dept-btn.all-data');
+            const clickedBtn = button || event?.target;
+            const isActive = clickedBtn && clickedBtn.classList.contains('active');
+            if (dept !== 'all' && isActive) {
+                dept = 'all';
+            }
+
+            // Update button states
+            document.querySelectorAll('.kpi-dept-btn').forEach(btn => btn.classList.remove('active'));
+            if (dept === 'all') {
+                allBtn?.classList.add('active');
+            } else {
+                clickedBtn?.classList.add('active');
+            }
+
+            // Get all KPI elements
+            const operator = document.getElementById('kpiOperator');
+            const process = document.getElementById('kpiProcess');
+            const skill = document.getElementById('kpiSkill');
+            const handicap = document.getElementById('kpiHandicap');
+            const oneSkill = document.getElementById('kpiOneSkill');
+            const noSkill = document.getElementById('kpiNoSkill');
+            
+            // Simulated department data (in real app, this would come from API/backend)
+            const deptData = {
+                'all': {
+                    operator: operator?.getAttribute('data-all') || 0,
+                    process: process?.getAttribute('data-all') || 0,
+                    skill: skill?.getAttribute('data-all') || 0,
+                    handicap: handicap?.getAttribute('data-all') || 0,
+                    oneSkill: oneSkill?.getAttribute('data-all') || 0,
+                    noSkill: noSkill?.getAttribute('data-all') || 0
+                },
+                'ta': { operator: 245, process: 12, skill: 1250, handicap: 8, oneSkill: 45, noSkill: 12 },
+                'qa': { operator: 189, process: 8, skill: 956, handicap: 5, oneSkill: 32, noSkill: 8 },
+                'sc': { operator: 156, process: 10, skill: 812, handicap: 4, oneSkill: 28, noSkill: 6 },
+                'planning': { operator: 142, process: 6, skill: 723, handicap: 3, oneSkill: 22, noSkill: 4 }
+            };
+            
+            const data = deptData[dept] || deptData['all'];
+            
+            // Animate value updates
+            if (operator) animateValue(operator, parseInt(operator.textContent), parseInt(data.operator));
+            if (process) animateValue(process, parseInt(process.textContent), parseInt(data.process));
+            if (skill) animateValue(skill, parseInt(skill.textContent), parseInt(data.skill));
+            if (handicap) animateValue(handicap, parseInt(handicap.textContent), parseInt(data.handicap));
+            if (oneSkill) animateValue(oneSkill, parseInt(oneSkill.textContent), parseInt(data.oneSkill));
+            if (noSkill) animateValue(noSkill, parseInt(noSkill.textContent), parseInt(data.noSkill));
+        };
+        
+        function animateValue(element, start, end) {
+            const duration = 600;
+            const startTime = Date.now();
+            
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const current = Math.floor(start + (end - start) * progress);
+                element.textContent = current.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+            
+            animate();
+        }
+    </script>
+
+    <script>
+        window.openObsoletedModal = function(){
+            const el = document.getElementById('obsoletedModal');
+            if(!el) return;
+            try{ const m = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el); m.show(); }catch(e){ el.style.display='block'; }
+        };
+        window.openSkillInventoryModal = function(){
+            const el = document.getElementById('skillInventoryModal');
+            if(!el) return;
+            try{ const m = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el); m.show(); }catch(e){ el.style.display='block'; }
+        };
+        window.openSectionDlModal = function(){
+            const el = document.getElementById('sectionDlModal');
+            if(!el) return;
+            try{ const m = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el); m.show(); }catch(e){ el.style.display='block'; }
+        };
+        
+        window.handleProcessClick = function(processName){
+            const deptMap = {
+                'Ta Manufacturing': 'ta',
+                'SC Manufacturing': 'sc',
+                'QA': 'qa',
+                'Production & Material Planning': 'planning'
+            };
+            const cardMap = {
+                'Ta Manufacturing': 'pcTa',
+                'SC Manufacturing': 'pcSc',
+                'QA': 'pcQa',
+                'Production & Material Planning': 'pcPlanning'
+            };
+            
+            const activeCard = document.getElementById(cardMap[processName]);
+            const isCurrentlyActive = activeCard?.classList.contains('active-dept');
+            document.querySelectorAll('.otr-process-card').forEach(c => c.classList.remove('active-dept'));
+
+            const deptCode = deptMap[processName];
+            if (isCurrentlyActive || !deptCode) {
+                filterKpiByDept('all', document.querySelector('.kpi-dept-btn.all-data'));
+                return;
+            }
+
+            if (activeCard) activeCard.classList.add('active-dept');
+            const deptBtn = document.querySelector(`.kpi-dept-btn[onclick="filterKpiByDept('${deptCode}', this)"]`);
+            if (deptBtn) {
+                filterKpiByDept(deptCode, deptBtn);
+            } else {
+                filterKpiByDept(deptCode);
+            }
+        };
+        
+        // Clear process card active state when All Data clicked
+        const allDataBtn = document.querySelector('.kpi-dept-btn.all-data');
+        if (allDataBtn) {
+            allDataBtn.addEventListener('click', () => {
+                document.querySelectorAll('.otr-process-card').forEach(c => c.classList.remove('active-dept'));
+            });
+        }
+
+        // ── Count-up on page load for OTR KPI values ──
+        (function() {
+            function countUp(el, to, duration) {
+                const start = Date.now();
+                const tick = () => {
+                    const p = Math.min((Date.now() - start) / duration, 1);
+                    const ease = 1 - Math.pow(1 - p, 3);
+                    el.textContent = Math.floor(to * ease).toLocaleString();
+                    if (p < 1) requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+            }
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('.otr-kpi-value').forEach((el, i) => {
+                    const target = parseInt(el.getAttribute('data-all') || el.textContent) || 0;
+                    if (!target) return;
+                    el.textContent = '0';
+                    setTimeout(() => countUp(el, target, 900), 300 + i * 90);
+                });
+            });
+        })();
+
+        // ═══ FORCE Modal Centering Override ═══
+        document.addEventListener('DOMContentLoaded', function() {
+            const modals = document.querySelectorAll('.modal');
+            
+            modals.forEach(modal => {
+                modal.addEventListener('show.bs.modal', function(e) {
+                    this.style.display = 'flex';
+                    this.style.alignItems = 'center';
+                    this.style.justifyContent = 'center';
+                    this.style.position = 'fixed';
+                    this.style.top = '0';
+                    this.style.left = '0';
+                    this.style.width = '100%';
+                    this.style.height = '100%';
+                    this.style.zIndex = '1050';
+                    this.style.padding = '1rem';
+                    this.style.boxSizing = 'border-box';
+                });
+                
+                modal.addEventListener('shown.bs.modal', function(e) {
+                    this.style.display = 'flex';
+                    this.style.alignItems = 'center';
+                    this.style.justifyContent = 'center';
+                    
+                    const dialog = this.querySelector('.modal-dialog');
+                    if (dialog) {
+                        dialog.style.position = 'relative';
+                        dialog.style.margin = '0 auto';
+                        dialog.style.width = 'auto';
+                    }
+                });
+            });
+        });
+    </script>
+
+
+}

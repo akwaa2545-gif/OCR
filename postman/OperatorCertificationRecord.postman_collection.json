@@ -1,0 +1,47 @@
+{
+  "info": {
+    "name": "OperatorCertificationRecord - Photo API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "ocr-photo-sample"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" }
+  ],
+  "item": [
+    {
+      "name": "GET /api/photo/{fileName}",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/photo/0702773.jpg",
+          "host": ["{{baseUrl}}"],
+          "path": ["api","photo","0702773.jpg"]
+        },
+        "description": "Returns an employee photo (jpg/svg placeholder if not present)."
+      }
+    },
+    {
+      "name": "POST /UpdateUser?action=update (multipart)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "EmpCode", "value": "101", "type": "text" },
+            { "key": "PhotoFile", "type": "file", "src": "" },
+            { "key": "__RequestVerificationToken", "value": "", "type": "text", "description": "If antiforgery required — paste token from page." }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/UpdateUser?action=update",
+          "host": ["{{baseUrl}}"],
+          "path": ["UpdateUser"],
+          "query": [{ "key": "action", "value": "update" }]
+        },
+        "description": "Razor Page multipart upload — requires authenticated session or antiforgery token."
+      }
+    }
+  ]
+}
