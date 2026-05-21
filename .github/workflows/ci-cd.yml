@@ -21,7 +21,7 @@ env:
 
 defaults:
   run:
-    shell: powershell
+    shell: powershell -ExecutionPolicy Bypass -NonInteractive -File "{0}"
 
 jobs:
   # ── Build & Test ────────────────────────────────────────────────────────────
