@@ -31,6 +31,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Find dotnet
+        run: |
+          $candidates = @(
+            "C:\Program Files\dotnet\dotnet.exe",
+            "C:\Program Files (x86)\dotnet\dotnet.exe",
+            "$env:USERPROFILE\.dotnet\dotnet.exe",
+            "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe",
+            "C:\dotnet\dotnet.exe"
+          )
+          foreach ($c in $candidates) {
+            Write-Host "$(if (Test-Path $c) {'FOUND'} else {'    '}): $c"
+          }
+          Write-Host "--- where.exe ---"
+          where.exe dotnet 2>&1 | Write-Host
+          Write-Host "--- PATH ---"
+          $env:PATH -split ';' | Where-Object { $_ -match 'dotnet' } | Write-Host
+
       - name: Restore dependencies
         run: |
           & "C:\Program Files\dotnet\dotnet.exe" restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
