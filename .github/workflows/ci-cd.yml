@@ -21,7 +21,7 @@ env:
 
 defaults:
   run:
-    shell: powershell -ExecutionPolicy Bypass -NonInteractive -File "{0}"
+    shell: powershell -ExecutionPolicy Bypass -NonInteractive -Command "$env:PATH = 'C:\Program Files\dotnet;' + $env:PATH; & '{0}'"
 
 jobs:
   # ── Build & Test ────────────────────────────────────────────────────────────
@@ -30,9 +30,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Add dotnet to PATH
-        run: Add-Content -Path $env:GITHUB_PATH -Value "C:\Program Files\dotnet"
 
       - name: Restore dependencies
         run: dotnet restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
