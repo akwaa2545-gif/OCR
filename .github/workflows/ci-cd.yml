@@ -32,13 +32,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Restore dependencies
-        run: & "C:\Program Files\dotnet\dotnet.exe" restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
+        run: |
+          & "C:\Program Files\dotnet\dotnet.exe" restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
 
       - name: Build
-        run: & "C:\Program Files\dotnet\dotnet.exe" build OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj --no-restore -c Release
+        run: |
+          & "C:\Program Files\dotnet\dotnet.exe" build OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj --no-restore -c Release
 
       - name: Test
-        run: & "C:\Program Files\dotnet\dotnet.exe" test tests/OperatorCertificationRecord.Web.Tests/OperatorCertificationRecord.Web.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=results.trx"
+        run: |
+          & "C:\Program Files\dotnet\dotnet.exe" test tests/OperatorCertificationRecord.Web.Tests/OperatorCertificationRecord.Web.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=results.trx"
         env:
           ASPNETCORE_ENVIRONMENT: Testing
           ConnectionStrings__DefaultConnection: ${{ secrets.OCR_TEST_CONNECTION_STRING }}
