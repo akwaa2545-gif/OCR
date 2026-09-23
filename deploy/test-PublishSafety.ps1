@@ -13,6 +13,15 @@ foreach ($pattern in @('**/bin', '**/obj', '**/publish', '**/logs', '**/uploads*
     if ($ignore -notcontains $pattern) { $failures += "Missing Docker context exclusion: $pattern" }
 }
 $dockerfile = Get-Content (Join-Path $root 'Dockerfile') -Raw
+$dockerCommands = $dockerfile -replace '\\\r?\n\s*', ' '
+foreach ($verb in @('restore', 'publish')) {
+    if ($dockerCommands -notmatch "(?m)^RUN dotnet $verb [^\r\n]* -r linux-x64(?:\s|$)") {
+        $failures += "Docker $verb must use linux-x64 to match the image platform and ReadyToRun assets."
+    }
+}
+if ($dockerCommands -notmatch '(?m)^RUN dotnet publish [^\r\n]* --self-contained false(?:\s|$)') {
+    $failures += 'Docker publish must be framework-dependent for the ASP.NET runtime base image.'
+}
 if ($dockerfile -match '(?m)^COPY OperatorCertificationRecord/') {
     $failures += 'Docker image build must not copy legacy desktop sources or settings.'
 }
