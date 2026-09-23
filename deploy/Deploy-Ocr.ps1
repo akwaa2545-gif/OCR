@@ -9,6 +9,17 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Get-OcrDockerFailureCategory {
+    param([object[]]$OutputLines)
+    # Classify in memory; never return native text, paths, registry URLs or tokens.
+    $message = ($OutputLines | ForEach-Object { [string]$_ }) -join ' '
+    if ($message -match '(?i)\btls\b|\bx509\b|certificate|\bssl\b') { return 'tls' }
+    if ($message -match '(?i)no space left|disk.{0,20}full|quota exceeded|read.only file system|access is denied') { return 'storage' }
+    if ($message -match '(?i)unauthorized|denied|authentication required|forbidden|status.{0,10}(401|403)') { return 'unauthorized' }
+    if ($message -match '(?i)dial tcp|no such host|connection (refused|reset)|timeout|timed out|deadline exceeded|network is unreachable|proxyconnect|name resolution') { return 'network' }
+    return 'unknown'
+}
+
 function Invoke-OcrNative {
     param([string]$Executable, [string[]]$Arguments)
     try {
@@ -20,7 +31,11 @@ function Invoke-OcrNative {
         $result = @(& $command.Source @Arguments 2>&1)
         $exitCode = $LASTEXITCODE
     } catch { throw 'Native operation could not complete.' }
-    if ($null -eq $exitCode -or $exitCode -ne 0) { throw "Native operation failed (exit $exitCode)." }
+    if ($null -eq $exitCode -or $exitCode -ne 0) {
+        $failure = New-Object InvalidOperationException "Native operation failed (exit $exitCode)."
+        $failure.Data['OcrFailureCategory'] = Get-OcrDockerFailureCategory $result
+        throw $failure
+    }
     return (($result | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n")
 }
 
@@ -28,7 +43,14 @@ function Invoke-OcrDocker {
     param([string[]]$Arguments)
     # Never print native output on error: inspect/env-file errors may contain secrets.
     try { return Invoke-OcrNative -Executable 'docker.exe' -Arguments $Arguments }
-    catch { throw "Docker operation '$($Arguments[0])' could not complete." }
+    catch {
+        if ($Arguments[0] -eq 'pull') {
+            $category = $_.Exception.Data['OcrFailureCategory']
+            if ($category -cnotin @('unauthorized', 'tls', 'network', 'storage', 'unknown')) { $category = 'unknown' }
+            throw "Docker pull failed (category: $category). Native details suppressed."
+        }
+        throw "Docker operation '$($Arguments[0])' could not complete."
+    }
 }
 
 function Get-OcrPathKey {

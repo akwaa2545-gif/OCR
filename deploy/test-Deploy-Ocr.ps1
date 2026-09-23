@@ -12,6 +12,49 @@ Test-Case 'native exit zero stderr does not fail or contaminate stdout' {
 Test-Case 'native nonzero exit fails without exposing stderr' {
     Assert-Throws { Invoke-OcrNative -Executable 'cmd.exe' -Arguments @('/d', '/c', 'echo secret-marker 1>&2 & exit /b 7') } 'Native operation failed (exit 7).'
 }
+Test-Case 'Docker pull diagnostics classify only fixed safe categories' {
+    $cases = @{
+        'unauthorized: secret-sentinel'='unauthorized'; 'denied: secret-sentinel'='unauthorized'
+        'x509: certificate signed by unknown authority secret-sentinel'='tls'
+        'dial tcp: no such host secret-sentinel'='network'
+        'failed to register layer: no space left on device secret-sentinel'='storage'
+        'write secret-sentinel: access is denied'='storage'
+        'unexpected failure secret-sentinel'='unknown'
+    }
+    foreach ($message in $cases.Keys) {
+        Assert-True ((Get-OcrDockerFailureCategory @($message)) -ceq $cases[$message]) 'Unsafe or incorrect Docker category.'
+    }
+}
+Test-Case 'real native failure carries category without raw stderr or stdout' {
+    try {
+        $null = Invoke-OcrNative -Executable 'cmd.exe' -Arguments @('/d', '/c', 'echo secret-sentinel & echo unauthorized secret-sentinel 1>&2 & exit /b 7')
+        throw 'Expected native failure.'
+    } catch {
+        Assert-True ($_.Exception.Data['OcrFailureCategory'] -eq 'unauthorized') 'Native category lost.'
+        Assert-True ($_.Exception.ToString() -notmatch 'secret-sentinel') 'Native details exposed.'
+    }
+}
+Test-Case 'Docker pull exposes only validated category while other failures stay generic' {
+    $nativeImplementation = ${function:Invoke-OcrNative}
+    try {
+        function Invoke-OcrNative {
+            param([string]$Executable, [string[]]$Arguments)
+            $failure = New-Object InvalidOperationException 'secret-sentinel'
+            $failure.Data['OcrFailureCategory'] = 'unauthorized'
+            throw $failure
+        }
+        Assert-Throws { Invoke-OcrDocker @('pull', 'secret-sentinel') } 'Docker pull failed (category: unauthorized). Native details suppressed.'
+        Assert-Throws { Invoke-OcrDocker @('inspect', 'secret-sentinel') } "Docker operation 'inspect' could not complete."
+        function Invoke-OcrNative {
+            $failure = New-Object InvalidOperationException 'secret-sentinel'
+            $failure.Data['OcrFailureCategory'] = 'secret-sentinel'
+            throw $failure
+        }
+        Assert-Throws { Invoke-OcrDocker @('pull', 'secret-sentinel') } 'Docker pull failed (category: unknown). Native details suppressed.'
+        function Invoke-OcrNative { throw 'secret-sentinel' }
+        Assert-Throws { Invoke-OcrDocker @('pull', 'secret-sentinel') } 'Docker pull failed (category: unknown). Native details suppressed.'
+    } finally { Set-Item Function:Invoke-OcrNative $nativeImplementation }
+}
 function New-TestConfig {
     param([string]$Name, [int]$Port)
     return [pscustomobject]@{ ContainerName = "ocr-$Name"; Port = $Port; ExpectedDatabase = "OCR_$Name"; CertificatesRoot = "C:\$Name\certs"; UploadRoot = "C:\$Name\uploads"; PhotosRoot = "C:\$Name\photos"; DataProtectionRoot = "C:\$Name\keys" }

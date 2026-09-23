@@ -21,7 +21,7 @@ Both environments share one deployment concurrency group. An active deployment i
 - Enable Actions and GitHub Packages for the repository. GHCR uses the workflow's short-lived `GITHUB_TOKEN` (`packages:write` only in publish, `packages:read` only in deploy). Existing packages must grant this repository Actions access. No permanent registry password is needed.
 - Protect `main` and require trusted review of workflow/deployment-script changes: repository code executing on the host has access to Docker and host secrets. Do not allow untrusted workflows to use this runner.
 
-Deployment logs into GHCR using a unique temporary Docker configuration and removes it after completion. No database credentials are transferred from GitHub.
+Deployment uses the job's read-only `GITHUB_TOKEN` in a private, GUID-named Docker configuration under `C:\ocr-deploy`, then removes the exact temporary credential file and directory. The image pull authenticates directly; deployment does not run `docker login`/`logout` or modify Docker Desktop's shared Windows credential store. The helper rejects unsafe permissions and reparse paths before writing credentials. No database credentials are transferred from GitHub.
 
 ## Installed setup (2026-09-23)
 

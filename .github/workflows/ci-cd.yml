@@ -121,48 +121,27 @@ jobs:
           $ErrorActionPreference = 'Stop'
           if ($env:COMPUTERNAME -ne 'THBTCDT-CM1XKG2') { throw 'Deployment job reached an unexpected host.' }
           if ($env:DEPLOY_IMAGE -notmatch '^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$') { throw 'Invalid immutable image reference.' }
-          $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
-          $registryConfig = Join-Path $tempRoot ('ocr-registry-' + [guid]::NewGuid().ToString('N'))
-          $env:DOCKER_CONFIG = $registryConfig
-          New-Item -ItemType Directory -Path $registryConfig | Out-Null
-          function Get-OcrRegistryFailure {
-            param([object[]]$OutputLines)
-            # Never return native output: it can contain registry or credential details.
-            $message = ($OutputLines | ForEach-Object { [string]$_ }) -join ' '
-            if ($message -match '(?i)dockerDesktopLinuxEngine|docker_engine|cannot connect to the docker daemon|is the docker daemon running') { return 'docker-engine' }
-            if ($message -match '(?i)credential.{0,40}(helper|stor)|error (saving|storing) credentials|docker-credential|wincred|credsStore') { return 'credential-storage' }
-            if ($message -match '(?i)unauthorized|denied|authentication required|forbidden|status.{0,10}(401|403)') { return 'unauthorized' }
-            if ($message -match '(?i)\btls\b|\bx509\b|certificate|\bssl\b') { return 'tls' }
-            if ($message -match '(?i)dial tcp|no such host|connection (refused|reset)|timeout|timed out|deadline exceeded|network is unreachable|proxyconnect|name resolution') { return 'network' }
-            return 'unknown'
-          }
+          . ./deploy/RegistryLogin.ps1
+          $registryConfig = $null
+          $deploymentFailed = $false
           try {
-            . ./deploy/RegistryLogin.ps1
-            if ($env:GH_ACTOR -notmatch '^[a-zA-Z0-9\[\]-]+$') { throw 'Invalid registry actor.' }
-            $dockerPath = (Get-Command docker.exe -CommandType Application -ErrorAction Stop).Source
-            $login = Invoke-OcrSecretStdinProcess -FileName $dockerPath -Arguments "login ghcr.io --username $env:GH_ACTOR --password-stdin" -InputText $env:GH_TOKEN
-            if ($login.ExitCode -ne 0) {
-              $category = Get-OcrRegistryFailure -OutputLines @($login.StandardOutput, $login.StandardError)
-              $tokenLength = $env:GH_TOKEN.Length
-              $hasWhitespace = $env:GH_TOKEN -match '\s'
-              $repositoryStatus = Get-OcrGitHubDiagnosticStatus -Token $env:GH_TOKEN -Resource Repository
-              $packageStatus = Get-OcrGitHubDiagnosticStatus -Token $env:GH_TOKEN -Resource Package
-              throw "Registry login failed (category: $category; exit: $($login.ExitCode); token length: $tokenLength; whitespace: $hasWhitespace; repository HTTP: $repositoryStatus; package HTTP: $packageStatus). Native details suppressed."
-            }
+            Remove-Item Env:DOCKER_AUTH_CONFIG -ErrorAction SilentlyContinue
+            $registryConfig = New-OcrRegistryConfig -Root 'C:\ocr-deploy' -Actor $env:GH_ACTOR -Token $env:GH_TOKEN
+            $env:DOCKER_CONFIG = $registryConfig
+            Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
             & ./deploy/Deploy-Ocr.ps1 -Environment $env:DEPLOY_TARGET -Image $env:DEPLOY_IMAGE -ConfigRoot 'C:\ocr-deploy'
+          } catch {
+            $deploymentFailed = $true
+            throw
           } finally {
+            Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
+            Remove-Item Env:DOCKER_CONFIG -ErrorAction SilentlyContinue
+            Remove-Item Env:DOCKER_AUTH_CONFIG -ErrorAction SilentlyContinue
             try {
-              $ErrorActionPreference = 'Continue'
-              & docker.exe logout ghcr.io 2>&1 | Out-Null
+              if ($null -ne $registryConfig) { Remove-OcrRegistryConfig -Root 'C:\ocr-deploy' -Path $registryConfig }
             } catch {
-              Write-Warning 'Registry logout did not complete; removing temporary credentials.'
-            } finally {
-              $ErrorActionPreference = 'Stop'
-              $resolved = [IO.Path]::GetFullPath($registryConfig)
-              if ($resolved.StartsWith($tempRoot + '\', [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolved -Leaf) -match '^ocr-registry-[a-f0-9]{32}$') {
-                Remove-Item -LiteralPath $resolved -Recurse -Force
-              }
-              Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
+              Write-Warning 'Private registry credential cleanup failed; inspect the restricted OCR deployment directory.'
+              if (-not $deploymentFailed) { throw 'Registry credential cleanup failed.' }
             }
           }
           exit 0
