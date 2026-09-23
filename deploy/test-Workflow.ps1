@@ -18,3 +18,31 @@ foreach ($check in $checks.GetEnumerator()) {
     Write-Output "PASS: $($check.Key)"
 }
 Write-Output "$($checks.Count) workflow contract checks passed (text contracts, not a YAML parser)."
+
+# Execute only the isolated, pure classifier function, never the workflow body.
+$classifier = [regex]::Match($workflow, '(?ms)^ {10}function Get-OcrRegistryFailure \{.*?^ {10}\}')
+if (-not $classifier.Success) { throw 'Registry failure classifier missing.' }
+. ([scriptblock]::Create(($classifier.Value -replace '(?m)^ {10}', '')))
+$registryCases = @(
+    @('error saving credentials: error storing credentials - err: exit status 1', 'credential-storage'),
+    @('docker-credential-wincred unavailable', 'credential-storage'),
+    @('open //./pipe/dockerDesktopLinuxEngine: Access is denied.', 'docker-engine'),
+    @('Cannot connect to the Docker daemon', 'docker-engine'),
+    @('unauthorized: authentication required token-secret-sentinel', 'unauthorized'),
+    @('denied: permission denied', 'unauthorized'),
+    @('x509: certificate signed by unknown authority', 'tls'),
+    @('TLS handshake timeout', 'tls'),
+    @('dial tcp: lookup ghcr.io: no such host', 'network'),
+    @('connection refused', 'network'),
+    @('context deadline exceeded', 'network'),
+    @('token-secret-sentinel unexplained error', 'unknown'),
+    @('', 'unknown')
+)
+foreach ($case in $registryCases) {
+    $actual = Get-OcrRegistryFailure -OutputLines @($case[0])
+    if ($actual -cne $case[1]) { throw 'Registry diagnostic classification contract failed.' }
+    if ($actual -match 'token-secret-sentinel') { throw 'Registry classifier leaked input.' }
+}
+$errorRecord = New-Object System.Management.Automation.ErrorRecord ([Exception]::new('error storing credentials token-secret-sentinel')), 'NativeCommandError', 'NotSpecified', $null
+if ((Get-OcrRegistryFailure -OutputLines @($errorRecord)) -ne 'credential-storage') { throw 'Native stderr classification failed.' }
+Write-Output '14 registry diagnostic tests passed; only fixed categories returned.'

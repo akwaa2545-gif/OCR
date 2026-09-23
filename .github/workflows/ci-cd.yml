@@ -124,13 +124,27 @@ jobs:
           $registryConfig = Join-Path $tempRoot ('ocr-registry-' + [guid]::NewGuid().ToString('N'))
           $env:DOCKER_CONFIG = $registryConfig
           New-Item -ItemType Directory -Path $registryConfig | Out-Null
+          function Get-OcrRegistryFailure {
+            param([object[]]$OutputLines)
+            # Never return native output: it can contain registry or credential details.
+            $message = ($OutputLines | ForEach-Object { [string]$_ }) -join ' '
+            if ($message -match '(?i)dockerDesktopLinuxEngine|docker_engine|cannot connect to the docker daemon|is the docker daemon running') { return 'docker-engine' }
+            if ($message -match '(?i)credential.{0,40}(helper|stor)|error (saving|storing) credentials|docker-credential|wincred|credsStore') { return 'credential-storage' }
+            if ($message -match '(?i)unauthorized|denied|authentication required|forbidden|status.{0,10}(401|403)') { return 'unauthorized' }
+            if ($message -match '(?i)\btls\b|\bx509\b|certificate|\bssl\b') { return 'tls' }
+            if ($message -match '(?i)dial tcp|no such host|connection (refused|reset)|timeout|timed out|deadline exceeded|network is unreachable|proxyconnect|name resolution') { return 'network' }
+            return 'unknown'
+          }
           try {
             # PS5.1 can promote successful native stderr warnings to errors.
             $ErrorActionPreference = 'Continue'
             $loginOutput = @($env:GH_TOKEN | & docker.exe login ghcr.io --username $env:GH_ACTOR --password-stdin 2>&1)
             $loginExit = $LASTEXITCODE
             $ErrorActionPreference = 'Stop'
-            if ($loginExit -ne 0) { throw 'Registry login failed.' }
+            if ($loginExit -ne 0) {
+              $category = Get-OcrRegistryFailure -OutputLines $loginOutput
+              throw "Registry login failed (category: $category; exit: $loginExit). Native details suppressed."
+            }
             & ./deploy/Deploy-Ocr.ps1 -Environment $env:DEPLOY_TARGET -Image $env:DEPLOY_IMAGE -ConfigRoot 'C:\ocr-deploy'
           } finally {
             try {
