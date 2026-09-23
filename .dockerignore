@@ -24,7 +24,6 @@ tests/
 **/bin
 **/obj
 **/publish
-**/o
 **/logs
 **/uploads*
 **/photos

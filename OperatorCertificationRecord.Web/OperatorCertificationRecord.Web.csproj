@@ -14,7 +14,7 @@
     <!-- Pre-compile to native on publish so first-request JIT cost drops to near-zero -->
     <PublishReadyToRun>true</PublishReadyToRun>
     <!-- Runtime data comes from host volumes, never developer-local publish content. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);**/publish/**;**/o/**;**/logs/**;**/uploads*/**;**/photos/**;**/certs/**;**/App_Data/**;**/dataprotection/**;**/photo-source/**;**/legacy-photos/**;**/.env;**/.env.*;**/appsettings.Local.json;**/appsettings.*.Local.json;**/*.md;**/.tmp*/**;**/*.pfx;**/*.p12;**/*.key;**/*.pem;**/*.bak;**/*.zip</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/publish/**;**/logs/**;**/uploads*/**;**/photos/**;**/certs/**;**/App_Data/**;**/dataprotection/**;**/photo-source/**;**/legacy-photos/**;**/.env;**/.env.*;**/appsettings.Local.json;**/appsettings.*.Local.json;**/*.md;**/.tmp*/**;**/*.pfx;**/*.p12;**/*.key;**/*.pem;**/*.bak;**/*.zip</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

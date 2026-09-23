@@ -45,6 +45,7 @@ jobs:
           persist-credentials: false
       - name: Offline deployment and workflow regression checks
         run: |
+          $ErrorActionPreference = 'Stop'
           & ./deploy/test-Deploy-Ocr.ps1
           & ./deploy/test-Isolate-TestStorage.ps1
           & ./deploy/test-Workflow.ps1

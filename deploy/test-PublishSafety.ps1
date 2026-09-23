@@ -9,7 +9,7 @@ foreach ($name in @('appsettings.json', 'appsettings.Production.json', 'appsetti
     }
 }
 $ignore = @(Get-Content (Join-Path $root '.dockerignore'))
-foreach ($pattern in @('**/bin', '**/obj', '**/publish', '**/o', '**/logs', '**/uploads*', '**/photos', '**/certs', '**/.env', '**/.env.*', '**/*.md', '**/.tmp*', '**/App_Data')) {
+foreach ($pattern in @('**/bin', '**/obj', '**/publish', '**/logs', '**/uploads*', '**/photos', '**/certs', '**/.env', '**/.env.*', '**/*.md', '**/.tmp*', '**/App_Data')) {
     if ($ignore -notcontains $pattern) { $failures += "Missing Docker context exclusion: $pattern" }
 }
 $dockerfile = Get-Content (Join-Path $root 'Dockerfile') -Raw
@@ -18,8 +18,29 @@ if ($dockerfile -match '(?m)^COPY OperatorCertificationRecord/') {
 }
 $project = [xml](Get-Content (Join-Path $web 'OperatorCertificationRecord.Web.csproj') -Raw)
 $exclusions = [string]$project.Project.PropertyGroup.DefaultItemExcludes
-foreach ($pattern in @('**/publish/**', '**/o/**', '**/logs/**', '**/uploads*/**', '**/photos/**', '**/certs/**', '**/App_Data/**')) {
+foreach ($pattern in @('**/publish/**', '**/logs/**', '**/uploads*/**', '**/photos/**', '**/certs/**', '**/App_Data/**')) {
     if (!$exclusions.Contains($pattern)) { $failures += "Missing publish exclusion: $pattern" }
+}
+# Despite its short name, o contains the tracked application model sources.
+if ($ignore -contains '**/o' -or $ignore -contains '**/o/**' -or $exclusions.Contains('**/o/**')) {
+    $failures += 'Application model sources under o must remain in the Docker context and compile items.'
+}
+$compileJson = & dotnet msbuild (Join-Path $web 'OperatorCertificationRecord.Web.csproj') -getItem:Compile,Content -verbosity:quiet
+if ($LASTEXITCODE -ne 0) { throw 'Could not evaluate application compile items.' }
+$evaluatedItems = ($compileJson -join [Environment]::NewLine | ConvertFrom-Json).Items
+$compileItems = $evaluatedItems.Compile
+$modelFiles = @(Get-ChildItem (Join-Path $web 'o') -Filter '*.cs' -File)
+if ($modelFiles.Count -eq 0) { $failures += 'Application model sources are missing.' }
+foreach ($model in $modelFiles) {
+    if (@($compileItems | Where-Object { $_.FullPath -eq $model.FullName }).Count -eq 0) {
+        $failures += "Model source is excluded from compilation: $($model.Name)"
+    }
+}
+foreach ($content in $evaluatedItems.Content) {
+    $relativePath = $content.Identity.Replace('\', '/')
+    if ($relativePath -match '(?i)(^|/)(publish|logs|uploads[^/]*|photos|certs|App_Data|dataprotection|photo-source|legacy-photos)(/|$)|(^|/)\.env($|\.)|(^|/)appsettings\.(.*\.)?Local\.json$') {
+        $failures += 'Private runtime data or nested publish output is included in application content.'
+    }
 }
 if ($failures.Count) { throw ($failures -join [Environment]::NewLine) }
 Write-Output 'PASS: runtime-only database configuration and private build/publish content exclusions.'
