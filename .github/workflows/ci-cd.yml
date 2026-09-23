@@ -49,6 +49,7 @@ jobs:
           & ./deploy/test-Deploy-Ocr.ps1
           & ./deploy/test-Isolate-TestStorage.ps1
           & ./deploy/test-Workflow.ps1
+          & ./deploy/test-RegistryLogin.ps1
           & ./deploy/test-PublishSafety.ps1
           & ./deploy/test-HostConfig.ps1
           & ./deploy/test-RunnerTask.ps1
@@ -136,14 +137,17 @@ jobs:
             return 'unknown'
           }
           try {
-            # PS5.1 can promote successful native stderr warnings to errors.
-            $ErrorActionPreference = 'Continue'
-            $loginOutput = @($env:GH_TOKEN | & docker.exe login ghcr.io --username $env:GH_ACTOR --password-stdin 2>&1)
-            $loginExit = $LASTEXITCODE
-            $ErrorActionPreference = 'Stop'
-            if ($loginExit -ne 0) {
-              $category = Get-OcrRegistryFailure -OutputLines $loginOutput
-              throw "Registry login failed (category: $category; exit: $loginExit). Native details suppressed."
+            . ./deploy/RegistryLogin.ps1
+            if ($env:GH_ACTOR -notmatch '^[a-zA-Z0-9\[\]-]+$') { throw 'Invalid registry actor.' }
+            $dockerPath = (Get-Command docker.exe -CommandType Application -ErrorAction Stop).Source
+            $login = Invoke-OcrSecretStdinProcess -FileName $dockerPath -Arguments "login ghcr.io --username $env:GH_ACTOR --password-stdin" -InputText $env:GH_TOKEN
+            if ($login.ExitCode -ne 0) {
+              $category = Get-OcrRegistryFailure -OutputLines @($login.StandardOutput, $login.StandardError)
+              $tokenLength = $env:GH_TOKEN.Length
+              $hasWhitespace = $env:GH_TOKEN -match '\s'
+              $repositoryStatus = Get-OcrGitHubDiagnosticStatus -Token $env:GH_TOKEN -Resource Repository
+              $packageStatus = Get-OcrGitHubDiagnosticStatus -Token $env:GH_TOKEN -Resource Package
+              throw "Registry login failed (category: $category; exit: $($login.ExitCode); token length: $tokenLength; whitespace: $hasWhitespace; repository HTTP: $repositoryStatus; package HTTP: $packageStatus). Native details suppressed."
             }
             & ./deploy/Deploy-Ocr.ps1 -Environment $env:DEPLOY_TARGET -Image $env:DEPLOY_IMAGE -ConfigRoot 'C:\ocr-deploy'
           } finally {
