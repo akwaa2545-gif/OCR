@@ -51,8 +51,8 @@ public class OperatorTrainingModel : PageModel
         if (string.IsNullOrWhiteSpace(storedPath)) return null;
         if (storedPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || storedPath.StartsWith("/photos/", StringComparison.OrdinalIgnoreCase))
         {
-            _logger?.LogInformation("Photo path already starts with /uploads/ or /photos/, returning: {PhotoUrl}", storedPath);
-            return storedPath;
+            var knownFileName = Path.GetFileName(storedPath);
+            return string.IsNullOrWhiteSpace(knownFileName) ? null : "/api/photo/" + knownFileName;
         }
         // Handle UNC paths by replacing backslashes with forward slashes
         var normalizedPath = storedPath.Replace('\\', '/');

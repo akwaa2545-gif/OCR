@@ -1,178 +1,149 @@
-name: CI/CD
+name: OCR build and deploy
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       deploy_target:
-        description: "Deploy to (test / production)"
+        description: Environment to deploy (main branch only)
+        type: choice
         required: true
         default: test
-        type: choice
-        options:
-          - test
-          - production
+        options: [test, prod]
 
-env:
-  IMAGE_NAME: operatorcertificationrecord:web
-  PROD_CONTAINER: ocrweb
-  TEST_CONTAINER: ocrwebtest
-
-defaults:
-  run:
-    shell: powershell -ExecutionPolicy Bypass -NonInteractive -File "{0}"
+permissions:
+  contents: read
 
 jobs:
-  # ── Build & Test ────────────────────────────────────────────────────────────
-  build-and-test:
-    runs-on: self-hosted
+  web-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Find dotnet
-        run: |
-          $candidates = @(
-            "C:\Program Files\dotnet\dotnet.exe",
-            "C:\Program Files (x86)\dotnet\dotnet.exe",
-            "$env:USERPROFILE\.dotnet\dotnet.exe",
-            "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe",
-            "C:\dotnet\dotnet.exe"
-          )
-          foreach ($c in $candidates) {
-            Write-Host "$(if (Test-Path $c) {'FOUND'} else {'    '}): $c"
-          }
-          Write-Host "--- where.exe ---"
-          where.exe dotnet 2>&1 | Write-Host
-          Write-Host "--- PATH ---"
-          $env:PATH -split ';' | Where-Object { $_ -match 'dotnet' } | Write-Host
-
-      - name: Restore dependencies
-        run: |
-          & "C:\Program Files\dotnet\dotnet.exe" restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
-
-      - name: Build
-        run: |
-          & "C:\Program Files\dotnet\dotnet.exe" build OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj --no-restore -c Release
-
-      - name: Test
-        run: |
-          & "C:\Program Files\dotnet\dotnet.exe" test tests/OperatorCertificationRecord.Web.Tests/OperatorCertificationRecord.Web.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=results.trx"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build and test web application (no production database access)
         env:
           ASPNETCORE_ENVIRONMENT: Testing
-          ConnectionStrings__DefaultConnection: ${{ secrets.OCR_TEST_CONNECTION_STRING }}
+        run: dotnet test tests/OperatorCertificationRecord.Web.Tests/OperatorCertificationRecord.Web.Tests.csproj --configuration Release --logger "trx;LogFileName=results.trx"
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
+  deployment-tests:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          name: test-results
-          path: "**/*.trx"
+          persist-credentials: false
+      - name: Offline deployment and workflow regression checks
+        run: |
+          & ./deploy/test-Deploy-Ocr.ps1
+          & ./deploy/test-Isolate-TestStorage.ps1
+          & ./deploy/test-Workflow.ps1
+          & ./deploy/test-PublishSafety.ps1
+          & ./deploy/test-HostConfig.ps1
+          & ./deploy/test-RunnerTask.ps1
 
-  # ── Docker Build ─────────────────────────────────────────────────────────────
-  docker-build:
-    runs-on: self-hosted
-    needs: build-and-test
+  publish:
+    needs: [web-tests, deployment-tests]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t $env:IMAGE_NAME .
-
-  # ── Deploy Test (auto on every push to main) ─────────────────────────────────
-  deploy-test:
-    runs-on: self-hosted
-    needs: docker-build
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_target == 'test')
-    steps:
-      - name: Stop & remove existing test container
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Build and publish immutable Linux image
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_ACTOR: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          docker stop $env:TEST_CONTAINER 2>$null
-          docker rm   $env:TEST_CONTAINER 2>$null
-          exit 0
+          set -euo pipefail
+          export DOCKER_CONFIG="$(mktemp -d "$RUNNER_TEMP/ocr-registry.XXXXXX")"
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true; rm -rf -- "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GH_ACTOR" --password-stdin
+          image="ghcr.io/${REPOSITORY,,}/ocr-web"
+          metadata="$RUNNER_TEMP/ocr-image-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
+          docker buildx build --platform linux/amd64 --push --tag "$image:$COMMIT_SHA" --label "org.opencontainers.image.source=https://github.com/$REPOSITORY" --label "org.opencontainers.image.revision=$COMMIT_SHA" --metadata-file "$metadata" .
+          digest="$(jq -er '.["containerimage.digest"]' "$metadata")"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "image=$image@$digest" >> "$GITHUB_OUTPUT"
+          echo "Published: $image@$digest" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Ensure host volume directories exist
-        run: |
-          $dirs = @('C:\uploads','C:\ocr-uploads','C:\ocr-dataprotection','C:\ocr-photos','C:\ocr-logs-test')
-          foreach ($d in $dirs) {
-            if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force $d | Out-Null }
-          }
-
-      - name: Start test container
-        run: |
-          $connStr = "${{ secrets.OCR_TEST_CONNECTION_STRING }}"
-          docker run -d `
-            --name $env:TEST_CONTAINER `
-            -p 5050:80 `
-            -v "C:\uploads:/app/wwwroot/certs" `
-            -v "C:\ocr-uploads:/app/wwwroot/uploads" `
-            -v "C:\ocr-dataprotection:/app/dataprotection" `
-            -v "C:\ocr-photos:/app/wwwroot/photos" `
-            -v "C:\ocr-logs-test:/app/logs" `
-            -e ASPNETCORE_ENVIRONMENT=Testing `
-            -e "ConnectionStrings__DefaultConnection=$connStr" `
-            --restart unless-stopped `
-            $env:IMAGE_NAME
-
-      - name: Health check (test)
-        run: |
-          Write-Host "Waiting for container to start..."
-          Start-Sleep -Seconds 10
-          try {
-            $r = Invoke-WebRequest -Uri http://localhost:5050/ -UseBasicParsing -TimeoutSec 15
-            Write-Host "Health check passed: $($r.StatusCode)"
-          } catch {
-            docker logs $env:TEST_CONTAINER
-            throw "Health check failed: $_"
-          }
-
-  # ── Deploy Production (manual trigger only) ──────────────────────────────────
-  deploy-production:
-    runs-on: self-hosted
-    needs: docker-build
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_target == 'production'
+  deploy:
+    needs: publish
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 20
     environment:
-      name: production
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'prod' && 'production' || 'test' }}
+    concurrency:
+      group: ocr-host-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        shell: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}"
     steps:
-      - name: Stop & remove existing production container
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Pull, validate, deploy and roll back on failed readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_ACTOR: ${{ github.actor }}
+          DEPLOY_IMAGE: ${{ needs.publish.outputs.image }}
+          DOCKER_HOST: npipe:////./pipe/dockerDesktopLinuxEngine
+          DEPLOY_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'prod' && 'prod' || 'test' }}
         run: |
-          docker stop $env:PROD_CONTAINER 2>$null
-          docker rm   $env:PROD_CONTAINER 2>$null
-          exit 0
-
-      - name: Ensure host volume directories exist
-        run: |
-          $dirs = @('C:\uploads','C:\ocr-uploads','C:\ocr-dataprotection','C:\ocr-photos','C:\ocr-logs')
-          foreach ($d in $dirs) {
-            if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force $d | Out-Null }
-          }
-
-      - name: Start production container
-        run: |
-          $connStr = "${{ secrets.OCR_PROD_CONNECTION_STRING }}"
-          docker run -d `
-            --name $env:PROD_CONTAINER `
-            -p 8080:80 `
-            -v "C:\uploads:/app/wwwroot/certs" `
-            -v "C:\ocr-uploads:/app/wwwroot/uploads" `
-            -v "C:\ocr-dataprotection:/app/dataprotection" `
-            -v "C:\ocr-photos:/app/wwwroot/photos" `
-            -v "C:\ocr-logs:/app/logs" `
-            -e ASPNETCORE_ENVIRONMENT=Production `
-            -e "ConnectionStrings__DefaultConnection=$connStr" `
-            --restart unless-stopped `
-            $env:IMAGE_NAME
-
-      - name: Health check (production)
-        run: |
-          Write-Host "Waiting for container to start..."
-          Start-Sleep -Seconds 10
+          $ErrorActionPreference = 'Stop'
+          if ($env:COMPUTERNAME -ne 'THBTCDT-CM1XKG2') { throw 'Deployment job reached an unexpected host.' }
+          if ($env:DEPLOY_IMAGE -notmatch '^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$') { throw 'Invalid immutable image reference.' }
+          $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+          $registryConfig = Join-Path $tempRoot ('ocr-registry-' + [guid]::NewGuid().ToString('N'))
+          $env:DOCKER_CONFIG = $registryConfig
+          New-Item -ItemType Directory -Path $registryConfig | Out-Null
           try {
-            $r = Invoke-WebRequest -Uri http://localhost:8080/ -UseBasicParsing -TimeoutSec 15
-            Write-Host "Health check passed: $($r.StatusCode)"
-          } catch {
-            docker logs $env:PROD_CONTAINER
-            throw "Health check failed: $_"
+            # PS5.1 can promote successful native stderr warnings to errors.
+            $ErrorActionPreference = 'Continue'
+            $loginOutput = @($env:GH_TOKEN | & docker.exe login ghcr.io --username $env:GH_ACTOR --password-stdin 2>&1)
+            $loginExit = $LASTEXITCODE
+            $ErrorActionPreference = 'Stop'
+            if ($loginExit -ne 0) { throw 'Registry login failed.' }
+            & ./deploy/Deploy-Ocr.ps1 -Environment $env:DEPLOY_TARGET -Image $env:DEPLOY_IMAGE -ConfigRoot 'C:\ocr-deploy'
+          } finally {
+            try {
+              $ErrorActionPreference = 'Continue'
+              & docker.exe logout ghcr.io 2>&1 | Out-Null
+            } catch {
+              Write-Warning 'Registry logout did not complete; removing temporary credentials.'
+            } finally {
+              $ErrorActionPreference = 'Stop'
+              $resolved = [IO.Path]::GetFullPath($registryConfig)
+              if ($resolved.StartsWith($tempRoot + '\', [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolved -Leaf) -match '^ocr-registry-[a-f0-9]{32}$') {
+                Remove-Item -LiteralPath $resolved -Recurse -Force
+              }
+              Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
+            }
           }
+          exit 0

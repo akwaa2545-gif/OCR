@@ -3,12 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Restore layer cached until csproj changes
-COPY OperatorCertificationRecord/OperatorCertificationRecord.csproj OperatorCertificationRecord/
+COPY OperatorCertificationRecord.PhotoCompatibility/OperatorCertificationRecord.PhotoCompatibility.csproj OperatorCertificationRecord.PhotoCompatibility/
 COPY OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj OperatorCertificationRecord.Web/
 RUN dotnet restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj
 
 # Copy source and publish
-COPY OperatorCertificationRecord/ OperatorCertificationRecord/
+COPY OperatorCertificationRecord.PhotoCompatibility/ OperatorCertificationRecord.PhotoCompatibility/
 COPY OperatorCertificationRecord.Web/ OperatorCertificationRecord.Web/
 RUN dotnet publish OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj \
     -c Release -o /app/publish --no-restore
@@ -44,6 +44,7 @@ RUN mkdir -p /app/dataprotection \
              /app/wwwroot/certs \
              /app/wwwroot/uploads \
              /app/wwwroot/photos \
+             /app/photo-source \
              logs
 
 EXPOSE 80

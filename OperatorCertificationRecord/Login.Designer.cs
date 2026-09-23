@@ -77,7 +77,6 @@
             this.lblDate.TabIndex = 4;
             this.lblDate.Text = "Date";
             this.lblDate.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.lblDate.Click += new System.EventHandler(this.lblDate_Click);// 
             // timer1
             // 
             this.timer1.Enabled = true;
@@ -144,7 +143,7 @@
             this.groupBox1.Controls.Add(this.btnLogin);
             this.groupBox1.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.groupBox1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(41)))), ((int)(((byte)(128)))), ((int)(((byte)(185)))));
-            this.groupBox1.Location = new System.Drawing.Point(30, 160);
+            this.groupBox1.Location = new System.Drawing.Point(30, 260);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(280, 80);
             this.groupBox1.TabIndex = 11;
@@ -227,7 +226,7 @@
             this.pnlInputContainer.Controls.Add(this.txtUser);
             this.pnlInputContainer.Controls.Add(this.label3);
             this.pnlInputContainer.Controls.Add(this.txtPassword);
-            this.pnlInputContainer.Location = new System.Drawing.Point(280, 0);
+            this.pnlInputContainer.Location = new System.Drawing.Point(0, 90);
             this.pnlInputContainer.Name = "pnlInputContainer";
             this.pnlInputContainer.Size = new System.Drawing.Size(340, 160);
             this.pnlInputContainer.TabIndex = 14;
@@ -235,6 +234,7 @@
             // pnlContent
             // 
             this.pnlContent.BackColor = System.Drawing.Color.White;
+            this.pnlContent.Controls.Add(this.pnlInputContainer);
             this.pnlContent.Controls.Add(this.groupBox1);
             this.pnlContent.Controls.Add(this.lblTitle);
             this.pnlContent.Controls.Add(this.lblTime);
@@ -255,8 +255,8 @@
             this.ControlBox = false;
             this.Controls.Add(this.pnlContent);
             this.Controls.Add(this.pnlSidebar);
-            this.MaximumSize = new System.Drawing.Size(620, 420);
-            this.MinimumSize = new System.Drawing.Size(620, 420);
+            this.MaximumSize = this.Size;
+            this.MinimumSize = this.Size;
             this.Name = "Login";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Operator Training Record - Login";
@@ -288,14 +288,6 @@
         private System.Windows.Forms.Label lblTitle;
         private System.Windows.Forms.Panel pnlContent;
         private System.Windows.Forms.Panel pnlInputContainer;
-        public System.Windows.Forms.Timer timer1;
-        private System.Windows.Forms.TextBox txtUser;
-        private System.Windows.Forms.TextBox txtPassword;
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.PictureBox pictureBox1;
-        private System.Windows.Forms.Panel pnlSidebar;
-        private System.Windows.Forms.Label lblTitle;
-        private System.Windows.Forms.Panel pnlContent;
         public System.Windows.Forms.Timer timer1;
         
     }

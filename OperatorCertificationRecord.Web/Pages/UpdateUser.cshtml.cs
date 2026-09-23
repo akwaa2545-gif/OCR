@@ -23,6 +23,7 @@ namespace OperatorCertificationRecord.Web.Pages
         private readonly JobGradeService _jobGradeService;
         private readonly ILogger<UpdateUserModel>? _logger;
         private readonly IConfiguration _configuration;
+        private readonly EmployeePhotoStorageService _photoStorageService;
 
         [BindProperty] public string? SearchEmpCode { get; set; }
         [BindProperty] public string? EmpCode { get; set; }
@@ -90,7 +91,7 @@ namespace OperatorCertificationRecord.Web.Pages
         public string? TransferBy { get; set; }
         public DateTime? TransferDate { get; set; }
 
-        public UpdateUserModel(EmployeeService employeeService, DepartmentService departmentService, SectionService sectionService, WorkshopService workshopService, JobGradeService jobGradeService, OperatorTrainingService operatorTrainingService, IConfiguration configuration, ILogger<UpdateUserModel>? logger = null)
+        public UpdateUserModel(EmployeeService employeeService, DepartmentService departmentService, SectionService sectionService, WorkshopService workshopService, JobGradeService jobGradeService, OperatorTrainingService operatorTrainingService, EmployeePhotoStorageService photoStorageService, IConfiguration configuration, ILogger<UpdateUserModel>? logger = null)
         {
             _employeeService = employeeService;
             _departmentService = departmentService;
@@ -100,6 +101,7 @@ namespace OperatorCertificationRecord.Web.Pages
             _operatorTrainingService = operatorTrainingService;
             _configuration = configuration;
             _logger = logger;
+            _photoStorageService = photoStorageService;
         }
 
         public async Task OnGetAsync()
@@ -181,68 +183,6 @@ namespace OperatorCertificationRecord.Web.Pages
                 // (Preserve ability to change JobGrade manually for promoted employees.)
 
                 string photoPath = emp.PhotoPath ?? "";
-                if (PhotoFile != null && PhotoFile.Length > 0)
-                {
-                    try
-                    {
-                        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                        if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-                        var fileName = $"{EmpCode}_{DateTime.Now.Ticks}{Path.GetExtension(PhotoFile.FileName)}";
-                        var filePath = Path.Combine(uploadsFolder, fileName);
-                        using (var stream = new FileStream(filePath, FileMode.Create)) await PhotoFile.CopyToAsync(stream);
-                        // choose db photo path based on configuration
-                        var shareRoot = _configuration["PhotoPath"];
-                        if (!string.IsNullOrWhiteSpace(shareRoot))
-                        {
-                            try
-                            {
-                                var shareDest = Path.Combine(shareRoot, fileName);
-                                var shareDir = Path.GetDirectoryName(shareDest);
-                                if (!Directory.Exists(shareDir) && shareDir != null)
-                                {
-                                    Directory.CreateDirectory(shareDir);
-                                }
-                                System.IO.File.Copy(filePath, shareDest, overwrite: true);
-                                photoPath = shareDest; // UNC path stored for old client
-                            }
-                            catch (Exception exCopy)
-                            {
-                                _logger?.LogWarning(exCopy, "Failed to copy updated photo to share {ShareRoot}", shareRoot);
-                                photoPath = $"/uploads/{fileName}";
-                            }
-                        }
-                        else
-                        {
-                            photoPath = $"/uploads/{fileName}";
-                        }
-                        // copy also to share path if configured
-                        shareRoot = _configuration["PhotoPath"];
-                        if (!string.IsNullOrWhiteSpace(shareRoot))
-                        {
-                            try
-                            {
-                                var shareDest = Path.Combine(shareRoot, fileName);
-                                var shareDir = Path.GetDirectoryName(shareDest);
-                                if (!Directory.Exists(shareDir) && shareDir != null)
-                                {
-                                    Directory.CreateDirectory(shareDir);
-                                }
-                                System.IO.File.Copy(filePath, shareDest, overwrite: true);
-                            }
-                            catch (Exception exCopy)
-                            {
-                                _logger?.LogWarning(exCopy, "Failed to copy updated photo to share {ShareRoot}", shareRoot);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Message = $"Error uploading photo: {ex.Message}";
-                        MessageType = "error";
-                        FoundEmployee = true;
-                        return Page();
-                    }
-                }
 
                 // Manual JobGrade changes are allowed even if the employee has been promoted.
                 emp.JobGrade = JobGrade;
@@ -260,7 +200,50 @@ namespace OperatorCertificationRecord.Web.Pages
                 emp.JoinDate = JoinDate;
                 emp.PhotoPath = photoPath;
 
-                var success = await _employeeService.UpdateEmployeeAsync(emp);
+                bool success;
+                try
+                {
+                    if (PhotoFile != null && PhotoFile.Length > 0)
+                    {
+                        await _photoStorageService.StoreAndCommitAsync(
+                            EmpCode!,
+                            PhotoFile,
+                            async (storedPhoto, _) =>
+                            {
+                                photoPath = storedPhoto.DatabasePath;
+                                emp.PhotoPath = photoPath;
+                                return await _employeeService.UpdateEmployeeAsync(emp);
+                            },
+                            HttpContext.RequestAborted);
+                        success = true;
+                    }
+                    else
+                    {
+                        success = await _employeeService.UpdateEmployeeAsync(emp);
+                    }
+                }
+                catch (PhotoUploadValidationException ex)
+                {
+                    Message = ex.Message;
+                    MessageType = "error";
+                    FoundEmployee = true;
+                    return Page();
+                }
+                catch (PhotoCompatibilityCopyException)
+                {
+                    Message = "The photo could not be synchronized with the legacy application.";
+                    MessageType = "error";
+                    FoundEmployee = true;
+                    return Page();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Unexpected photo update failure for employee {EmployeeCode}", EmpCode);
+                    Message = "Error updating employee.";
+                    MessageType = "error";
+                    FoundEmployee = true;
+                    return Page();
+                }
                 if (success)
                 {
                     Message = "Employee updated successfully.";

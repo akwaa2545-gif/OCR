@@ -182,6 +182,23 @@ public class AddSkillModel : PageModel
 
         var verifierName = HttpContext.Session.GetString("UserName") ?? userCode;
 
+        // Prevent adding skills for promoted or resigned employees
+        if (!string.IsNullOrWhiteSpace(EmpCode))
+        {
+            if (await _employeeService.IsEmployeePromotedAsync(EmpCode))
+            {
+                Message = "Employee has been promoted — cannot add new skills.";
+                MessageType = "error";
+                return Page();
+            }
+            if (await _employeeService.IsEmployeeResignedAsync(EmpCode))
+            {
+                Message = "Employee has resigned — cannot add new skills.";
+                MessageType = "error";
+                return Page();
+            }
+        }
+
         // Validate required fields
         var missing = new List<string>();
         if (string.IsNullOrWhiteSpace(EmpCode)) missing.Add("Employee");
@@ -210,23 +227,6 @@ public class AddSkillModel : PageModel
             MessageType = "error";
             await OnGetAsync(EmpCode);
             return Page();
-        }
-
-        // Prevent adding skills for promoted or resigned employees
-        if (!string.IsNullOrWhiteSpace(EmpCode))
-        {
-            if (await _employeeService.IsEmployeePromotedAsync(EmpCode))
-            {
-                Message = "Employee has been promoted — cannot add new skills.";
-                MessageType = "error";
-                return Page();
-            }
-            if (await _employeeService.IsEmployeeResignedAsync(EmpCode))
-            {
-                Message = "Employee has resigned — cannot add new skills.";
-                MessageType = "error";
-                return Page();
-            }
         }
 
         try

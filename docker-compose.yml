@@ -8,10 +8,15 @@ services:
 
     volumes:
     - certshare:/app/wwwroot/certs:ro
-    - photovol:/app/wwwroot/uploads:ro
+    - "C:/ocr-uploads:/app/photo-source"
+    - "C:/ocr-photos:/app/legacy-photos"
 
     environment:
       CertificatePath: "/certs"
+      PhotoStorage__UploadRoot: "/app/photo-source"
+      PhotoStorage__DatabasePathPrefix: "/app/photos"
+      PhotoStorage__LegacyMirrorRoot: "/app/legacy-photos"
+      PhotoStorage__MaxFileBytes: "5242880"
       ConnectionStrings__DefaultConnection: >-
         Server=10.249.153.30;Database=OperatorCertificationRecordDB;
         User Id=TETUSR;Password=TETPWD;TrustServerCertificate=True;
@@ -20,6 +25,4 @@ services:
 
 volumes:
   certshare:
-    external: true
-  photovol:
     external: true

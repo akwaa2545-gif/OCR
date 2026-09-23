@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\OperatorCertificationRecord.Web\OperatorCertificationRecord.Web.csproj" />
+    <ProjectReference Include="..\..\OperatorCertificationRecord.PhotoCompatibility\OperatorCertificationRecord.PhotoCompatibility.csproj" />
   </ItemGroup>
 </Project>

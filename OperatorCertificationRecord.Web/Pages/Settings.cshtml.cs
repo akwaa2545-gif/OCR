@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using OperatorCertificationRecord.Web.Filters;
 using OperatorCertificationRecord.Web.Services;
-using Microsoft.AspNetCore.Http;
 using System.IO;
 
 namespace OperatorCertificationRecord.Web.Pages
@@ -11,13 +10,18 @@ namespace OperatorCertificationRecord.Web.Pages
     public class SettingsModel : PageModel
     {
         private readonly EmployeeService _employeeService;
-    private readonly IConfiguration _configuration;
+        private readonly EmployeePhotoStorageService _photoStorageService;
+        private readonly ILogger<SettingsModel> _logger;
 
-    public SettingsModel(EmployeeService employeeService, IConfiguration configuration)
-    {
-        _employeeService = employeeService;
-        _configuration = configuration;
-    }
+        public SettingsModel(
+            EmployeeService employeeService,
+            EmployeePhotoStorageService photoStorageService,
+            ILogger<SettingsModel> logger)
+        {
+            _employeeService = employeeService;
+            _photoStorageService = photoStorageService;
+            _logger = logger;
+        }
 
         // Current user info (read-only display)
         public string EmpCode { get; set; } = "";
@@ -75,61 +79,50 @@ namespace OperatorCertificationRecord.Web.Pages
                 return RedirectToPage();
             }
 
-            // reuse upload logic from AddUser/UpdateUser
-            string photoPath = "";
             try
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadsFolder))
-                    Directory.CreateDirectory(uploadsFolder);
-
-                var fileName = $"{empCode}_{DateTime.Now.Ticks}{Path.GetExtension(PhotoFile.FileName)}";
-                var filePath = Path.Combine(uploadsFolder, fileName);
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await PhotoFile.CopyToAsync(stream);
-                }
-                var shareRoot = _configuration["PhotoPath"];
-                if (!string.IsNullOrWhiteSpace(shareRoot))
-                {
-                    try
-                    {
-                        var shareDest = Path.Combine(shareRoot, fileName);
-                        var shareDir = Path.GetDirectoryName(shareDest);
-                        if (!Directory.Exists(shareDir) && shareDir != null)
-                            Directory.CreateDirectory(shareDir);
-                        System.IO.File.Copy(filePath, shareDest, true);
-                        photoPath = shareDest;
-                    }
-                    catch { photoPath = $"/uploads/{fileName}"; }
-                }
-                else
-                {
-                    photoPath = $"/uploads/{fileName}";
-                }
-
-                // update database record
                 var emp = await _employeeService.GetEmployeeByCodeAsync(empCode);
-                if (emp != null)
+                if (emp == null)
                 {
-                    emp.PhotoPath = photoPath;
-                    var ok = await _employeeService.UpdateEmployeeAsync(emp);
-                    if (ok)
-                    {
-                        HttpContext.Session.SetString("PhotoPath", photoPath);
-                        StatusMessage = "Profile picture updated.";
-                        StatusType = "success";
-                    }
-                    else
-                    {
-                        StatusMessage = "Failed to save photo path to database.";
-                        StatusType = "error";
-                    }
+                    StatusMessage = "Employee record was not found.";
+                    StatusType = "error";
+                    return RedirectToPage();
                 }
+
+                var storedPhoto = await _photoStorageService.StoreAndCommitAsync(
+                    empCode,
+                    PhotoFile,
+                    async (pendingPhoto, _) =>
+                    {
+                        emp.PhotoPath = pendingPhoto.DatabasePath;
+                        return await _employeeService.UpdateEmployeeAsync(emp);
+                    },
+                    HttpContext.RequestAborted);
+                var photoPath = storedPhoto.DatabasePath;
+
+                HttpContext.Session.SetString("PhotoPath", photoPath);
+                StatusMessage = "Profile picture updated.";
+                StatusType = "success";
+            }
+            catch (PhotoUploadValidationException ex)
+            {
+                StatusMessage = ex.Message;
+                StatusType = "error";
+            }
+            catch (PhotoCompatibilityCopyException)
+            {
+                StatusMessage = "The photo could not be synchronized with the legacy application.";
+                StatusType = "error";
+            }
+            catch (PhotoPersistenceException)
+            {
+                StatusMessage = "Failed to save photo path to database.";
+                StatusType = "error";
             }
             catch (Exception ex)
             {
-                StatusMessage = "Error uploading photo: " + ex.Message;
+                _logger.LogError(ex, "Unexpected profile photo upload failure for employee {EmployeeCode}", empCode);
+                StatusMessage = "Error uploading photo.";
                 StatusType = "error";
             }
 

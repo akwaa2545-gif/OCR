@@ -326,6 +326,37 @@ Your application is now running as a modern web application. You can:
 | Run application | Press F5 |
 | Publish for production | `dotnet publish -c Release` |
 
+### Photo compatibility deployment
+
+New web uploads are stored with a versioned name under `PhotoStorage:UploadRoot`, while a stable `<EmpCode>.<ext>` copy is written to `PhotoStorage:LegacyMirrorRoot` for the WinForms client. The database stores the canonical `/app/photos/<EmpCode>_<ticks>.<ext>` path.
+
+For Docker deployment, the compose file mounts `C:/ocr-uploads` read/write at `/app/photo-source` (outside the public web root) and `C:/ocr-photos` at `/app/legacy-photos`. Ensure the container can write both host folders. Do not place network-share credentials in source-controlled configuration.
+
+Before deploying the legacy resolver, preview the one-time backfill with `./SyncLegacyPhotos.ps1 -WhatIf`, then run it without `-WhatIf` after confirming the source and destination. The script scans only root-level JPG/PNG files, so employee PDF subfolders are not copied.
+
+For the current manual `docker load` deployment, use the loaded image's actual tag in place of `<loaded-image-tag>`:
+
+```powershell
+docker load -i C:\temp\ocr-webimagetest.tar
+docker stop ocrweb
+docker rm ocrweb
+docker run -d --name ocrweb -p 8080:80 `
+  -v C:\uploads:/app/wwwroot/certs `
+  -v C:\ocr-uploads:/app/photo-source `
+  -v C:\ocr-dataprotection:/app/dataprotection `
+  -v C:\ocr-photos:/app/legacy-photos `
+  -e ASPNETCORE_ENVIRONMENT=Production `
+  -e PhotoStorage__UploadRoot=/app/photo-source `
+  -e PhotoStorage__DatabasePathPrefix=/app/photos `
+  -e PhotoStorage__LegacyMirrorRoot=/app/legacy-photos `
+  -e PhotoStorage__MaxFileBytes=5242880 `
+  -e "ConnectionStrings__DefaultConnection=<production-connection-string>" `
+  --restart unless-stopped `
+  <loaded-image-tag>
+```
+
+`C:\ocr-photos` must be the host folder backing, or reliably synchronized with, `\\svr120a\PhotoEmp$`. Keep the real database password in the deployment environment rather than committing it to a script.
+
 ---
 
 **Last Updated**: January 8, 2026  

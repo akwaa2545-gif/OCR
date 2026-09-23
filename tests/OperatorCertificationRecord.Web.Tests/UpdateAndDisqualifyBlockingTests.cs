@@ -14,7 +14,7 @@ public class UpdateAndDisqualifyBlockingTests
     public async Task UpdateSkill_IsBlocked_When_Resigned()
     {
         var fake = new FakeEmployeeService { ResignedResult = true };
-        var model = new UpdateSkillModel(fake, null!, null!);
+        var model = new UpdateSkillModel(fake, null!, null!, null!);
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Session = new Fakes.TestSession();
         httpContext.Session.SetString("UserCode", "tester");
@@ -54,7 +54,7 @@ public class UpdateAndDisqualifyBlockingTests
         fake.StubEmployee = new Employee { EmpCode = "E5", JobGrade = "51G", JoinDate = System.DateTime.Now.AddYears(-2) };
         fake.StubCurrentSkills = new List<EmployeeSkillRecord> { new EmployeeSkillRecord { Process = "P1" } };
 
-        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!);
+        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!, null!);
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Session = new Fakes.TestSession();
         httpContext.Session.SetString("UserCode", "tester");
@@ -72,7 +72,7 @@ public class UpdateAndDisqualifyBlockingTests
     {
         // submitting form with no action (simulate pressing cancel) should not perform any redirect
         var fake = new FakeEmployeeService();
-        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!);
+        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!, null!);
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Session = new Fakes.TestSession();
         httpContext.Session.SetString("UserCode", "tester");
@@ -83,7 +83,7 @@ public class UpdateAndDisqualifyBlockingTests
 
         // should remain on page (PageResult) and not redirect to ViewUser or other page
         Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(result);
-        Assert.Null(model.MessageType);
+        Assert.True(string.IsNullOrEmpty(model.MessageType));
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public class UpdateAndDisqualifyBlockingTests
     {
         // simulate clicking cancel/close on resign modal (no action posted)
         var fake = new FakeEmployeeService();
-        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!);
+        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!, null!);
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Session = new Fakes.TestSession();
         httpContext.Session.SetString("UserCode", "tester");
@@ -99,5 +99,5 @@ public class UpdateAndDisqualifyBlockingTests
 
         var result = await model.OnPostAsync("");
         Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(result);
-        Assert.Null(model.MessageType);
+        Assert.True(string.IsNullOrEmpty(model.MessageType));
     }}

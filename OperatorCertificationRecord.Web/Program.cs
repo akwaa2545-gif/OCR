@@ -68,7 +68,10 @@ try
 
     // Add database services
     builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
+    builder.Services.AddSingleton(TimeProvider.System);
+    builder.Services.AddScoped<IReadinessProbe, SqlReadinessProbe>();
     builder.Services.AddScoped<EmployeeService>();
+    builder.Services.AddScoped<EmployeePhotoStorageService>();
     builder.Services.AddScoped<DepartmentService>();
     builder.Services.AddScoped<SectionService>();
     builder.Services.AddScoped<WorkshopService>();
@@ -113,6 +116,7 @@ try
     QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
     // Configure the HTTP request pipeline
+    app.UseMiddleware<ReadinessMiddleware>();
     if (!app.Environment.IsDevelopment())
     {
         app.UseExceptionHandler("/Error");
@@ -128,6 +132,20 @@ try
     }
 
     // Static files with long browser cache (1 year) — CSS/JS/images/fonts
+    // Employee photos are served through the session-protected photo controller.
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/uploads") ||
+            context.Request.Path.StartsWithSegments("/uploads-test") ||
+            context.Request.Path.StartsWithSegments("/photos"))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        await next();
+    });
+
     app.UseStaticFiles(new StaticFileOptions
     {
         OnPrepareResponse = ctx =>

@@ -65,7 +65,6 @@ namespace OperatorTrainingRecord
 
             // Form styling
             this.BackColor = white;
-            this.Font = new Font("Segoe UI", 9F);
 
             // Sidebar styling with darker blue
             if (pnlSidebar != null)
@@ -136,7 +135,7 @@ namespace OperatorTrainingRecord
             button.ForeColor = foreColor;
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.BorderColor = Color.Transparent;
+            button.FlatAppearance.BorderColor = backColor;
             button.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
             button.Padding = new Padding(10);

@@ -13,7 +13,7 @@ public class AddUserModel : PageModel
     private readonly SectionService _sectionService;
     private readonly WorkshopService _workshopService;
     private readonly JobGradeService _jobGradeService;
-    private readonly IConfiguration _configuration;
+    private readonly EmployeePhotoStorageService _photoStorageService;
     private readonly ILogger<AddUserModel> _logger;
 
     [BindProperty]
@@ -67,7 +67,8 @@ public class AddUserModel : PageModel
     public string MessageType { get; set; } = ""; // "success" or "error"
 
     public AddUserModel(EmployeeService employeeService, DepartmentService departmentService,
-        SectionService sectionService, WorkshopService workshopService, JobGradeService jobGradeService, IConfiguration configuration, ILogger<AddUserModel> logger)
+        SectionService sectionService, WorkshopService workshopService, JobGradeService jobGradeService,
+        EmployeePhotoStorageService photoStorageService, ILogger<AddUserModel> logger)
     {
         _logger = logger;
         _employeeService = employeeService;
@@ -75,7 +76,7 @@ public class AddUserModel : PageModel
         _sectionService = sectionService;
         _workshopService = workshopService;
         _jobGradeService = jobGradeService;
-        _configuration = configuration;
+        _photoStorageService = photoStorageService;
     }
     // public List<Models.JobGrade> JobGrades { get; set; } = new();
 
@@ -115,66 +116,6 @@ public class AddUserModel : PageModel
             return Page();
         }
 
-        // Handle photo upload
-        string photoPath = "";
-        if (PhotoFile != null && PhotoFile.Length > 0)
-        {
-            try
-            {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadsFolder))
-                {
-                    Directory.CreateDirectory(uploadsFolder);
-                }
-
-                var fileName = $"{EmpCode}_{DateTime.Now.Ticks}{Path.GetExtension(PhotoFile.FileName)}";
-                var filePath = Path.Combine(uploadsFolder, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await PhotoFile.CopyToAsync(stream);
-                }
-
-                // decide where to point the database path
-                var shareRoot = _configuration["PhotoPath"];
-                if (!string.IsNullOrWhiteSpace(shareRoot))
-                {
-                    // if there is a configured share, copy file there and store the
-                    // UNC path so the legacy Windows application can open it directly
-                    try
-                    {
-                        var shareDest = Path.Combine(shareRoot, fileName);
-                        var shareDir = Path.GetDirectoryName(shareDest);
-                        if (!Directory.Exists(shareDir) && shareDir != null)
-                        {
-                            Directory.CreateDirectory(shareDir);
-                        }
-                        System.IO.File.Copy(filePath, shareDest, overwrite: true);
-                        // store UNC path in DB
-                        photoPath = shareDest;
-                    }
-                    catch (Exception exCopy)
-                    {
-                        _logger?.LogWarning(exCopy, "Failed to copy uploaded photo to share {ShareRoot}", shareRoot);
-                        // fall back to web path if share copy fails
-                        photoPath = $"/uploads/{fileName}";
-                    }
-                }
-                else
-                {
-                    // no share configured, just keep web-relative path
-                    photoPath = $"/uploads/{fileName}";
-                }
-            }
-            catch (Exception ex)
-            {
-                Message = $"Error uploading photo: {ex.Message}";
-                MessageType = "error";
-                await LoadDropdowns();
-                return Page();
-            }
-        }
-
         var employee = new Models.Employee
         {
             EmpCode = EmpCode,
@@ -191,12 +132,29 @@ public class AddUserModel : PageModel
             SectID = SectID,
             WorkshopID = WorkshopID,
             Shift = Shift,
-            PhotoPath = photoPath
+            PhotoPath = ""
         };
 
         try
         {
-            var success = await _employeeService.AddEmployeeAsync(employee, photoPath);
+            bool success;
+            if (PhotoFile != null && PhotoFile.Length > 0)
+            {
+                await _photoStorageService.StoreAndCommitAsync(
+                    EmpCode,
+                    PhotoFile,
+                    async (storedPhoto, _) =>
+                    {
+                        employee.PhotoPath = storedPhoto.DatabasePath;
+                        return await _employeeService.AddEmployeeAsync(employee, storedPhoto.DatabasePath);
+                    },
+                    HttpContext.RequestAborted);
+                success = true;
+            }
+            else
+            {
+                success = await _employeeService.AddEmployeeAsync(employee, "");
+            }
             if (success)
             {
                 // Use Post-Redirect-Get to avoid duplicate inserts on refresh
@@ -212,6 +170,27 @@ public class AddUserModel : PageModel
                 return Page();
             }
         }
+        catch (PhotoUploadValidationException ex)
+        {
+            Message = ex.Message;
+            MessageType = "error";
+            await LoadDropdowns();
+            return Page();
+        }
+        catch (PhotoCompatibilityCopyException)
+        {
+            Message = "The photo could not be synchronized with the legacy application.";
+            MessageType = "error";
+            await LoadDropdowns();
+            return Page();
+        }
+        catch (PhotoPersistenceException)
+        {
+            Message = "Error adding employee";
+            MessageType = "error";
+            await LoadDropdowns();
+            return Page();
+        }
         catch (InvalidOperationException ex) when (ex.Message == "DUPLICATE_EMP_CODE")
         {
             Message = "Employee already exists";
@@ -219,8 +198,9 @@ public class AddUserModel : PageModel
             await LoadDropdowns();
             return Page();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Unexpected employee creation failure for {EmployeeCode}", EmpCode);
             Message = "Error adding employee";
             MessageType = "error";
             await LoadDropdowns();

@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using System.Data.SqlClient;
 using System.IO;
 using System.Timers;
+using OperatorCertificationRecord.PhotoCompatibility;
 namespace OperatorTrainingRecord
 {
     public partial class frmUpdateUser : Form
@@ -383,7 +384,10 @@ namespace OperatorTrainingRecord
                 this.cbbSectionName.Text = dt.Rows[0]["SectName"].ToString();
                 this.cbbWorkshop.Text = dt.Rows[0]["WorkshopName"].ToString();
                 this.cbbShift.Text = dt.Rows[0]["Shift"].ToString();
-                picPhotoEmp.ImageLocation = dt.Rows[0]["Photo"].ToString();
+                picPhotoEmp.ImageLocation = LegacyPhotoPathResolver.Resolve(
+                    dt.Rows[0]["Photo"].ToString(),
+                    dt.Rows[0]["EmpCode"].ToString(),
+                    @"\\svr120a\PhotoEmp$");
 
                 //********การดึงรูป ที่saveรูปลง sql **********
                 //if (dt.Rows[0]["Photo"].ToString() != "")

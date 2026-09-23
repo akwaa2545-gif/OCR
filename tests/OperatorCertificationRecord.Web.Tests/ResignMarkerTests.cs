@@ -16,7 +16,7 @@ public class ResignMarkerTests
         var fake = new FakeEmployeeService { ResignedResult = true };
         fake.StubEmployee = new OperatorCertificationRecord.Web.Models.Employee { EmpCode = "E10", FirstNameEng = "A", LastNameEng = "B", ResignBy = "admin", ResignDate = resignDate };
 
-        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!);
+        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!, null!);
         var httpContext = new DefaultHttpContext();
         httpContext.Session = new Fakes.TestSession();
         httpContext.Session.SetString("UserCode", "tester");

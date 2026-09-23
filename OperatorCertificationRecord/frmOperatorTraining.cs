@@ -12,6 +12,7 @@ using System.IO;
 using System.Timers;
 using Excel = Microsoft.Office.Interop.Excel;
 using System.Text.RegularExpressions;
+using OperatorCertificationRecord.PhotoCompatibility;
 
 namespace OperatorTrainingRecord
 {
@@ -344,7 +345,10 @@ namespace OperatorTrainingRecord
                 this.txtSectionName.Text = dt.Rows[0]["SectName"].ToString();
                 this.txtWorkshop.Text = dt.Rows[0]["WorkshopName"].ToString();
                 this.txtShift.Text = dt.Rows[0]["Shift"].ToString();
-                picPhoto.ImageLocation = dt.Rows[0]["Photo"].ToString();
+                picPhoto.ImageLocation = LegacyPhotoPathResolver.Resolve(
+                    dt.Rows[0]["Photo"].ToString(),
+                    dt.Rows[0]["EmpCode"].ToString(),
+                    @"\\svr120a\PhotoEmp$");
 
                 //********การดึงรูป ที่saveรูปลง sql **********
                 //if (dt.Rows[0]["Photo"].ToString() != "")
