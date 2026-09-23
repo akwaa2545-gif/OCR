@@ -25,7 +25,7 @@ Deployment uses the job's read-only `GITHUB_TOKEN` in a private, GUID-named Dock
 
 ## Installed setup (2026-09-23)
 
-The repository default branch is `main`. GitHub `test` and `production` environments exist with main-only deployment policies; production requires reviewer approval. Host setup is complete, but this alone does not prove a successful end-to-end deployment: verify the first GitHub workflow run and selected site's readiness before declaring the pipeline operational.
+The repository default branch is `main`. GitHub `test` and `production` environments exist with main-only deployment policies; production requires reviewer approval. The first end-to-end test deployment succeeded in [run 35837840799](https://github.com/akwaa2545-gif/OCR/actions/runs/35837840799), application revision `a3c0de2`. The host pulled and deployed `ghcr.io/akwaa2545-gif/ocr/ocr-web@sha256:16d34b2afe81e7533da2d84bd2b0d608828e5bd689be24e51c08dd1c872264c5`; test `/health/ready` returned HTTP 200 `Healthy`, and both site roots returned HTTP 200. Production remained on its original container. The prior test container was retained as `ocrwebtest-backup-f56c5f9fcfd4`. Temporary registry credentials were removed, and test certificates remained empty as requested.
 
 `Configure-RunnerTask.ps1` and `Initialize-HostConfig.ps1` are **one-time setup tools**, not regular deployment steps. They have already been applied to this host. Do not rerun them blindly or delete existing state to bypass their refusal checks. Inspect the scheduled task, runner service, and configuration first when repairing or migrating setup. Neither script belongs in the recurring deployment job.
 
@@ -83,6 +83,6 @@ There is a short cutover interruption. Container rollback does not undo database
 dotnet test tests/OperatorCertificationRecord.Web.Tests/OperatorCertificationRecord.Web.Tests.csproj -c Release
 ```
 
-The PowerShell tests use fakes and do not change host containers. All deployment PowerShell checks passed during setup, as did all 52 web tests and actionlint workflow validation. `test-Workflow.ps1` itself checks text contracts, not full YAML/expression syntax. A successful live GitHub run and host readiness check are still required before calling the pipeline operational. The workflow's execution-policy bypass is scoped to its script process; no machine-wide execution policy change is required.
+The PowerShell tests use fakes and do not change host containers. All deployment PowerShell checks passed during setup, as did all 52 web tests and actionlint workflow validation. Registry security checks cover restrictive ACLs, exact credential encoding, and constrained cleanup. `test-Workflow.ps1` itself checks text contracts, not full YAML/expression syntax. The first live test deployment and host readiness checks passed as recorded above; production deployment and full business-flow testing remain separate checks. The workflow's execution-policy bypass is scoped to its script process; no machine-wide execution policy change is required.
 
 Action pins were resolved from the official [checkout](https://github.com/actions/checkout) and [setup-dotnet](https://github.com/actions/setup-dotnet) v4 refs. Image publication uses the installed Docker CLI and its [build metadata output](https://docs.docker.com/reference/cli/docker/buildx/build/#metadata-file).
