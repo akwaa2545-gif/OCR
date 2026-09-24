@@ -151,6 +151,9 @@ namespace OperatorCertificationRecord.Web.Pages
                     FoundEmployee = false;
                     return Page();
                 }
+                // Discard any profile values included in a search request so they
+                // cannot override the loaded employee when Razor renders asp-for fields.
+                ModelState.Clear();
                 await PopulateFromEmployee(emp);
                 return Page();
             }
@@ -171,34 +174,59 @@ namespace OperatorCertificationRecord.Web.Pages
                     return Page();
                 }
 
-                if (await _employeeService.IsEmployeePromotedAsync(EmpCode ?? "") && !string.Equals(emp.JobGrade, JobGrade, StringComparison.OrdinalIgnoreCase))
+                // Load trusted lookup choices before accepting a full-profile update.
+                // An unchanged legacy value may be absent from the restricted lists.
+                await LoadDropdowns(DeptID);
+                FoundEmployee = true;
+                PhotoPath = emp.PhotoPath;
+                PhotoUrl = ResolvePublicPhotoUrl(emp.PhotoPath);
+                foreach (var error in EmployeeProfileValidation.Validate(emp, JobGrade, DeptID, SectID, WorkshopID,
+                    JobGrades, Departments, Sections, Workshops))
+                {
+                    ModelState.AddModelError(error.Key, error.Value);
+                }
+                if (!ModelState.IsValid)
+                {
+                    Message = "Profile not saved. Check Job Grade, Department, Section, Workshop and any invalid fields. Your photo and existing profile have not been changed.";
+                    MessageType = "error";
+                    return Page();
+                }
+
+                IsPromoted = await _employeeService.IsEmployeePromotedAsync(EmpCode ?? "");
+                if (IsPromoted && !string.Equals(emp.JobGrade, JobGrade, StringComparison.OrdinalIgnoreCase))
                 {
                     Message = "Employee has been promoted - Job Grade cannot be changed.";
                     MessageType = "error";
                     return Page();
                 }
 
-                // NOTE: do not block general profile updates for promoted employees —
-                // skill additions are still blocked elsewhere (action == "addskill").
-                // (Preserve ability to change JobGrade manually for promoted employees.)
-
                 string photoPath = emp.PhotoPath ?? "";
 
-                // Manual JobGrade changes are allowed even if the employee has been promoted.
-                emp.JobGrade = JobGrade;
-                emp.PrefixEng = PrefixEng;
-                emp.FirstNameEng = FirstNameEng;
-                emp.LastNameEng = LastNameEng;
-                emp.PrefixThai = PrefixThai;
-                emp.FirstNameThai = FirstNameThai;
-                emp.LastNameThai = LastNameThai;
-                emp.Notice = Notice;
-                emp.DeptID = DeptID;
-                emp.SectID = SectID;
-                emp.WorkshopID = WorkshopID;
-                emp.Shift = Shift;
-                emp.JoinDate = JoinDate;
-                emp.PhotoPath = photoPath;
+                // Keep the loaded record intact if validation or photo storage fails.
+                Employee UpdatedEmployee(string path) => new Employee
+                {
+                    EmpCode = emp.EmpCode,
+                    EmpPassword = emp.EmpPassword,
+                    JobGrade = JobGrade,
+                    PrefixEng = PrefixEng,
+                    FirstNameEng = FirstNameEng,
+                    LastNameEng = LastNameEng,
+                    PrefixThai = PrefixThai,
+                    FirstNameThai = FirstNameThai,
+                    LastNameThai = LastNameThai,
+                    Notice = Notice,
+                    DeptID = DeptID,
+                    SectID = SectID,
+                    WorkshopID = WorkshopID,
+                    Shift = Shift,
+                    JoinDate = JoinDate,
+                    PhotoPath = path,
+                    StatusWork = emp.StatusWork,
+                    ResignBy = emp.ResignBy,
+                    ResignDate = emp.ResignDate,
+                    TransferBy = emp.TransferBy,
+                    TransferDate = emp.TransferDate
+                };
 
                 bool success;
                 try
@@ -211,15 +239,14 @@ namespace OperatorCertificationRecord.Web.Pages
                             async (storedPhoto, _) =>
                             {
                                 photoPath = storedPhoto.DatabasePath;
-                                emp.PhotoPath = photoPath;
-                                return await _employeeService.UpdateEmployeeAsync(emp);
+                                return await _employeeService.UpdateEmployeeAsync(UpdatedEmployee(photoPath));
                             },
                             HttpContext.RequestAborted);
                         success = true;
                     }
                     else
                     {
-                        success = await _employeeService.UpdateEmployeeAsync(emp);
+                        success = await _employeeService.UpdateEmployeeAsync(UpdatedEmployee(photoPath));
                     }
                 }
                 catch (PhotoUploadValidationException ex)

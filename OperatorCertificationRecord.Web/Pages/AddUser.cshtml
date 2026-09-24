@@ -488,11 +488,11 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                                  ondrop="handlePhotoDrop(event)">
                                 <div class="au-dz-icon"><i class="bi bi-cloud-upload"></i></div>
                                 <div class="au-dz-title"><u>Click</u> or drag photo</div>
-                                <div class="au-dz-sub" id="fileLabelText">JPEG, PNG, GIF accepted</div>
+                                <div class="au-dz-sub" id="fileLabelText">JPG, JPEG, PNG, GIF, BMP, WebP · Up to 5 MB · Saved as JPEG</div>
                             </div>
                         </label>
                         <input type="file" id="PhotoFile" asp-for="PhotoFile" style="display:none;"
-                               accept="image/*" onchange="previewPhoto(event)" />
+                               accept=".jpg,.jpeg,.png,.gif,.bmp,.webp" onchange="previewPhoto(event)" />
                     </div>
                 </div>
             </div>
@@ -537,35 +537,69 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
 <script>
     /* ===== Crop Modal Logic ===== */
-    let _cropper = null, _cropSrcName = 'photo.jpg';
+    let _cropper = null, _cropSrcName = 'photo.jpg', _cropUrl = null, _cropVersion = 0;
 
     function openCropModal(file) {
-        _cropSrcName = file.name || 'photo.jpg';
+        closeCropModal();
+        if (!file || !/\.(jpe?g|png|gif|bmp|webp)$/i.test(file.name) ||
+            (file.type && !/^image\/(jpeg|png|gif|bmp|x-ms-bmp|webp)$/i.test(file.type)) ||
+            file.size <= 0 || file.size > 5 * 1024 * 1024) {
+            alert('Choose a JPG, JPEG, PNG, GIF, BMP or WebP image up to 5 MB.');
+            return;
+        }
+        _cropSrcName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        const version = _cropVersion;
         const img = document.getElementById('cropImage');
         const modal = document.getElementById('cropModal');
         if (_cropper) { _cropper.destroy(); _cropper = null; }
         img.src = '';
         modal.style.display = 'flex';
         img.onload = () => {
-            _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, responsive: true, background: false, zoomable: true, scalable: true });
+            if (version !== _cropVersion) return;
+            try {
+                _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, responsive: true, background: false, zoomable: true, scalable: true });
+            } catch {
+                closeCropModal();
+                alert('The photo editor could not load. Please reload and try again.');
+            }
         };
-        img.src = URL.createObjectURL(file);
+        img.onerror = () => {
+            if (version !== _cropVersion) return;
+            closeCropModal();
+            alert('This image could not be opened. Please choose another JPG or PNG image.');
+        };
+        _cropUrl = URL.createObjectURL(file);
+        img.src = _cropUrl;
     }
 
     function closeCropModal() {
+        _cropVersion++;
         document.getElementById('cropModal').style.display = 'none';
         if (_cropper) { _cropper.destroy(); _cropper = null; }
+        const img = document.getElementById('cropImage');
+        img.onload = null;
+        img.onerror = null;
+        if (_cropUrl) { URL.revokeObjectURL(_cropUrl); _cropUrl = null; }
         document.getElementById('PhotoFile').value = '';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('cropConfirmBtn').addEventListener('click', () => {
             if (!_cropper) return;
-            _cropper.getCroppedCanvas({ width: 600, height: 600 }).toBlob(blob => {
+            const version = _cropVersion;
+            try {
+            _cropper.getCroppedCanvas({ width: 600, height: 600, fillColor: '#fff' }).toBlob(blob => {
+                if (version !== _cropVersion) return;
+                if (!blob || blob.type !== 'image/jpeg' || !blob.size) {
+                    closeCropModal();
+                    alert('The photo could not be prepared. Please choose another image.');
+                    return;
+                }
                 const croppedFile = new File([blob], _cropSrcName, { type: 'image/jpeg' });
                 const dt = new DataTransfer();
                 dt.items.add(croppedFile);
                 const input = document.getElementById('PhotoFile');
+                closeCropModal();
                 input.files = dt.files;
                 const url = URL.createObjectURL(blob);
                 document.getElementById('photoPreview').src = url;
@@ -575,6 +609,10 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                 document.getElementById('cropModal').style.display = 'none';
                 if (_cropper) { _cropper.destroy(); _cropper = null; }
             }, 'image/jpeg', 0.92);
+            } catch {
+                closeCropModal();
+                alert('The photo could not be prepared. Please choose another image.');
+            }
         });
         document.querySelectorAll('.crop-cancel').forEach(b => b.addEventListener('click', closeCropModal));
     });
@@ -589,7 +627,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
         event.preventDefault();
         document.getElementById('photoDropzone')?.classList.remove('dz-over');
         const file = event.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) openCropModal(file);
+        if (file) openCropModal(file);
     }
 
     const THAI_RE = /[\u0E00-\u0E7F]/;
@@ -721,7 +759,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
 
     function resetForm() {
         document.getElementById('photoPreview').src = '/images/placeholder-employee.svg';
-        document.getElementById('fileLabelText').textContent = 'JPEG, PNG, GIF accepted';
+        document.getElementById('fileLabelText').textContent = 'JPG, JPEG, PNG, GIF, BMP, WebP · Up to 5 MB · Saved as JPEG';
         setTimeout(syncPreview, 50);
         return true;
     }

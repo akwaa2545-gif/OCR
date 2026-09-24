@@ -114,6 +114,7 @@
         @if (Model.FoundEmployee)
         {
             <form method="post" enctype="multipart/form-data" id="updateUserForm">
+                <div asp-validation-summary="All" class="text-danger" role="alert"></div>
                 <input type="hidden" name="action" id="formActionInput" value="" />
                 <input type="hidden" name="Transfer_DeptID" id="transferDeptInput" value="" />
                 <input type="hidden" name="Transfer_SectID" id="transferSectInput" value="" />
@@ -140,8 +141,12 @@
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Job Grade</label>
-                            <select class="uu-input" id="JobGrade" asp-for="JobGrade">
+                            <select class="uu-input" id="JobGrade" asp-for="JobGrade" required>
                                 <option value="">Select grade</option>
+                                @if (!string.IsNullOrWhiteSpace(Model.JobGrade) && !Model.JobGrades.Any(x => x.JobGradeID == Model.JobGrade))
+                                {
+                                    <option value="@Model.JobGrade" selected>@Model.JobGrade (current)</option>
+                                }
                                 @foreach (var jg in Model.JobGrades)
                                 {
                                     <option value="@jg.JobGradeID" selected="@(Model.JobGrade == jg.JobGradeID)">@jg.JobGradeID</option>
@@ -223,6 +228,10 @@
                             <label class="uu-label">Department</label>
                             <select class="uu-input" id="DeptID" asp-for="DeptID" onchange="loadSections()" required>
                                 <option value="">Select department</option>
+                                @if (!string.IsNullOrWhiteSpace(Model.DeptID) && !Model.Departments.Any(x => x.DeptID == Model.DeptID))
+                                {
+                                    <option value="@Model.DeptID" selected>@Model.DeptID (current)</option>
+                                }
                                 @foreach (var dept in Model.Departments)
                                 {
                                     <option value="@dept.DeptID" selected="@(Model.DeptID == dept.DeptID)">@dept.DeptName</option>
@@ -231,8 +240,12 @@
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Section</label>
-                            <select class="uu-input" id="SectID" asp-for="SectID" data-current="@Model.SectID" required>
+                            <select class="uu-input" id="SectID" asp-for="SectID" data-current="@Model.SectID" data-department="@Model.DeptID" required>
                                 <option value="">Select section</option>
+                                @if (!string.IsNullOrWhiteSpace(Model.SectID) && !Model.Sections.Any(x => x.SectID == Model.SectID))
+                                {
+                                    <option value="@Model.SectID" selected>@Model.SectID (current)</option>
+                                }
                                 @foreach (var sect in Model.Sections)
                                 {
                                     <option value="@sect.SectID" selected="@(Model.SectID == sect.SectID)">@sect.SectName</option>
@@ -243,6 +256,10 @@
                             <label class="uu-label">Workshop</label>
                             <select class="uu-input" id="WorkshopID" asp-for="WorkshopID" required onchange="loadSections(); loadProcesses();">
                                 <option value="">Select workshop</option>
+                                @if (!string.IsNullOrWhiteSpace(Model.WorkshopID) && !Model.Workshops.Any(x => x.WorkshopID == Model.WorkshopID))
+                                {
+                                    <option value="@Model.WorkshopID" selected>@Model.WorkshopID (current)</option>
+                                }
                                 @foreach (var workshop in Model.Workshops)
                                 {
                                     <option value="@workshop.WorkshopID" selected="@(Model.WorkshopID == workshop.WorkshopID)">@workshop.WorkshopName</option>
@@ -295,9 +312,9 @@
                                ondrop="handlePhotoDrop(event)" for="PhotoFile">
                             <i class="bi bi-cloud-arrow-up uu-dz-icon"></i>
                             <span class="uu-dz-title">Drop photo here or <u>browse</u></span>
-                            <span class="uu-dz-sub">JPEG &middot; PNG &middot; GIF &middot; BMP</span>
+                            <span class="uu-dz-sub">JPG, JPEG, PNG, GIF, BMP, WebP &middot; Up to 5 MB &middot; Saved as JPEG</span>
                         </label>
-                        <input type="file" id="PhotoFile" asp-for="PhotoFile" accept="image/*"
+                        <input type="file" id="PhotoFile" asp-for="PhotoFile" accept=".jpg,.jpeg,.png,.gif,.bmp,.webp"
                                onchange="previewPhoto(event)" style="display:none;">
                     </div>
                 </div>
@@ -999,35 +1016,69 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
 <script>
     /* ===== Crop Modal Logic ===== */
-    let _cropper = null, _cropSrcName = 'photo.jpg';
+    let _cropper = null, _cropSrcName = 'photo.jpg', _cropUrl = null, _cropVersion = 0;
 
     function openCropModal(file) {
-        _cropSrcName = file.name || 'photo.jpg';
+        closeCropModal();
+        if (!file || !/\.(jpe?g|png|gif|bmp|webp)$/i.test(file.name) ||
+            (file.type && !/^image\/(jpeg|png|gif|bmp|x-ms-bmp|webp)$/i.test(file.type)) ||
+            file.size <= 0 || file.size > 5 * 1024 * 1024) {
+            alert('Choose a JPG, JPEG, PNG, GIF, BMP or WebP image up to 5 MB.');
+            return;
+        }
+        _cropSrcName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        const version = _cropVersion;
         const img = document.getElementById('cropImage');
         const modal = document.getElementById('cropModal');
         if (_cropper) { _cropper.destroy(); _cropper = null; }
         img.src = '';
         modal.style.display = 'flex';
         img.onload = () => {
-            _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, responsive: true, background: false, zoomable: true, scalable: true });
+            if (version !== _cropVersion) return;
+            try {
+                _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, responsive: true, background: false, zoomable: true, scalable: true });
+            } catch {
+                closeCropModal();
+                alert('The photo editor could not load. Please reload and try again.');
+            }
         };
-        img.src = URL.createObjectURL(file);
+        img.onerror = () => {
+            if (version !== _cropVersion) return;
+            closeCropModal();
+            alert('This image could not be opened. Please choose another JPG or PNG image.');
+        };
+        _cropUrl = URL.createObjectURL(file);
+        img.src = _cropUrl;
     }
 
     function closeCropModal() {
+        _cropVersion++;
         document.getElementById('cropModal').style.display = 'none';
         if (_cropper) { _cropper.destroy(); _cropper = null; }
+        const img = document.getElementById('cropImage');
+        img.onload = null;
+        img.onerror = null;
+        if (_cropUrl) { URL.revokeObjectURL(_cropUrl); _cropUrl = null; }
         document.getElementById('PhotoFile').value = '';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('cropConfirmBtn').addEventListener('click', () => {
             if (!_cropper) return;
-            _cropper.getCroppedCanvas({ width: 600, height: 600 }).toBlob(blob => {
+            const version = _cropVersion;
+            try {
+            _cropper.getCroppedCanvas({ width: 600, height: 600, fillColor: '#fff' }).toBlob(blob => {
+                if (version !== _cropVersion) return;
+                if (!blob || blob.type !== 'image/jpeg' || !blob.size) {
+                    closeCropModal();
+                    alert('The photo could not be prepared. Please choose another image.');
+                    return;
+                }
                 const croppedFile = new File([blob], _cropSrcName, { type: 'image/jpeg' });
                 const dt = new DataTransfer();
                 dt.items.add(croppedFile);
                 const input = document.getElementById('PhotoFile');
+                closeCropModal();
                 input.files = dt.files;
                 const url = URL.createObjectURL(blob);
                 ['photoPreview', 'photoTopRight'].forEach(id => {
@@ -1037,6 +1088,10 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
                 document.getElementById('cropModal').style.display = 'none';
                 if (_cropper) { _cropper.destroy(); _cropper = null; }
             }, 'image/jpeg', 0.92);
+            } catch {
+                closeCropModal();
+                alert('The photo could not be prepared. Please choose another image.');
+            }
         });
         document.querySelectorAll('.crop-cancel').forEach(b => b.addEventListener('click', closeCropModal));
     });
@@ -1051,7 +1106,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
         event.preventDefault();
         document.getElementById('photoDropzone')?.classList.remove('dz-over');
         const file = event.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) openCropModal(file);
+        if (file) openCropModal(file);
     }
 
     function updateThaiPrefix() {
@@ -1072,27 +1127,38 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
+    let sectionRequest = 0;
     async function loadSections() {
         const deptEl = document.getElementById('DeptID');
         const sectEl = document.getElementById('SectID');
         if (!deptEl || !sectEl) return;
         const dept = deptEl.value;
+        // Keep the server-rendered selection, including legacy values, until department changes.
+        if (sectEl.dataset.department === dept) return;
+        const request = ++sectionRequest;
+        sectEl.dataset.department = dept;
+        sectEl.disabled = true;
+        sectEl.value = '';
         sectEl.innerHTML = '<option value="">Loading...</option>';
-        if (!dept) { sectEl.innerHTML = '<option value="">Select section</option>'; return; }
+        if (!dept) { sectEl.innerHTML = '<option value="">Select section</option>'; sectEl.disabled = false; return; }
         try {
             const res = await fetch('/api/sections?deptId=' + encodeURIComponent(dept));
             if (!res.ok) throw new Error();
             const list = await res.json();
-            let html = '<option value="">Select section</option>';
+            if (request !== sectionRequest) return;
+            sectEl.innerHTML = '<option value="">Select section</option>';
             list.forEach(s => {
                 const id   = s.SectID || s.sectID || s.sectId || s.id || s.ID;
                 const name = s.SectName || s.sectName || s.name || s.Name || '';
-                html += `<option value="${id}">${name}</option>`;
+                sectEl.add(new Option(name, id));
             });
-            sectEl.innerHTML = html;
-            const cur = sectEl.getAttribute('data-current');
-            if (cur) sectEl.value = cur;
-        } catch { sectEl.innerHTML = '<option value="">Select section</option>'; }
+        } catch {
+            if (request !== sectionRequest) return;
+            sectEl.innerHTML = '<option value="">Could not load sections; reselect department to retry</option>';
+            delete sectEl.dataset.department;
+        } finally {
+            if (request === sectionRequest) sectEl.disabled = false;
+        }
     }
 
     async function loadProcesses() {
@@ -1142,6 +1208,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
     async function submitUpdate(action) {
         const form = document.getElementById('updateUserForm');
         if (!form) return;
+        if (action === 'update' && (document.getElementById('SectID')?.disabled || !form.reportValidity())) return;
         if (action === 'resign') {
             const modal = document.getElementById('confirmResignModal');
             if (modal) {
@@ -1175,7 +1242,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
         }
         try { Toast.info('Saving', action === 'update' ? 'Submitting employee update...' : 'Preparing...'); } catch(e){}
         document.getElementById('formActionInput').value = action;
-        setTimeout(() => form.submit(), 150);
+        form.submit();
     }
 
     function showPromotionModal() {
