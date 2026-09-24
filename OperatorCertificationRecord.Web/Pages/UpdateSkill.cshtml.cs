@@ -259,12 +259,12 @@ public class UpdateSkillModel : PageModel
                     return await RedirectToGetAsync();
                 }
 
-                var fileName = Path.GetFileName(pdfFile.FileName);
+                var fileName = CertificateStoragePaths.NewFileName(pdfFile.FileName);
                 var uploadsDir = ResolveUploadDir(_configuration, EmpCode ?? "unknown");
                 Directory.CreateDirectory(uploadsDir);
 
                 var filePath = Path.Combine(uploadsDir, fileName);
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                using (var stream = new FileStream(filePath, FileMode.CreateNew))
                 {
                     await pdfFile.CopyToAsync(stream);
                 }
@@ -356,17 +356,11 @@ public class UpdateSkillModel : PageModel
 
     private static string ResolveUploadDir(IConfiguration config, string empCode)
     {
-        var subfolder = config["LocalUploadSubfolder"] ?? "uploads";
-        if (Path.IsPathRooted(subfolder))
-            return Path.Combine(subfolder, empCode);
-        return Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", subfolder, empCode);
+        return CertificateStoragePaths.UploadDirectory(config, empCode);
     }
 
     private static string ResolveDownloadPath(IConfiguration config, string? empCode, string fileName)
     {
-        var subfolder = config["LocalUploadSubfolder"] ?? "uploads";
-        if (Path.IsPathRooted(subfolder))
-            return Path.Combine(subfolder, empCode ?? "", fileName);
-        return $"/{subfolder}/{empCode}/{fileName}";
+        return CertificateStoragePaths.DownloadPath(config, empCode, fileName);
     }
 }

@@ -1365,108 +1365,62 @@ namespace OperatorTrainingRecord
 
         private void gridCurrentSkill_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            //if (e.ColumnIndex == gridCurrentSkill.Columns["btn"].Index)
-
             if (e.ColumnIndex == 1)
-            {
-                //Do something with your button.
-
-                //*** download File \\svr120a\Cert$
-                string downloadFile = gridCurrentSkill[13, e.RowIndex].Value.ToString();
-
-                string filePath = @"C:\Temp\";
-
-
-                if (downloadFile != null && downloadFile != "")
-                {
-                    string[] sAry = downloadFile.Split('\\');
-                    string str1 = sAry[5].ToString();
-
-                    string fileName = filePath + downloadFile.Replace(strFolderPath, "");
-
-                    File.Copy(downloadFile, fileName, true);
-
-                    MessageBox.Show("Download file " + str1 + " ", "None", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                }
-                else
-                {
-
-                    MessageBox.Show("File None", "None", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-
-                }
-
-            }
+                DownloadCertificate(gridCurrentSkill, e.RowIndex, 13);
         }
 
         private void gridDisqualified_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            //if (e.ColumnIndex == gridCurrentSkill.Columns["btn"].Index)
-
             if (e.ColumnIndex == 0)
-            {
-                //Do something with your button.
-
-                //*** download File \\svr120a\Cert$
-                string downloadFile = gridDisqualified[10, e.RowIndex].Value.ToString();
-
-                string filePath = @"C:\Temp\";
-
-
-                if (downloadFile != null && downloadFile != "")
-                {
-                    string[] sAry = downloadFile.Split('\\');
-                    string str1 = sAry[5].ToString();
-
-                    string fileName = filePath + downloadFile.Replace(strFolderPath, "");
-
-                    File.Copy(downloadFile, fileName, true);
-
-                    MessageBox.Show("Download file " + str1 + " ", "None", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                }
-                else
-                {
-
-                    MessageBox.Show("File None", "None", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-
-                }
-
-            }
+                DownloadCertificate(gridDisqualified, e.RowIndex, 10);
         }
         private void gridObsoleted_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            //if (e.ColumnIndex == gridCurrentSkill.Columns["btn"].Index)
-
             if (e.ColumnIndex == 0)
+                DownloadCertificate(gridObsoleted, e.RowIndex, 13);
+        }
+
+        private void DownloadCertificate(DataGridView grid, int rowIndex, int pathColumn)
+        {
+            if (rowIndex < 0 || rowIndex >= grid.Rows.Count || pathColumn >= grid.Columns.Count)
+                return;
+            var storedPath = Convert.ToString(grid[pathColumn, rowIndex].Value);
+            var source = LegacyCertificatePathResolver.Resolve(storedPath, frmWelcome.UserID);
+            if (source == null)
             {
-                //Do something with your button.
-
-                //*** download File \\svr120a\Cert$
-                string downloadFile = gridObsoleted[13, e.RowIndex].Value.ToString();
-
-                string filePath = @"C:\Temp\";
-
-
-                if (downloadFile != null && downloadFile != "")
+                MessageBox.Show("No valid PDF certificate is attached to this record.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            try
+            {
+                if (!File.Exists(source))
                 {
-                    string[] sAry = downloadFile.Split('\\');
-                    string str1 = sAry[5].ToString();
-
-                    string fileName = filePath + downloadFile.Replace(strFolderPath, "");
-
-                    File.Copy(downloadFile, fileName, true);
-
-                    MessageBox.Show("Download file " + str1 + " ", "None", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
+                    MessageBox.Show("This certificate is not available on the shared drive yet. Please wait for synchronization and try again, or check your network connection.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
-                else
+                var current = source;
+                while (current != null && current.Length >= LegacyCertificatePathResolver.LegacyRoot.Length)
                 {
-
-                    MessageBox.Show("File None", "None", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-
+                    if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                        throw new IOException("Certificate links are not supported.");
+                    current = Path.GetDirectoryName(current);
                 }
-
+                var destination = Path.Combine(Path.GetTempPath(), "OCR-Certificate-" + Guid.NewGuid().ToString("N") + ".pdf");
+                using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    var signature = new byte[5];
+                    if (input.Read(signature, 0, signature.Length) != signature.Length || Encoding.ASCII.GetString(signature) != "%PDF-")
+                        throw new IOException("Certificate is not a PDF.");
+                    input.Position = 0;
+                    using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                        input.CopyTo(output);
+                }
+                MessageBox.Show("Certificate downloaded to " + destination, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Certificate download failed: " + ex.GetType().Name);
+                MessageBox.Show("The certificate could not be downloaded. Check shared-drive access and try again. If the problem continues, contact support.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

@@ -272,39 +272,17 @@ public class AddSkillModel : PageModel
                 return Page();
             }
 
-            var safeFileName = Path.GetFileName(pdfFile.FileName);
+            var safeFileName = CertificateStoragePaths.NewFileName(pdfFile.FileName);
             var uploadsDir = ResolveUploadDir(_configuration, EmpCode ?? "unknown");
             Directory.CreateDirectory(uploadsDir);
             var filePath = Path.Combine(uploadsDir, safeFileName);
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            using (var stream = new FileStream(filePath, FileMode.CreateNew))
             {
                 await pdfFile.CopyToAsync(stream);
             }
-            // choose download path stored in DB
-            var shareRoot = _configuration["CertificatePath"];
-            if (!string.IsNullOrWhiteSpace(shareRoot))
-            {
-                try
-                {
-                    var shareDest = Path.Combine(shareRoot, EmpCode ?? "", safeFileName);
-                    var shareDir = Path.GetDirectoryName(shareDest);
-                    if (!string.IsNullOrWhiteSpace(shareDir) && !Directory.Exists(shareDir))
-                    {
-                        Directory.CreateDirectory(shareDir);
-                    }
-                    System.IO.File.Copy(filePath, shareDest, overwrite: true);
-                    input.DownloadPath = shareDest; // UNC path for old clients
-                }
-                catch (Exception exCopy)
-                {
-                    _logger?.LogWarning(exCopy, "Failed to copy certificate to share {ShareRoot}", shareRoot);
-                    input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, safeFileName);
-                }
-            }
-            else
-            {
-                input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, safeFileName);
-            }
+            // All certificate entry points write directly to the configured root.
+            // The Windows bridge publishes missing files to the legacy share.
+            input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, safeFileName);
             {
                 if (!int.TryParse(input.FullScore, out int parsedFull) || parsedFull < 0 || parsedFull > 125)
                     validationErrors.Add("0 - 125.");
@@ -398,17 +376,11 @@ public class AddSkillModel : PageModel
 
     private static string ResolveUploadDir(IConfiguration config, string empCode)
     {
-        var subfolder = config["LocalUploadSubfolder"] ?? "uploads";
-        if (Path.IsPathRooted(subfolder))
-            return Path.Combine(subfolder, empCode);
-        return Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", subfolder, empCode);
+        return CertificateStoragePaths.UploadDirectory(config, empCode);
     }
 
     private static string ResolveDownloadPath(IConfiguration config, string? empCode, string fileName)
     {
-        var subfolder = config["LocalUploadSubfolder"] ?? "uploads";
-        if (Path.IsPathRooted(subfolder))
-            return Path.Combine(subfolder, empCode ?? "", fileName);
-        return $"/{subfolder}/{empCode}/{fileName}";
+        return CertificateStoragePaths.DownloadPath(config, empCode, fileName);
     }
 }

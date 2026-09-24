@@ -378,9 +378,9 @@ namespace OperatorCertificationRecord.Web.Pages
                     {
                         var uploadsFolder = ResolveUploadDir(_configuration, EmpCode ?? "");
                         if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-                        var fileName = $"{EmpCode}_{DateTime.Now.Ticks}{Path.GetExtension(SkillFile.FileName)}";
+                        var fileName = CertificateStoragePaths.NewFileName(SkillFile.FileName);
                         var filePath = Path.Combine(uploadsFolder, fileName);
-                        using (var stream = new FileStream(filePath, FileMode.Create)) await SkillFile.CopyToAsync(stream);
+                        using (var stream = new FileStream(filePath, FileMode.CreateNew)) await SkillFile.CopyToAsync(stream);
                         input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, fileName);
                     }
                     catch (Exception ex)
@@ -829,18 +829,12 @@ namespace OperatorCertificationRecord.Web.Pages
 
         private static string ResolveUploadDir(IConfiguration config, string empCode)
         {
-            var subfolder = config["LocalUploadSubfolder"] ?? "uploads";
-            if (Path.IsPathRooted(subfolder))
-                return Path.Combine(subfolder, empCode);
-            return Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", subfolder, empCode);
+            return CertificateStoragePaths.UploadDirectory(config, empCode);
         }
 
         private static string ResolveDownloadPath(IConfiguration config, string? empCode, string fileName)
         {
-            var subfolder = config["LocalUploadSubfolder"] ?? "uploads";
-            if (Path.IsPathRooted(subfolder))
-                return Path.Combine(subfolder, empCode ?? "", fileName);
-            return $"/{subfolder}/{empCode}/{fileName}";
+            return CertificateStoragePaths.DownloadPath(config, empCode, fileName);
         }
     }
 }

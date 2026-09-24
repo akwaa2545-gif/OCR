@@ -123,18 +123,7 @@ try
 
     // Static files with long browser cache (1 year) — CSS/JS/images/fonts
     // Employee photos are served through the session-protected photo controller.
-    app.Use(async (context, next) =>
-    {
-        if (context.Request.Path.StartsWithSegments("/uploads") ||
-            context.Request.Path.StartsWithSegments("/uploads-test") ||
-            context.Request.Path.StartsWithSegments("/photos"))
-        {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
-        }
-
-        await next();
-    });
+    app.UseMiddleware<PrivateUploadAccessMiddleware>();
 
     app.UseStaticFiles(new StaticFileOptions
     {
