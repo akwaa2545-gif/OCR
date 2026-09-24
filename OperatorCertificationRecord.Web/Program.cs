@@ -99,18 +99,8 @@ try
 
     var app = builder.Build();
 
-    // ---- Pre-warm dashboard cache BEFORE server starts accepting requests ----
-    Log.Information("Pre-warming dashboard cache (blocking startup)...");
-    try
-    {
-        var cache = app.Services.GetRequiredService<IDashboardCacheService>();
-        await cache.GetDashboardDataAsync();
-        Log.Information("Dashboard cache ready — server will now accept requests.");
-    }
-    catch (Exception ex)
-    {
-        Log.Warning(ex, "Dashboard cache warmup failed — first request will be slower.");
-    }
+    // DashboardCacheRefreshService warms the optional dashboard cache in the
+    // background. Database readiness must not wait for dashboard aggregation.
 
     // Configure QuestPDF license (Community is free for small teams)
     QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;

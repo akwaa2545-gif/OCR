@@ -84,7 +84,7 @@ public sealed class DashboardCacheService : IDashboardCacheService
             return current.Data;
         }
 
-        // Cold cache — must block on first request (background service should prevent this after startup)
+        // Cold cache may still occur while the background startup warm-up is running.
         _logger.LogWarning("[DashboardCache] cold cache — synchronous fetch required");
         await RefreshAsync(ct);
 
@@ -203,7 +203,7 @@ public class DashboardData
 
 /// <summary>
 /// Background service that proactively refreshes the dashboard cache before it goes stale.
-/// Warms up the cache on startup so the first user request is never cold.
+/// Warms the cache in the background; early dashboard requests can still be cold.
 /// Refreshes every 24 minutes (80% of 30-minute TTL) so the cache is never left to expire.
 /// </summary>
 public sealed class DashboardCacheRefreshService : BackgroundService
@@ -222,10 +222,14 @@ public sealed class DashboardCacheRefreshService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // On .NET 8, BackgroundService.StartAsync executes synchronously until
+        // the first incomplete await. Yield before any potentially slow cache work.
+        await Task.Yield();
+
         _logger.LogInformation("[DashboardRefresh] Background refresh service started (interval={Interval}min)",
             RefreshInterval.TotalMinutes);
 
-        // Warm up cache on startup — fill before the first real request arrives
+        // Optional cache warm-up must not delay HTTP startup or readiness.
         await WarmUpAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -257,6 +261,10 @@ public sealed class DashboardCacheRefreshService : BackgroundService
             await _cacheService.RefreshAsync(ct);
             _logger.LogInformation("[DashboardRefresh] Cache warm-up complete (capturedAt={CapturedAt})",
                 _cacheService.GetSnapshot()?.CapturedAt);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Normal host shutdown, not a cache failure.
         }
         catch (Exception ex)
         {
