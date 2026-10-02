@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -500,26 +499,22 @@ namespace OperatorCertificationRecord.Web.Pages
                     return Page();
                 }
 
-                // Perform promotion
-                emp.JobGrade = eligibility.NextGrade;
-                var success = await _employeeService.UpdateEmployeeAsync(emp);
+                // Update the grade and archive current skills in one database transaction.
+                var success = await _employeeService.PromoteEmployeeAndArchiveSkillsAsync(
+                    EmpCode ?? "",
+                    eligibility.NextGrade,
+                    GetRecordingUser(),
+                    HttpContext.RequestAborted);
 
                 if (success)
                 {
-                    // Hide all current skills after promotion (mark with [PROMOTED])
-                    var hideSuccess = await DisqualifyAllSkillsAsync(EmpCode ?? "", "Promoted to " + eligibility.NextGrade);
-
-                    if (hideSuccess)
-                    {
-                        Message = $"Employee promoted from {eligibility.CurrentGrade} to {eligibility.NextGrade} successfully! Previous skills are now hidden.";
-                        _logger?.LogInformation($"Employee {EmpCode} promoted from {eligibility.CurrentGrade} to {eligibility.NextGrade} by {GetRecordingUser()}. Skills marked as promoted.");
-                    }
-                    else
-                    {
-                        Message = $"Employee promoted from {eligibility.CurrentGrade} to {eligibility.NextGrade}, but error hiding skills.";
-                        _logger?.LogWarning($"Employee {EmpCode} promoted but failed to mark skills.");
-                    }
-
+                    Message = $"Employee promoted from {eligibility.CurrentGrade} to {eligibility.NextGrade} successfully! Previous skills are archived.";
+                    _logger?.LogInformation(
+                        "Employee {EmpCode} promoted from {CurrentGrade} to {NextGrade} by {PerformedBy}. Current skills archived as promoted.",
+                        EmpCode,
+                        eligibility.CurrentGrade,
+                        eligibility.NextGrade,
+                        GetRecordingUser());
                     MessageType = "success";
 
                     // Redirect to the ViewUser page for the promoted employee so user sees the updated profile
@@ -743,58 +738,6 @@ namespace OperatorCertificationRecord.Web.Pages
             
             // Return API endpoint that will serve photo from network share or local storage
             return "/api/photo/" + fileName;
-        }
-
-        private async Task<bool> DisqualifyAllSkillsAsync(string empCode, string reason)
-        {
-            try
-            {
-                var connectionString = _configuration.GetConnectionString("DefaultConnection");
-                
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    await connection.OpenAsync();
-                    
-                    // Mark all active qualified records with [PROMOTED] tag to hide them from tabs
-                    var markQualifiedSql = @"UPDATE tblQualified
-                                  SET Remark = CASE 
-                                      WHEN Remark IS NULL OR LTRIM(RTRIM(Remark)) = '' THEN '[PROMOTED]'
-                                      WHEN Remark NOT LIKE '%PROMOTED%' THEN Remark + ' [PROMOTED]'
-                                      ELSE Remark
-                                  END
-                                  WHERE EmpCode = @EmpCode";
-
-                    using (var markCmd = new SqlCommand(markQualifiedSql, connection))
-                    {
-                        markCmd.Parameters.AddWithValue("@EmpCode", empCode);
-                        var markedCount = await markCmd.ExecuteNonQueryAsync();
-                        _logger?.LogInformation($"Marked {markedCount} active qualified skills as promoted for employee {empCode}. Reason: {reason}");
-                    }
-
-                    // Also mark obsoleted records so they won't appear on the Obsoleted tab (but will still show on Timeline)
-                    var markObsoletedSql = @"UPDATE tblQualified_Obsoleted
-                                  SET Remark = CASE 
-                                      WHEN Remark IS NULL OR LTRIM(RTRIM(Remark)) = '' THEN '[PROMOTED]'
-                                      WHEN Remark NOT LIKE '%PROMOTED%' THEN Remark + ' [PROMOTED]'
-                                      ELSE Remark
-                                  END
-                                  WHERE EmpCode = @EmpCode";
-
-                    using (var markObCmd = new SqlCommand(markObsoletedSql, connection))
-                    {
-                        markObCmd.Parameters.AddWithValue("@EmpCode", empCode);
-                        var markedObCount = await markObCmd.ExecuteNonQueryAsync();
-                        _logger?.LogInformation($"Marked {markedObCount} obsoleted skills as promoted for employee {empCode}. Reason: {reason}");
-                    }
-
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, $"Error marking skills as promoted for employee {empCode}");
-                return false;
-            }
         }
 
         private string GetRecordingUser()

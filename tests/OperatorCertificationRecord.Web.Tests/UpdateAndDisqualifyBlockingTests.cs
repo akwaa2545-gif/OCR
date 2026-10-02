@@ -68,6 +68,55 @@ public class UpdateAndDisqualifyBlockingTests
     }
 
     [Fact]
+    public async Task Promote_UsesAtomicArchiveOperation()
+    {
+        var fake = new FakeEmployeeService
+        {
+            StubEmployee = new Employee { EmpCode = "E6", JobGrade = "51T", JoinDate = System.DateTime.Now.AddYears(-2) },
+            StubCurrentSkills = new List<EmployeeSkillRecord> { new EmployeeSkillRecord { Process = "P1" } }
+        };
+        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!, null!);
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Session = new Fakes.TestSession();
+        httpContext.Session.SetString("UserCode", "tester");
+        model.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext { HttpContext = httpContext };
+        model.EmpCode = "E6";
+
+        var result = await model.OnPostAsync("promote");
+
+        Assert.True(fake.PromotionArchiveCalled);
+        Assert.Equal("E6", fake.PromotionArchiveEmpCode);
+        Assert.Equal("54T", fake.PromotionArchiveNextGrade);
+        Assert.Equal("tester", fake.PromotionArchivePerformedBy);
+        Assert.Equal(httpContext.RequestAborted, fake.PromotionArchiveCancellationToken);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RedirectResult>(result);
+    }
+
+    [Fact]
+    public async Task Promote_ArchiveFailure_StaysOnPageAndShowsError()
+    {
+        var fake = new FakeEmployeeService
+        {
+            PromotionArchiveResult = false,
+            StubEmployee = new Employee { EmpCode = "E7", JobGrade = "52T", JoinDate = System.DateTime.Now.AddYears(-2) },
+            StubCurrentSkills = new List<EmployeeSkillRecord> { new EmployeeSkillRecord { Process = "P1" } }
+        };
+        var model = new OperatorCertificationRecord.Web.Pages.UpdateUserModel(fake, null!, null!, null!, null!, null!, null!, null!);
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Session = new Fakes.TestSession();
+        httpContext.Session.SetString("UserCode", "tester");
+        model.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext { HttpContext = httpContext };
+        model.EmpCode = "E7";
+
+        var result = await model.OnPostAsync("promote");
+
+        Assert.True(fake.PromotionArchiveCalled);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(result);
+        Assert.Equal("error", model.MessageType);
+        Assert.Contains("Error promoting employee", model.Message);
+    }
+
+    [Fact]
     public async Task EmptyAction_DoesNotRedirect_ClosesModal()
     {
         // submitting form with no action (simulate pressing cancel) should not perform any redirect

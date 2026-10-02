@@ -449,7 +449,7 @@ public class EmployeeService
                 LEFT JOIN tblOperatorTraining t ON q.OperatorTraining = t.OperatorTrainingName
                 LEFT JOIN tblEmployee v ON v.EmpCode = q.Verifier
                 WHERE q.EmpCode = @EmpCode
-                    AND (q.Remark IS NOT NULL AND q.Remark LIKE '%PROMOTED%')
+                    AND (CHARINDEX('[PROMOTED]', ISNULL(q.Remark, '')) > 0 OR q.PromotionId IS NOT NULL)
                 UNION ALL
                 SELECT q.EmpCode, q.ProcessName, q.OperatorTraining, q.TheoryTraining, q.OJTTraining, 
                              q.FullScore, q.ActualScore, q.TestResult, q.JudgmentTheory,
@@ -461,7 +461,7 @@ public class EmployeeService
                 LEFT JOIN tblOperatorTraining t ON q.OperatorTraining = t.OperatorTrainingName
                 LEFT JOIN tblEmployee v ON v.EmpCode = q.Verifier
                 WHERE q.EmpCode = @EmpCode
-                    AND (q.Remark IS NOT NULL AND q.Remark LIKE '%PROMOTED%')
+                    AND (CHARINDEX('[PROMOTED]', ISNULL(q.Remark, '')) > 0 OR q.PromotionId IS NOT NULL)
                 ORDER BY CertifiedDate DESC";
             
             using (var command = new SqlCommand(query, connection))
@@ -519,9 +519,9 @@ public class EmployeeService
             await connection.OpenAsync();
 
             var query = @"
-                SELECT TOP 1 1 FROM tblQualified WHERE EmpCode = @EmpCode AND Remark LIKE '%PROMOTED%'
+                SELECT TOP 1 1 FROM tblQualified WHERE EmpCode = @EmpCode AND (CHARINDEX('[PROMOTED]', ISNULL(Remark, '')) > 0 OR PromotionId IS NOT NULL)
                 UNION ALL
-                SELECT TOP 1 1 FROM tblQualified_Obsoleted WHERE EmpCode = @EmpCode AND Remark LIKE '%PROMOTED%'";
+                SELECT TOP 1 1 FROM tblQualified_Obsoleted WHERE EmpCode = @EmpCode AND (CHARINDEX('[PROMOTED]', ISNULL(Remark, '')) > 0 OR PromotionId IS NOT NULL)";
 
             using (var command = new SqlCommand(query, connection))
             {
@@ -550,9 +550,9 @@ public class EmployeeService
 
             var query = $@"
                 SELECT DISTINCT EmpCode FROM (
-                    SELECT EmpCode FROM tblQualified WHERE Remark LIKE '%PROMOTED%' AND EmpCode IN ({inClause})
+                    SELECT EmpCode FROM tblQualified WHERE (CHARINDEX('[PROMOTED]', ISNULL(Remark, '')) > 0 OR PromotionId IS NOT NULL) AND EmpCode IN ({inClause})
                     UNION ALL
-                    SELECT EmpCode FROM tblQualified_Obsoleted WHERE Remark LIKE '%PROMOTED%' AND EmpCode IN ({inClause})
+                    SELECT EmpCode FROM tblQualified_Obsoleted WHERE (CHARINDEX('[PROMOTED]', ISNULL(Remark, '')) > 0 OR PromotionId IS NOT NULL) AND EmpCode IN ({inClause})
                 ) x
             ";
 
@@ -609,7 +609,10 @@ public class EmployeeService
                                 FROM tblQualified q
                                 LEFT JOIN tblEmployee v ON v.EmpCode = q.Verifier
                                 WHERE q.EmpCode = @EmpCode
-                                    AND (DisQualifiedBy IS NOT NULL AND LTRIM(RTRIM(DisQualifiedBy)) <> '')                                    AND (q.Remark IS NULL OR q.Remark NOT LIKE '%PROMOTED%')                                ORDER BY DisQualifiedDate DESC
+                                    AND (DisQualifiedBy IS NOT NULL AND LTRIM(RTRIM(DisQualifiedBy)) <> '')
+                                    AND q.PromotionId IS NULL
+                                    AND CHARINDEX('[PROMOTED]', ISNULL(q.Remark, '')) = 0
+                                ORDER BY DisQualifiedDate DESC
                         ";
             using (var command = new SqlCommand(query, connection))
             {
@@ -657,7 +660,7 @@ public class EmployeeService
             // Only filter out [PROMOTED] records for Obsoleted tab, not for Timeline
             if (!forTimelineDisplay)
             {
-                query += " AND (q.Remark IS NULL OR q.Remark NOT LIKE '%PROMOTED%')";
+                query += " AND q.PromotionId IS NULL AND CHARINDEX('[PROMOTED]', ISNULL(q.Remark, '')) = 0";
             }
             
             query += " ORDER BY CertifiedDate DESC";
@@ -959,6 +962,141 @@ public class EmployeeService
             }
         }
         return result;
+    }
+
+    public virtual async Task<bool> PromoteEmployeeAndArchiveSkillsAsync(
+        string empCode,
+        string nextGrade,
+        string performedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmpCode = empCode?.Trim() ?? string.Empty;
+        var normalizedPerformedBy = performedBy?.Trim() ?? string.Empty;
+        if (normalizedEmpCode.Length == 0 || normalizedEmpCode.Length > 10 ||
+            !string.Equals(nextGrade, "54T", StringComparison.OrdinalIgnoreCase) ||
+            normalizedPerformedBy.Length == 0 || normalizedPerformedBy.Length > 128)
+        {
+            return false;
+        }
+
+        using var connection = new SqlConnection(_connectionString);
+        SqlTransaction? transaction = null;
+        var archivedRows = 0;
+        var promotionId = Guid.NewGuid();
+        var promotedAt = DateTime.UtcNow;
+
+        void TryRollback()
+        {
+            if (transaction == null)
+            {
+                return;
+            }
+
+            try
+            {
+                transaction.Rollback();
+            }
+            catch (Exception rollbackEx)
+            {
+                Serilog.Log.Error(rollbackEx, "Promotion rollback failed for employee {EmpCode}.", normalizedEmpCode);
+            }
+        }
+
+        try
+        {
+            await connection.OpenAsync(cancellationToken);
+            transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+
+            const string updateEmployeeSql = @"
+UPDATE tblEmployee
+SET JobGrade = @NextGrade
+WHERE EmpCode = @EmpCode
+  AND ResignDate IS NULL
+  AND (StatusWork IS NULL OR StatusWork <> '0')
+  AND JobGrade IN ('51T','52T','53T')";
+
+            using (var updateEmployee = new SqlCommand(updateEmployeeSql, connection, transaction))
+            {
+                updateEmployee.CommandTimeout = 300;
+                updateEmployee.Parameters.Add("@EmpCode", SqlDbType.NVarChar, 10).Value = normalizedEmpCode;
+                updateEmployee.Parameters.Add("@NextGrade", SqlDbType.NVarChar, 10).Value = nextGrade;
+                if (await updateEmployee.ExecuteNonQueryAsync(cancellationToken) != 1)
+                {
+                    TryRollback();
+                    return false;
+                }
+            }
+
+            const string archiveSql = @"
+DELETE FROM dbo.tblQualified
+OUTPUT
+    DELETED.EmpCode, DELETED.ProcessName, DELETED.OperatorTraining, DELETED.TheoryTraining,
+    DELETED.OJTTraining, DELETED.CertifiedDate, DELETED.FullScore, DELETED.ActualScore,
+    DELETED.TestResult, DELETED.JudgmentTheory, DELETED.KnowledgeScore, DELETED.KnowledgeLevel,
+    DELETED.SkillScore, DELETED.SkillLevel, DELETED.JudgmentPractice, DELETED.ExpiryDate,
+    DELETED.Verifier, DELETED.VerifierDate, DELETED.DisQualifiedDate, DELETED.DisQualifiedBy,
+    DELETED.TheReason, DELETED.Remark, DELETED.Download,
+    @PromotionId, @PromotedAt, @PromotedBy
+INTO dbo.tblQualified_Obsoleted
+    (EmpCode, ProcessName, OperatorTraining, TheoryTraining, OJTTraining, CertifiedDate,
+     FullScore, ActualScore, TestResult, JudgmentTheory, KnowledgeScore, KnowledgeLevel,
+     SkillScore, SkillLevel, JudgmentPractice, ExpiryDate, Verifier, VerifierDate,
+     DisQualifiedDate, DisQualifiedBy, TheReason, Remark, Download,
+     PromotionId, PromotedAt, PromotedBy)
+WHERE EmpCode = @EmpCode";
+
+            using (var archive = new SqlCommand(archiveSql, connection, transaction))
+            {
+                archive.CommandTimeout = 300;
+                archive.Parameters.Add("@EmpCode", SqlDbType.NVarChar, 10).Value = normalizedEmpCode;
+                archive.Parameters.Add("@PromotionId", SqlDbType.UniqueIdentifier).Value = promotionId;
+                archive.Parameters.Add("@PromotedAt", SqlDbType.DateTime2).Value = promotedAt;
+                archive.Parameters.Add("@PromotedBy", SqlDbType.NVarChar, 128).Value = normalizedPerformedBy;
+                archivedRows = await archive.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            if (archivedRows == 0)
+            {
+                throw new InvalidOperationException("Promotion requires at least one current skill to archive.");
+            }
+
+            transaction.Commit();
+        }
+        catch (OperationCanceledException)
+        {
+            TryRollback();
+            Serilog.Log.Warning(
+                "Promotion request was cancelled for employee {EmpCode} by {PerformedBy}.",
+                normalizedEmpCode,
+                normalizedPerformedBy);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            TryRollback();
+            Serilog.Log.Error(ex, "Promotion and skill archival failed for employee {EmpCode}.", normalizedEmpCode);
+            return false;
+        }
+        finally
+        {
+            transaction?.Dispose();
+        }
+
+        try
+        {
+            Serilog.Log.Information(
+                "Promoted employee {EmpCode} to {NextGrade} and archived {ArchivedRows} current skills by {PerformedBy}.",
+                normalizedEmpCode,
+                nextGrade,
+                archivedRows,
+                normalizedPerformedBy);
+        }
+        catch (Exception logEx)
+        {
+            System.Diagnostics.Debug.WriteLine(logEx);
+        }
+
+        return true;
     }
 
     public async Task<bool> UpdateEmployeeAsync(Models.Employee employee)
