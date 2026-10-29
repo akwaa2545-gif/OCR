@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -38,6 +38,10 @@ namespace OperatorTrainingRecord
         private string ProcessSelect;
         private string EmpCodeSelect;
         private string PdfFile;
+        private bool bindingProcesses;
+        private bool useStableSkills;
+        private Guid? skillRowId;
+        private byte[] skillVersion;
      //   string strFolderPath = "\\\\thb242it\\DATA\\";
         string strFolderPath = "\\\\svr120a\\Cert$\\" + frmWelcome.UserID + "" + "\\" + "";
 
@@ -45,22 +49,45 @@ namespace OperatorTrainingRecord
         {
             ProcessSelect = frmOperatorTraining.SelectqualificationID;
             EmpCodeSelect = frmOperatorTraining.EmpCodeID;
+            useStableSkills = new DesktopFileService(strConnString).SchemaAvailable;
+            skillRowId = frmOperatorTraining.SelectedSkillRowId;
             DataSet dsOpT = new DataSet();
             DataSet dsProcess = new DataSet();
             string strSqlProcess = "Select distinct ProcessName from tblQualified where EmpCode = '" + EmpCodeSelect + "' and (DisQualifiedBy= ''or DisQualifiedBy is Null) ";
             SqlDataAdapter daProcess = new SqlDataAdapter(strSqlProcess, strConnString);
+            if (useStableSkills)
+            {
+                daProcess.SelectCommand.CommandText = "SELECT ProcessName,OcrSkillRowId FROM dbo.tblQualified WHERE EmpCode=@employee AND (DisQualifiedBy='' OR DisQualifiedBy IS NULL)";
+                daProcess.SelectCommand.Parameters.Add("@employee", SqlDbType.NVarChar, 10).Value = EmpCodeSelect;
+            }
             daProcess.Fill(dsProcess, "Process");
             lblProcess.DisplayMember = "ProcessName";
-            lblProcess.ValueMember = "ProcessName";
-            lblProcess.DataSource = dsProcess.Tables["Process"];
-            lblProcess.Text = ProcessSelect;
+            lblProcess.ValueMember = useStableSkills ? "OcrSkillRowId" : "ProcessName";
+            bindingProcesses = true;
+            try
+            {
+                lblProcess.DataSource = dsProcess.Tables["Process"];
+                lblProcess.SelectedValue = useStableSkills ? (object)skillRowId : ProcessSelect;
+            }
+            finally
+            {
+                bindingProcesses = false;
+            }
+
+            if (!String.Equals(lblProcess.Text, ProcessSelect, StringComparison.Ordinal))
+            {
+                btnConfirmUpdateSkill.Enabled = false;
+                MessageBox.Show("The selected Process is no longer available. Please select another Process.", "Process Selection", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                return;
+            }
 
             string strSql = "Select EmpCode,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as Theory,convert(varchar,OJTTraining,106) as OJT,CertifiedDate,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,Remark,Download from tblQualified where EmpCode = '" + EmpCodeSelect + "'and ProcessName = '" + ProcessSelect + "' and (DisQualifiedBy= ''or DisQualifiedBy is Null) ";
             DataTable dt = new DataTable();
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
+            SqlDataAdapter da = CreateSkillAdapter(strSql);
            // Cmd = new SqlCommand(strSql, Conn);
  //           Conn.Open();
             da.Fill(dt);
+            if (skillVersion == null && dt.Rows.Count > 0 && dt.Columns.Contains("FileStorageVersion")) skillVersion = (byte[])dt.Rows[0]["FileStorageVersion"];
             if(dt.Rows.Count > 0)
             {
                 // lblProcess.Text = dt.Rows[0]["ProcessName"].ToString();
@@ -93,15 +120,19 @@ namespace OperatorTrainingRecord
 
         private void lblProcess_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (lblProcess.SelectedValue != null)
+            if (!bindingProcesses && (lblProcess.SelectedValue is string || lblProcess.SelectedValue is Guid))
             {
-                ProcessSelect = lblProcess.SelectedValue.ToString();
+                btnConfirmUpdateSkill.Enabled = true;
+                ProcessSelect = lblProcess.Text;
+                skillRowId = lblProcess.SelectedValue is Guid ? (Guid?)lblProcess.SelectedValue : null;
+                skillVersion = null;
                 // Reload the data for the new process
                 DataSet dsOpT = new DataSet();
                 string strSql = "Select EmpCode,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as Theory,convert(varchar,OJTTraining,106) as OJT,CertifiedDate,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,Remark,Download from tblQualified where EmpCode = '" + EmpCodeSelect + "'and ProcessName = '" + ProcessSelect + "' and (DisQualifiedBy= ''or DisQualifiedBy is Null) ";
                 DataTable dt = new DataTable();
-                SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
+                SqlDataAdapter da = CreateSkillAdapter(strSql);
                 da.Fill(dt);
+            if (skillVersion == null && dt.Rows.Count > 0 && dt.Columns.Contains("FileStorageVersion")) skillVersion = (byte[])dt.Rows[0]["FileStorageVersion"];
                 if(dt.Rows.Count > 0)
                 {
                     cbbOperatorTraining.Text = dt.Rows[0]["OperatorTraining"].ToString();
@@ -439,106 +470,109 @@ namespace OperatorTrainingRecord
             Conn.Open();
             string strSql = "Select EmpCode,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as Theory,convert(varchar,OJTTraining,106) as OJT,CertifiedDate,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,Remark,Download from tblQualified where EmpCode = '" + EmpCodeSelect + "'and ProcessName = '" + ProcessSelect + "' and (DisQualifiedBy= ''or DisQualifiedBy is Null) ";
             DataTable dt = new DataTable();
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
+            SqlDataAdapter da = CreateSkillAdapter(strSql);
             da.Fill(dt);
+            if (skillVersion == null && dt.Rows.Count > 0 && dt.Columns.Contains("FileStorageVersion")) skillVersion = (byte[])dt.Rows[0]["FileStorageVersion"];
 
 
             if (dt.Rows.Count > 0 && MessageBox.Show("Update Skill ? ", "", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
+                try
+                {
+                    if (!skillRowId.HasValue)
+                        new DesktopFileService(strConnString).AssertLegacyCertificateFallbackAllowed(EmpCodeSelect);
+                    if (new DesktopFileService(strConnString).TrySaveCertificate(EmpCodeSelect, skillRowId, filePath,
+                        (connection, transaction, replacementId) =>
+                        {
+                            if (!skillRowId.HasValue || skillVersion == null)
+                                throw new InvalidOperationException("Reload the selected skill before saving.");
+                            DesktopSkillMutation.Replace(connection, transaction, EmpCodeSelect, skillRowId.Value, replacementId, skillVersion, SqlSkillValues());
+                        }))
+                    {
+                        Conn.Close();
+                        MessageBox.Show("SAVE Complete", "Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        Hide();
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Conn.Close();
+                    System.Diagnostics.Trace.TraceWarning("SQL skill update failed: " + ex.GetType().Name);
+                    MessageBox.Show("The skill and certificate could not be saved. " + ex.Message, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 //*** Save File \\svr120a\Cert$
 
                 if (fileName != "")
                 {
-                    //*** create folder \\svr120a\Cert$
-                    System.IO.Directory.CreateDirectory(@"\\svr120a\Cert$\" + EmpCodeSelect + "");
-
-                    File.Copy(filePath, strFolderPath + fileName, true);
-
-                    //   Cmd.Parameters.Add("@sDownload", SqlDbType.NVarChar).Value = strFolderPath + fileName;                   
-
-                    //                    Conn.Open();
-                    sb = new StringBuilder();
-                    sb.Append("INSERT INTO tblQualified_Obsoleted SELECT * FROM tblQualified where EmpCode='" + EmpCodeSelect + "' and ProcessName='" + ProcessSelect + "' and (DisQualifiedBy= ''or DisQualifiedBy is Null)");
-                    string sqlCopy = sb.ToString();
-                    Cmd.CommandType = CommandType.Text;
-                    Cmd.CommandText = sqlCopy;
-                    Cmd.Connection = Conn;
-                    Cmd.ExecuteNonQuery();
-//  //                  Conn.Close();
-
-                    sb = new StringBuilder();
-                    sb.Append("UPDATE tblQualified set OperatorTraining ='").Append(cbbOperatorTraining.Text).Append("', TheoryTraining='").Append(dTimeTheoryUpdate.Text).Append("', OJTTraining='").Append(dTimeOJTUpdate.Text).Append("', FullScore='").Append(txtFullScoreUpdate.Text).Append("', ActualScore='").Append(txtActualScoreUpdate.Text).Append("', TestResult='").Append(lblTestResultUpdate.Text).Append("', JudgmentTheory='").Append(lblJudgmentTheory.Text).Append("', KnowledgeScore='").Append(txtKnowledgeScoreUpdate.Text).Append("', KnowledgeLevel='").Append(lblKnowleageLevelUpdate.Text).Append("', SkillScore='").Append(txtSkillScoreUpdate.Text).Append("', SkillLevel='").Append(lblSkillLevelUpdate.Text).Append("', JudgmentPractice='").Append(lblJudgmentPractice.Text).Append("', CertifiedDate='").Append(dTimeCertifiedUpdate.Text).Append("', ExpiryDate='").Append(dTimeExpiryUpdate.Text).Append("', Verifier='").Append(Login.UserName).Append("', VerifierDate= GETDATE(), Remark='").Append(txtRemarkUpdate.Text).Append("', Download='").Append(strFolderPath + fileName).Append("'");
-
-                    sb.Append("WHERE ProcessName= '").Append(ProcessSelect).Append("'and EmpCode='").Append(EmpCodeSelect).Append("'and (DisQualifiedBy= ''or DisQualifiedBy is Null)").Append("");
-                    string sqlSave = sb.ToString();
-                    Cmd.CommandType = CommandType.Text;
-                    Cmd.CommandText = sqlSave;
-                    Cmd.Connection = Conn;
-
-                    Cmd.Parameters.Clear();
-
-                    Cmd.ExecuteNonQuery();
                     Conn.Close();
+                    try
+                    {
+                        new DesktopFileService(strConnString).ExecuteLegacyMutation(EmpCodeSelect, OperatorCertificationRecord.FileStorage.FileKind.Certificate, skillRowId, (legacyConnection, legacyTransaction) =>
+                        {
+                            //*** create folder \\svr120a\Cert$
+                            System.IO.Directory.CreateDirectory(@"\\svr120a\Cert$\" + EmpCodeSelect + "");
 
+                            File.Copy(filePath, strFolderPath + fileName, true);
 
+                            //   Cmd.Parameters.Add("@sDownload", SqlDbType.NVarChar).Value = strFolderPath + fileName;
 
-
-                    //sb = new StringBuilder();
-                    //sb.Remove(0, sb.Length);
-                    //sb.Append("INSERT INTO tblQualified(EmpCode,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as TheoryTraining,convert(varchar,OJTTraining,106) as OJTTraining,CertifiedDate,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,Remark,Download) VALUES (@sEmpCode,@sProcessName,@sOperatorTraining,@sTheoryTraining,@sOJTTraining,@sCertifiedDate,@sFullScore,@sActualScore,@sTestResult,@sJudgmentTheory,@sKnowledgeScore,@sKnowledgeLevel,@sSkillScore,@sSkillLevel,@sJudgmentPractice,@sExpiryDate,@sVerifier,@sVerifierDate,@sRemark,@sDownload)");
-
-                    //string sqlInsert = sb.ToString();
-
-                    //Cmd.CommandType = CommandType.Text;
-                    //Cmd.CommandText = sqlInsert;
-                    //Cmd.Connection = Conn;
-
-                    //Cmd.Parameters.Clear();
-
-                    //Cmd.Parameters.Add("@sEmpCode", SqlDbType.Int).Value = EmpCodeSelect;
-                    //Cmd.Parameters.Add("@sProcessName", SqlDbType.NVarChar).Value = ProcessSelect;
-                    //Cmd.Parameters.Add("@sOperatorTraining", SqlDbType.NVarChar).Value = cbbOperatorTraining.Text.Trim();
-                    //Cmd.Parameters.Add("@sTheoryTraining", SqlDbType.Date).Value = lblTheoryUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sOJTTraining", SqlDbType.Date).Value = lblOJTUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sCertifiedDate", SqlDbType.Date).Value = dTimeCertifiedUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sFullScore", SqlDbType.NVarChar).Value = txtFullScoreUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sActualScore", SqlDbType.NVarChar).Value = txtActualScoreUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sTestResult", SqlDbType.NVarChar).Value = lblTestResultUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sJudgmentTheory", SqlDbType.NVarChar).Value = lblJudgmentTheory.Text.Trim();
-                    //Cmd.Parameters.Add("@sKnowledgeScore", SqlDbType.NVarChar).Value = txtKnowledgeScoreUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sKnowledgeLevel", SqlDbType.NVarChar).Value = lblKnowleageLevelUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sSkillScore", SqlDbType.NVarChar).Value = txtSkillScoreUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sSkillLevel", SqlDbType.NVarChar).Value = lblSkillLevelUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sJudgmentPractice", SqlDbType.NVarChar).Value = lblJudgmentPractice.Text.Trim();
-                    //Cmd.Parameters.Add("@sExpiryDate", SqlDbType.Date).Value = dTimeExpiryUpdate.Text.Trim();
-                    //Cmd.Parameters.Add("@sVerifier", SqlDbType.NVarChar).Value = txtVerefierName.Text.Trim();
-                    //Cmd.Parameters.Add("@sVerifierDate", SqlDbType.NVarChar).Value = DateTime.Now;
-                    //Cmd.Parameters.Add("@sRemark", SqlDbType.NVarChar).Value = txtRemarkUpdate.Text.Trim();
-
-                    //Cmd.Parameters.Add("@sDownload", SqlDbType.NVarChar).Value = strFolderPath + fileName;
-
-                    //Cmd.ExecuteNonQuery();
-                    ////  //                  Conn.Close();
-
-
-                    //sb = new StringBuilder();
-
-                    //strSql = "SELECT MAX(VerifierDate) FROM tblQualified WHERE ProcessName='ProcessSelect'";
-                    //sb.Append("UPDATE tblQualified set OperatorTraining ='").Append(cbbOperatorTraining.Text).Append("', FullScore='").Append(txtFullScoreUpdate.Text).Append("', ActualScore='").Append(txtActualScoreUpdate.Text).Append("', TestResult='").Append(lblTestResultUpdate.Text).Append("', JudgmentTheory='").Append(lblJudgmentTheory.Text).Append("', KnowledgeScore='").Append(txtKnowledgeScoreUpdate.Text).Append("', KnowledgeLevel='").Append(lblKnowleageLevelUpdate.Text).Append("', SkillScore='").Append(txtSkillScoreUpdate.Text).Append("', SkillLevel='").Append(lblSkillLevelUpdate.Text).Append("', JudgmentPractice='").Append(lblJudgmentPractice.Text).Append("', CertifiedDate='").Append(dTimeCertifiedUpdate.Text).Append("', ExpiryDate='").Append(dTimeExpiryUpdate.Text).Append("', Verifier='").Append(Login.UserName).Append("', VerifierDate= GETDATE(), Remark='").Append(txtRemarkUpdate.Text).Append("', Download='").Append(strFolderPath + fileName).Append("'");
-
-                    //sb.Append("WHERE ProcessName= '").Append(ProcessSelect).Append("'and EmpCode='").Append(EmpCodeSelect).Append("'and (DisQualifiedBy= ''or DisQualifiedBy is Null)").Append("");
-                    //string sqlSave = sb.ToString();
-                    //Cmd.CommandType = CommandType.Text;
-                    //Cmd.CommandText = sqlSave;
-                    //Cmd.Connection = Conn;
-
-                    //Cmd.Parameters.Clear();
-
-                    //Cmd.ExecuteNonQuery();
-
-
-  
-
+                            //                    Conn.Open();
+                            const string archiveColumns = "EmpCode, ProcessName, OperatorTraining, TheoryTraining, OJTTraining, CertifiedDate, FullScore, ActualScore, TestResult, JudgmentTheory, KnowledgeScore, KnowledgeLevel, SkillScore, SkillLevel, JudgmentPractice, ExpiryDate, Verifier, VerifierDate, DisQualifiedDate, DisQualifiedBy, TheReason, Remark, Download";
+                            string optionalArchiveColumns = "";
+                            bool hasSkillRowId = false;
+                            using (var schema = new SqlCommand(@"SELECT
+                                COL_LENGTH('dbo.tblQualified','PromotionId'), COL_LENGTH('dbo.tblQualified_Obsoleted','PromotionId'),
+                                COL_LENGTH('dbo.tblQualified','PromotedAt'), COL_LENGTH('dbo.tblQualified_Obsoleted','PromotedAt'),
+                                COL_LENGTH('dbo.tblQualified','PromotedBy'), COL_LENGTH('dbo.tblQualified_Obsoleted','PromotedBy'),
+                                COL_LENGTH('dbo.tblQualified','OcrSkillRowId'), COL_LENGTH('dbo.tblQualified_Obsoleted','OcrSkillRowId'),
+                                COL_LENGTH('dbo.tblQualified','CertificateFileId'), COL_LENGTH('dbo.tblQualified_Obsoleted','CertificateFileId')", legacyConnection, legacyTransaction))
+                            using (var reader = schema.ExecuteReader())
+                            {
+                                if (!reader.Read()) throw new InvalidOperationException("Unable to inspect qualification archive schema.");
+                                var present = Enumerable.Range(0, 10).Select(i => !reader.IsDBNull(i)).ToArray();
+                                for (int i = 0; i < present.Length; i += 2)
+                                    if (present[i] != present[i + 1]) throw new InvalidOperationException("Qualification archive schema is incomplete; archive writes are blocked.");
+                                if ((present[0] || present[2] || present[4]) && !(present[0] && present[2] && present[4]))
+                                    throw new InvalidOperationException("Qualification promotion schema is incomplete; archive writes are blocked.");
+                                if (present[0]) optionalArchiveColumns += ", PromotionId, PromotedAt, PromotedBy";
+                                hasSkillRowId = present[6];
+                                if (hasSkillRowId) optionalArchiveColumns += ", OcrSkillRowId";
+                                if (present[8]) optionalArchiveColumns += ", CertificateFileId";
+                            }
+                            string alignedColumns = archiveColumns + optionalArchiveColumns;
+                            string sqlCopy = "INSERT INTO dbo.tblQualified_Obsoleted (" + alignedColumns + ") SELECT " + alignedColumns +
+                                " FROM dbo.tblQualified WHERE EmpCode = @ArchiveEmpCode AND ProcessName = @ArchiveProcessName AND (DisQualifiedBy = '' OR DisQualifiedBy IS NULL)";
+                            Cmd.CommandType = CommandType.Text;
+                            Cmd.CommandText = sqlCopy;
+                            Cmd.Connection = legacyConnection;
+                            Cmd.Transaction = legacyTransaction;
+                            Cmd.Parameters.Clear();
+                            Cmd.Parameters.Add("@ArchiveEmpCode", SqlDbType.NVarChar, 10).Value = EmpCodeSelect;
+                            Cmd.Parameters.Add("@ArchiveProcessName", SqlDbType.NVarChar, 100).Value = ProcessSelect;
+                            if (hasSkillRowId && skillRowId.HasValue)
+                            {
+                                Cmd.CommandText += " AND OcrSkillRowId=@LegacySkillRowId";
+                                Cmd.Parameters.Add("@LegacySkillRowId", SqlDbType.UniqueIdentifier).Value = skillRowId.Value;
+                                if (skillVersion != null)
+                                {
+                                    Cmd.CommandText += " AND FileStorageVersion=@LegacyVersion";
+                                    Cmd.Parameters.Add("@LegacyVersion", SqlDbType.Binary, 8).Value = skillVersion;
+                                }
+                            }
+                            Cmd.ExecuteNonQuery();
+                            DesktopSkillMutation.UpdateLegacy(legacyConnection, legacyTransaction, EmpCodeSelect, ProcessSelect, skillRowId, skillVersion, hasSkillRowId, SqlSkillValues(), strFolderPath + fileName);
+                        });
+                        Cmd.Transaction = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        Cmd.Transaction = null;
+                        System.Diagnostics.Trace.TraceWarning("Legacy skill save failed: " + ex.GetType().Name);
+                        MessageBox.Show("The skill and certificate could not be saved. Reload the record and try again.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
                     MessageBox.Show("SAVE Complete", "Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
@@ -554,6 +588,47 @@ namespace OperatorTrainingRecord
             //}
             this.Hide();
             Conn.Close();
+        }
+
+        private SqlDataAdapter CreateSkillAdapter(string sql)
+        {
+            var index = sql.IndexOf(" where EmpCode", StringComparison.OrdinalIgnoreCase);
+            var select = index >= 0 ? sql.Substring(0, index) : sql;
+            if (useStableSkills) select = new DesktopFileService(strConnString).SkillProjection(select);
+            var adapter = new SqlDataAdapter(select + " WHERE EmpCode=@employee AND " +
+                (useStableSkills ? "OcrSkillRowId=@rowId" : "ProcessName=@process") +
+                " AND (DisQualifiedBy='' OR DisQualifiedBy IS NULL)", strConnString);
+            adapter.SelectCommand.Parameters.Add("@employee", SqlDbType.NVarChar, 10).Value = EmpCodeSelect;
+            if (useStableSkills)
+            {
+                if (!skillRowId.HasValue) throw new InvalidOperationException("Select a stable skill row before editing.");
+                adapter.SelectCommand.Parameters.Add("@rowId", SqlDbType.UniqueIdentifier).Value = skillRowId.Value;
+            }
+            else adapter.SelectCommand.Parameters.Add("@process", SqlDbType.NVarChar, 100).Value = ProcessSelect;
+            return adapter;
+        }
+
+        private IDictionary<string, object> SqlSkillValues()
+        {
+            return new Dictionary<string, object>
+            {
+                ["OperatorTraining"] = cbbOperatorTraining.Text,
+                ["TheoryTraining"] = dTimeTheoryUpdate.Value.Date,
+                ["OJTTraining"] = dTimeOJTUpdate.Value.Date,
+                ["CertifiedDate"] = dTimeCertifiedUpdate.Value.Date,
+                ["FullScore"] = txtFullScoreUpdate.Text,
+                ["ActualScore"] = txtActualScoreUpdate.Text,
+                ["TestResult"] = lblTestResultUpdate.Text,
+                ["JudgmentTheory"] = lblJudgmentTheory.Text,
+                ["KnowledgeScore"] = txtKnowledgeScoreUpdate.Text,
+                ["KnowledgeLevel"] = lblKnowleageLevelUpdate.Text,
+                ["SkillScore"] = txtSkillScoreUpdate.Text,
+                ["SkillLevel"] = lblSkillLevelUpdate.Text,
+                ["JudgmentPractice"] = lblJudgmentPractice.Text,
+                ["ExpiryDate"] = dTimeExpiryUpdate.Value.Date,
+                ["Verifier"] = Login.UserName,
+                ["Remark"] = txtRemarkUpdate.Text
+            };
         }
 
         private void dTimeCertifiedUpdate_ValueChanged(object sender, EventArgs e)

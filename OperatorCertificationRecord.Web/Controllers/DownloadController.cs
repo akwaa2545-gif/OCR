@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -18,14 +18,16 @@ namespace OperatorCertificationRecord.Web.Controllers
         private readonly IConfiguration _config;
         private readonly Services.DepartmentService _departmentService;
         private readonly Services.SectionService _sectionService;
-        private readonly Services.EmployeeService _employeeService; 
+        private readonly Services.EmployeeService _employeeService;
+        private readonly Services.DeveloperRoleService _developers;
 
-        public DownloadController(IConfiguration config, Services.DepartmentService departmentService, Services.SectionService sectionService, Services.EmployeeService employeeService)
+        public DownloadController(IConfiguration config, Services.DepartmentService departmentService, Services.SectionService sectionService, Services.EmployeeService employeeService, Services.DeveloperRoleService developers)
         {
             _config = config;
             _departmentService = departmentService;
             _sectionService = sectionService;
             _employeeService = employeeService;
+            _developers = developers;
         }
 
         [HttpGet("disqualified")]
@@ -50,6 +52,7 @@ namespace OperatorCertificationRecord.Web.Controllers
     DisQualifiedDate,DisQualifiedBy,TheReason,Remark
 FROM ViewEmpQualified_All
 WHERE DisQualifiedDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
   AND ISNULL(DisQualifiedBy,'') <> ''
   AND ResignDate IS NULL
   AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%'))
@@ -64,6 +67,7 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -151,6 +155,7 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
 
             var sql = @"SELECT COUNT(1) FROM ViewEmpQualified_All
 WHERE DisQualifiedDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
   AND ISNULL(DisQualifiedBy,'') <> ''
   AND ResignDate IS NULL
   AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%'))
@@ -164,6 +169,7 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -194,6 +200,7 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
 
             var sql = @"SELECT COUNT(1) FROM ViewEmpQualified_All
 WHERE ResignDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
   AND ResignDate IS NOT NULL
   AND ProcessName IS NOT NULL
   AND (@dept IS NULL OR DeptName = @dept)
@@ -203,6 +210,7 @@ WHERE ResignDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -239,6 +247,7 @@ WHERE ResignDate BETWEEN @start AND @end
     ResignDate, ResignBy, Remark
 FROM ViewEmpQualified_All
 WHERE ResignDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
   AND ResignDate IS NOT NULL
   AND ProcessName IS NOT NULL
   AND (@dept IS NULL OR DeptName = @dept)
@@ -249,6 +258,7 @@ WHERE ResignDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -319,6 +329,7 @@ WHERE ResignDate BETWEEN @start AND @end
 
             var sql = @"SELECT COUNT(1) FROM ViewEmpQualified_All
 WHERE ExpiryDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
   AND (ISNULL(DisQualifiedBy,'') = '')
   AND ResignDate IS NULL
   AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%'))
@@ -332,6 +343,7 @@ WHERE ExpiryDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -352,8 +364,42 @@ WHERE ExpiryDate BETWEEN @start AND @end
         {
             try
             {
-                var list = await _employeeService.GetExpiringSkillsPreviewAsync(days, top);
-                return Ok(list ?? new System.Collections.Generic.List<OperatorCertificationRecord.Web.Models.ExpiringSkill>());
+                var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
+                if (string.IsNullOrWhiteSpace(connStr))
+                    return StatusCode(500, new { error = "Database connection string is not configured." });
+                using var conn = new SqlConnection(connStr);
+                using var cmd = new SqlCommand(@"
+                    SELECT TOP (@top) EmpCode, PersonFNameEng, PersonLNameEng, ProcessName, ExpiryDate,
+                           ISNULL(DeptName,'') AS DeptName, ISNULL(SectName,'') AS SectName
+                    FROM ViewEmpQualified_All WITH (NOLOCK)
+                    WHERE ExpiryDate BETWEEN GETDATE() AND DATEADD(DAY, @days, GETDATE())
+                      /* DeveloperEmployeeExclusion */
+                      AND (ISNULL(DisQualifiedBy,'') = '')
+                      AND ResignDate IS NULL
+                      AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%'))
+                      AND ProcessName IS NOT NULL
+                    ORDER BY ExpiryDate ASC", conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
+                cmd.CommandTimeout = 300;
+                cmd.Parameters.Add("@days", SqlDbType.Int).Value = days;
+                cmd.Parameters.Add("@top", SqlDbType.Int).Value = top;
+                await conn.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
+                var list = new List<OperatorCertificationRecord.Web.Models.ExpiringSkill>();
+                while (await reader.ReadAsync())
+                {
+                    list.Add(new OperatorCertificationRecord.Web.Models.ExpiringSkill
+                    {
+                        EmpCode = reader["EmpCode"]?.ToString() ?? "",
+                        FirstNameEng = reader["PersonFNameEng"]?.ToString() ?? "",
+                        LastNameEng = reader["PersonLNameEng"]?.ToString() ?? "",
+                        Process = reader["ProcessName"]?.ToString() ?? "",
+                        ExpiryDate = reader["ExpiryDate"] as DateTime?,
+                        DeptName = reader["DeptName"]?.ToString() ?? "",
+                        SectName = reader["SectName"]?.ToString() ?? ""
+                    });
+                }
+                return Ok(list);
             }
             catch (Exception ex)
             {
@@ -383,6 +429,7 @@ WHERE ExpiryDate BETWEEN @start AND @end
     Remark
 FROM ViewEmpQualified_All
 WHERE ExpiryDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
   AND (ISNULL(DisQualifiedBy,'') = '')
   AND ResignDate IS NULL  AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%'))  AND ProcessName IS NOT NULL
   AND ISNULL(Shift,'') <> 'DAY'
@@ -395,6 +442,7 @@ WHERE ExpiryDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -467,6 +515,7 @@ LEFT JOIN tblEmployee e ON e.EmpCode = q.EmpCode
 LEFT JOIN tblDepartment d ON d.DeptID = e.DeptID
 LEFT JOIN tblSection s ON s.SectID = e.SectID
 WHERE q.CertifiedDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
     AND e.ResignDate IS NULL
     AND (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')
     AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))
@@ -479,6 +528,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "q.EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -520,6 +570,7 @@ LEFT JOIN tblDepartment d ON d.DeptID = e.DeptID
 LEFT JOIN tblSection s ON s.SectID = e.SectID
 LEFT JOIN tblWorkshop w ON w.WorkshopID = e.WorkshopID
 WHERE q.CertifiedDate BETWEEN @start AND @end
+  /* DeveloperEmployeeExclusion */
     AND e.ResignDate IS NULL
     AND (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')
     AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))
@@ -533,6 +584,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "q.EmpCode");
                 cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = startDate;
                 cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = endDate;
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
@@ -605,6 +657,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
             {
                 sql.AppendLine("WHERE q.SectName = @SectName");
             }
+            sql.AppendLine("  /* DeveloperEmployeeExclusion */");
             sql.AppendLine("  AND (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')");
             sql.AppendLine("  AND q.ResignDate IS NULL");
             sql.AppendLine("  AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))");
@@ -622,6 +675,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql.ToString(), conn);
+                ApplyDeveloperExclusion(cmd, "q.EmpCode");
                 if (!string.IsNullOrWhiteSpace(department))
                 {
                     cmd.Parameters.Add("@DeptName", SqlDbType.NVarChar).Value = department;
@@ -646,6 +700,9 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
                 return StatusCode(500, new { error = "Error querying database: " + ex.Message });
             }
         }
+
+        private void ApplyDeveloperExclusion(SqlCommand command, string employeeCodeExpression)
+            => Services.DeveloperReportExclusion.Apply(command, _developers.GetAllDevelopersForReports(), employeeCodeExpression);
 
         private static string EscapeCsv(string? value)
         {
@@ -766,6 +823,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("SELECT COUNT(1) FROM ViewEmpQualified_All q");
             sb.AppendLine("WHERE (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')");
+            sb.AppendLine("/* DeveloperEmployeeExclusion */");
             sb.AppendLine("  AND q.ResignDate IS NULL");
             sb.AppendLine("  AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))");
             sb.AppendLine("  AND q.ProcessName IS NOT NULL");
@@ -780,6 +838,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sb.ToString(), conn);
+                ApplyDeveloperExclusion(cmd, "q.EmpCode");
                 if (!string.IsNullOrWhiteSpace(department)) cmd.Parameters.Add("@DeptName", SqlDbType.NVarChar).Value = department;
                 if (!string.IsNullOrWhiteSpace(section)) cmd.Parameters.Add("@SectName", SqlDbType.NVarChar).Value = section;
                 if (start.HasValue && end.HasValue)
@@ -810,6 +869,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
                         var sql = @"SELECT COUNT(1) FROM (
     SELECT DISTINCT q.EmpCode FROM ViewEmpQualified_All q
     WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
+    /* DeveloperEmployeeExclusion */
         AND q.ResignDate IS NULL
         AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))
         AND ISNULL(q.Shift,'') <> 'DAY'
@@ -823,6 +883,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "q.EmpCode");
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
                 cmd.Parameters.Add("@sect", SqlDbType.NVarChar).Value = (object)sect ?? DBNull.Value;
                 if (start.HasValue && end.HasValue)
@@ -859,6 +920,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
         HEng,PersonFNameEng,PersonLNameEng,HThai,PersonFNameThai,PersonLNameThai,DeptName,SectName,JobGrade,WorkshopName,Shift,Notice
 FROM ViewEmpQualified_All q
 WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
+    /* DeveloperEmployeeExclusion */
     AND q.ResignDate IS NULL
     AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))
     AND ISNULL(q.Shift,'') <> 'DAY'
@@ -873,6 +935,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
             {
                 using var conn = new SqlConnection(connStr);
                 using var cmd = new SqlCommand(sql, conn);
+                ApplyDeveloperExclusion(cmd, "q.EmpCode");
                 cmd.Parameters.Add("@dept", SqlDbType.NVarChar).Value = (object)dept ?? DBNull.Value;
                 cmd.Parameters.Add("@sect", SqlDbType.NVarChar).Value = (object)sect ?? DBNull.Value;
                 if (start.HasValue && end.HasValue)
@@ -1085,21 +1148,28 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
                 using (var cmd = new SqlCommand(
                     @"SELECT DISTINCT WorkshopName FROM ViewEmpQualified_All
                       WHERE WorkshopName IS NOT NULL AND ResignDate IS NULL
+                      /* DeveloperEmployeeExclusion */
                       ORDER BY WorkshopName", conn))
-                using (var rdr = await cmd.ExecuteReaderAsync())
-                    while (await rdr.ReadAsync())
-                        workshops.Add(rdr.GetString(0));
+                {
+                    ApplyDeveloperExclusion(cmd, "EmpCode");
+                    using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync()) workshops.Add(rdr.GetString(0));
+                }
 
                 using (var cmd2 = new SqlCommand(
                     @"SELECT DISTINCT OperatorTraining FROM ViewEmpQualified_All
                       WHERE OperatorTraining IS NOT NULL AND ResignDate IS NULL
+                      /* DeveloperEmployeeExclusion */
                       ORDER BY OperatorTraining", conn))
-                using (var rdr2 = await cmd2.ExecuteReaderAsync())
+                {
+                    ApplyDeveloperExclusion(cmd2, "EmpCode");
+                    using var rdr2 = await cmd2.ExecuteReaderAsync();
                     while (await rdr2.ReadAsync())
                     {
                         var v = rdr2.IsDBNull(0) ? null : rdr2.GetString(0);
                         if (!string.IsNullOrWhiteSpace(v)) operatorTrainings.Add(v);
                     }
+                }
             }
 
             return Ok(new
@@ -1161,6 +1231,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
                 ISNULL(q.JudgmentPractice,'') AS JudgmentPractice
             FROM ViewEmpQualified_All q
             WHERE q.ResignDate IS NULL
+              /* DeveloperEmployeeExclusion */
               AND (ISNULL(q.DisQualifiedBy,'') = '')
               AND q.ProcessName IS NOT NULL
               AND ISNULL(q.Shift,'') <> 'DAY'
@@ -1195,6 +1266,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
                 SELECT DISTINCT ProcessName
                 FROM ViewEmpQualified_All
                 WHERE ResignDate IS NULL
+                  /* DeveloperEmployeeExclusion */
                   AND ProcessName IS NOT NULL
                   {sectFilterProc}
                   AND (@operatorTraining IS NULL OR OperatorTraining = @operatorTraining)
@@ -1214,6 +1286,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
+                    ApplyDeveloperExclusion(cmd, "q.EmpCode");
                     AddSectParams(cmd);
                     cmd.Parameters.Add("@workshop", SqlDbType.NVarChar).Value = string.IsNullOrWhiteSpace(workshop) ? (object)DBNull.Value : workshop;
                     cmd.Parameters.Add("@operatorTraining", SqlDbType.NVarChar).Value = string.IsNullOrWhiteSpace(operatorTraining) ? (object)DBNull.Value : operatorTraining;
@@ -1240,6 +1313,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
 
                 using (var cmd2 = new SqlCommand(processSql, conn))
                 {
+                    if (string.IsNullOrWhiteSpace(workshop)) ApplyDeveloperExclusion(cmd2, "EmpCode");
                     AddSectParams(cmd2);
                     cmd2.Parameters.Add("@workshop", SqlDbType.NVarChar).Value = string.IsNullOrWhiteSpace(workshop) ? (object)DBNull.Value : workshop;
                     cmd2.Parameters.Add("@operatorTraining", SqlDbType.NVarChar).Value = string.IsNullOrWhiteSpace(operatorTraining) ? (object)DBNull.Value : operatorTraining;

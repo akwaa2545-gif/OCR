@@ -23,11 +23,13 @@ Your Windows Forms desktop application has been successfully converted to a mode
    - Open `OperatorCertificationRecord.sln` in Visual Studio 2022
 
 2. **Configure Connection String**
-   - Navigate to `OperatorCertificationRecord.Web/appsettings.json`
-   - Update the connection string:
+   - Right-click `OperatorCertificationRecord.Web` and select **Manage User Secrets**.
+   - Set the database connection in the local secrets file:
    ```json
-   "ConnectionStrings": {
-     "DefaultConnection": "Server=svr120a;User Id=TETUSR;Password=TETPWD;Database=OperatorCertificationRecordDB;"
+   {
+     "ConnectionStrings": {
+       "DefaultConnection": "<your SQL Server connection string>"
+     }
    }
    ```
 
@@ -48,11 +50,20 @@ cd "c:\code test\OperatorCertificationRecord\OperatorCertificationRecord.Web"
 # Restore packages
 dotnet restore
 
-# Run development server
+# Configure ConnectionStrings:DefaultConnection using Visual Studio Manage User Secrets
+# or dotnet user-secrets. Root .env files are not loaded by ASP.NET Core.
+
+# Run development server (Development profile loads User Secrets)
 dotnet run
 
 # Application available at http://localhost:5000
 ```
+
+Keep database credentials in User Secrets for local development. Use the
+`ConnectionStrings:DefaultConnection` key and your assigned database connection.
+Restart the development server after first enabling User Secrets. Check
+`http://localhost:5000/health/ready`; a working database returns HTTP 200 and `Healthy`.
+Production continues to use the `ConnectionStrings__DefaultConnection` environment variable.
 
 ### Option 3: Deploy to IIS
 
@@ -124,7 +135,7 @@ OperatorCertificationRecord.Web/
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Your SQL Server connection string"
+    "DefaultConnection": "<your SQL Server connection string>"
   },
   "Logging": {
     "LogLevel": {

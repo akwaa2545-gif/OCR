@@ -1,9 +1,13 @@
 @page
 @model OperatorCertificationRecord.Web.Pages.AdminsModel
+@inject OperatorCertificationRecord.Web.Services.DeveloperRoleService DeveloperRoles
 @{
-    ViewData["Title"] = "Admin Management";
+    ViewData["Title"] = "Access Management";
     ViewData["ActivePage"] = "Admins";
-    int adminCount = Model.AdminsWithNames.Count;
+    int adminCount = Model.AdminCount;
+    int developerCount = Model.DeveloperCount;
+    int memberCount = Model.AccessMembers.Count;
+    bool isDeveloper = DeveloperRoles.IsDeveloper(HttpContext.Session.GetString("UserCode"));
     bool hasStatus = !string.IsNullOrEmpty(Model.StatusMessage);
     bool isSuccess = hasStatus && (Model.StatusMessage!.StartsWith("Added") || Model.StatusMessage.StartsWith("Removed"));
 }
@@ -347,6 +351,53 @@
         transition: all .15s;
     }
     .adm-modal-confirm:hover { background: linear-gradient(135deg, #b91c1c, #dc2626); }
+    /* Access directory: compact rows, independent role badges, clear actions. */
+    .adm-hero { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid #f97316; padding: 24px; box-shadow: none; }
+    .adm-hero::after { display: none; }
+    .adm-hero-title { font-size: 24px; }
+    .adm-hero-sub { max-width: 560px; color: #475569; font-size: 14px; line-height: 1.6; }
+    .adm-hero-badge { background: #fff7ed; color: #9a3412; border-radius: 5px; letter-spacing: .05em; }
+    .adm-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+    .adm-stat { gap: 10px; padding: 12px 16px; border-color: #e2e8f0; border-radius: 8px; box-shadow: none; min-width: 120px; }
+    .adm-stat-icon { width: 36px; height: 36px; background: #fff7ed; color: #c2410c; border-radius: 8px; font-size: 18px; }
+    .adm-stat-dev .adm-stat-icon { background: #e8eef8; color: #1e3a5f; }
+    .adm-stat-val { font-size: 24px; }
+    .adm-stat-lbl { font-size: 12px; color: #475569; margin-top: 4px; }
+    .adm-add-card { box-shadow: none; border-color: #e2e8f0; padding: 18px 20px; }
+    .adm-add-title { text-transform: none; letter-spacing: normal; font-size: 15px; margin-bottom: 6px; }
+    .adm-add-help { margin: 0 0 14px; color: #475569; font-size: 13px; }
+    .adm-code-label { display: block; margin-bottom: 6px; font-size: 12px; color: #475569; font-weight: 600; }
+    .adm-input { min-width: 140px; border-color: #64748b; background: #fff; }
+    .adm-btn-add { background: #0f172a; box-shadow: none; }
+    .adm-btn-add:hover { background: #334155; box-shadow: none; transform: none; }
+    .adm-list-card { border-color: #e2e8f0; box-shadow: none; }
+    .adm-list-header { background: #0f172a; padding: 16px 20px; font-size: 15px; }
+    .adm-list-hint { color: #cbd5e1; font-size: 12px; font-weight: 400; }
+    .adm-table-wrap { overflow-x: auto; }
+    .adm-table { min-width: 680px; }
+    .adm-table thead th { text-align: left; font-size: 11px; color: #475569; padding: 12px 18px; }
+    .adm-table td { padding: 14px 18px; }
+    .adm-table tbody tr:hover { background: #f8fafc; }
+    .adm-name { font-size: 14px; }
+    .adm-avatar { background: #fff7ed; color: #9a3412; box-shadow: none; border: 1px solid #fed7aa; }
+    .adm-code-badge { font-size: 12px; background: #f8fafc; border-color: #e2e8f0; }
+    .adm-role-list, .adm-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .adm-actions { justify-content: flex-end; }
+    .adm-role-badge { border-radius: 6px; padding: 5px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .adm-role-developer { background: #e8eef8; color: #1e3a5f; border-color: #bccce1; }
+    .adm-protected { display: inline-flex; align-items: center; gap: 6px; color: #475569; font-size: 12px; padding: 8px 0; }
+    .adm-btn-manage { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid #64748b; border-radius: 7px; color: #0f172a; background: #fff; text-decoration: none; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .adm-btn-manage:hover { background: #f1f5f9; color: #0f172a; }
+    .adm-btn-remove { min-height: 40px; height: auto; font-size: 12px; color: #b91c1c; border-color: #fca5a5; }
+    .adm-btn-manage:focus-visible, .adm-btn-remove:focus-visible, .adm-btn-add:focus-visible, .adm-input:focus-visible { outline: 3px solid #ea580c; outline-offset: 3px; }
+    .adm-table-wrap:focus-visible { outline: 3px solid #ea580c; outline-offset: -3px; }
+    @@media (max-width: 700px) {
+        .adm-hero { padding: 18px; }
+        .adm-stats { width: 100%; }
+        .adm-stat { flex: 1; min-width: 0; padding: 12px; }
+        .adm-list-header { align-items: flex-start; flex-direction: column; }
+        .adm-add-card { padding: 18px; }
+    }
 </style>
 }
 
@@ -354,15 +405,24 @@
 <div class="adm-hero">
     <div>
         <div class="adm-hero-badge"><i class="bi bi-shield-lock-fill"></i> System</div>
-        <h1 class="adm-hero-title">Admin Management</h1>
-        <p class="adm-hero-sub">Grant or revoke administrator privileges. Admins can access all management features and reports.</p>
+        <h1 class="adm-hero-title">Admin &amp; Developer Management</h1>
+        <p class="adm-hero-sub">Review Admin and Developer access in one place. Employees can have either role or both.</p>
     </div>
-    <div class="adm-stat">
-        <div class="adm-stat-icon"><i class="bi bi-shield-check"></i></div>
+    <div class="adm-stats" aria-label="Access totals">
+      <div class="adm-stat">
+        <div class="adm-stat-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></div>
         <div>
             <div class="adm-stat-val">@adminCount</div>
-            <div class="adm-stat-lbl">Active @(adminCount == 1 ? "Admin" : "Admins")</div>
+            <div class="adm-stat-lbl">@(adminCount == 1 ? "Admin" : "Admins")</div>
         </div>
+      </div>
+      <div class="adm-stat adm-stat-dev">
+        <div class="adm-stat-icon"><i class="bi bi-code-slash" aria-hidden="true"></i></div>
+        <div>
+            <div class="adm-stat-val">@developerCount</div>
+            <div class="adm-stat-lbl">@(developerCount == 1 ? "Developer" : "Developers")</div>
+        </div>
+      </div>
     </div>
 </div>
 
@@ -377,15 +437,17 @@
 <!-- Add Admin -->
 <div class="adm-add-card">
     <div class="adm-add-title">
-        <i class="bi bi-person-plus-fill"></i> Grant Admin Privileges
+        <i class="bi bi-person-plus-fill" aria-hidden="true"></i> Grant Admin access
     </div>
+    <p class="adm-add-help">@(isDeveloper ? "For Developer access or other role changes, open the employee's Manage access page." : "Grant Admin access to employees who do not have Developer access.")</p>
     <form method="post" asp-page-handler="Add">
+        <label asp-for="NewEmpCode" class="adm-code-label">Employee code</label>
         <div class="adm-input-wrap">
             <input asp-for="NewEmpCode"
                    class="adm-input"
-                   placeholder="Employee code  (e.g. E123456)"
+                   placeholder="e.g. 0402567" inputmode="numeric" maxlength="20" pattern="[0-9]{1,20}"
                    autocomplete="off"
-                   autofocus />
+                   required />
             <button type="submit" class="adm-btn-add">
                 <i class="bi bi-shield-plus"></i> Add Admin
             </button>
@@ -398,31 +460,33 @@
     <div class="adm-list-header">
         <div class="adm-list-header-left">
             <i class="bi bi-people-fill"></i>
-            Current Administrators
-            <span class="adm-count-pill">@adminCount</span>
+            Employees with access
+            <span class="adm-count-pill">@memberCount</span>
         </div>
+        <span class="adm-list-hint">@(isDeveloper ? "Manage Admin and Developer access independently." : "Developer accounts are protected.")</span>
     </div>
 
-    @if (!Model.AdminsWithNames.Any())
+    @if (!Model.AccessMembers.Any())
     {
         <div class="adm-empty">
             <i class="bi bi-inbox"></i>
-            <p>No administrators configured yet.</p>
+            <p>No Admin or Developer access configured.</p>
         </div>
     }
     else
     {
+        <div class="adm-table-wrap" role="region" aria-label="Employees and application access" tabindex="0">
         <table class="adm-table">
             <thead>
                 <tr>
-                    <th style="width:50%">Administrator</th>
-                    <th>Employee Code</th>
-                    <th>Role</th>
-                    <th style="text-align:right;padding-right:1.25rem;">Action</th>
+                    <th scope="col">Employee</th>
+                    <th scope="col">Employee Code</th>
+                    <th scope="col">Access roles</th>
+                    <th scope="col" style="text-align:right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var a in Model.AdminsWithNames)
+                @foreach (var a in Model.AccessMembers)
                 {
                     var initials = string.Join("",
                         (a.FullName ?? a.EmpCode)
@@ -435,9 +499,9 @@
                                 <div class="adm-avatar" data-ini="@initials">
                                     @if (!string.IsNullOrEmpty(a.PhotoUrl))
                                     {
-                                        <img src="/api/photo/@Uri.EscapeDataString(a.PhotoUrl)" alt="@a.FullName"
+                                        <img src="@OperatorCertificationRecord.Web.Services.EmployeeFileUrls.Photo(a.PhotoUrl)" alt="@a.FullName"
                                              style="width:100%;height:100%;border-radius:50%;object-fit:cover;"
-                                             onerror="this.onerror=null;this.parentElement.textContent=this.parentElement.getAttribute('data-ini');" />
+                                             onerror="if(this.src.includes('/api/photo/employee/')){this.alt='Photo unavailable';this.title='Photo unavailable';return;}this.onerror=null;this.parentElement.textContent=this.parentElement.getAttribute('data-ini');" />
                                     }
                                     else
                                     {
@@ -449,23 +513,44 @@
                         </td>
                         <td><span class="adm-code-badge">@a.EmpCode</span></td>
                         <td>
-                            <span class="adm-role-badge">
-                                <i class="bi bi-shield-fill-check"></i> Administrator
-                            </span>
+                            <div class="adm-role-list">
+                                @if (a.IsAdmin && !a.IsDeveloper)
+                                {
+                                    <span class="adm-role-badge"><i class="bi bi-shield-fill-check" aria-hidden="true"></i> Admin</span>
+                                }
+                                @if (a.IsDeveloper)
+                                {
+                                    <span class="adm-role-badge adm-role-developer"><i class="bi bi-code-slash" aria-hidden="true"></i> Developer</span>
+                                }
+                            </div>
                         </td>
                         <td style="text-align:right;">
-                            <button type="button"
+                            <div class="adm-actions">
+                            @if (isDeveloper)
+                            {
+                                <a class="adm-btn-manage" asp-page="/UpdateUser" asp-route-empCode="@a.EmpCode" aria-label="Manage access for @a.EmpCode">Manage access <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+                            }
+                            @if (!isDeveloper && a.IsDeveloper)
+                            {
+                                <span class="adm-protected"><i class="bi bi-lock" aria-hidden="true"></i> Protected account</span>
+                            }
+                            @if (a.IsAdmin && (isDeveloper || !a.IsDeveloper))
+                            {
+                            <button type="button" aria-label="Remove Admin access for @a.EmpCode"
                                     class="adm-btn-remove"
                                     data-empcode="@a.EmpCode"
                                     data-name="@(a.FullName == a.EmpCode ? a.EmpCode : a.FullName)"
                                     onclick="openRemoveModal(this)">
-                                <i class="bi bi-person-dash-fill"></i> Remove
+                                <i class="bi bi-person-dash-fill" aria-hidden="true"></i> Remove Admin
                             </button>
+                            }
+                            </div>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
+        </div>
     }
 </div>
 

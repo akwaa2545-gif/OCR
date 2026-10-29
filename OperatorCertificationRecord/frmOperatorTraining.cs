@@ -12,7 +12,9 @@ using System.IO;
 using System.Timers;
 using Excel = Microsoft.Office.Interop.Excel;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 using OperatorCertificationRecord.PhotoCompatibility;
+using OperatorCertificationRecord.FileStorage;
 
 namespace OperatorTrainingRecord
 {
@@ -30,13 +32,26 @@ namespace OperatorTrainingRecord
 
         public static string SelectqualificationID;
         public static string EmpCodeID;
+        public static Guid? SelectedSkillRowId;
         public DataGridViewCellStyle btn { get; set; }
         
         string strFolderPath = "\\\\svr120a\\Cert$\\" + frmWelcome.UserID + ""+"\\"+"";
         public frmOperatorTraining()
         {
             InitializeComponent();
+            gridCurrentSkill.ColumnAdded += HideFileColumns;
+            gridDisqualified.ColumnAdded += HideFileColumns;
+            gridObsoleted.ColumnAdded += HideFileColumns;
+            gridCurrentSkill.DataBindingComplete += HideFileColumns;
+            gridDisqualified.DataBindingComplete += HideFileColumns;
+            gridObsoleted.DataBindingComplete += HideFileColumns;
+        }
 
+        private static void HideFileColumns(object sender, EventArgs e)
+        {
+            var grid = (DataGridView)sender;
+            foreach (var name in new[] { "OcrSkillRowId", "CertificateFileId", "FileStorageVersion" })
+                if (grid.Columns.Contains(name)) grid.Columns[name].Visible = false;
         }
         public class Judgment
         {
@@ -62,7 +77,7 @@ namespace OperatorTrainingRecord
          //   strSql2 = "SELECT MAX(VerifierDate) FROM tblQualified";
             DataTable dt2 = new DataTable();
             DataSet ds = new DataSet();
-            SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+            SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
             da2.Fill(dt2);
             da2.Fill(ds, "Qualified");
             if (dt2.Rows.Count > 0)
@@ -74,8 +89,8 @@ namespace OperatorTrainingRecord
                 //gridCurrentSkill.Columns[1].HeaderText = "Process";
                 gridCurrentSkill.ForeColor = Color.Black;
                 gridCurrentSkill.ReadOnly = false;
-                gridCurrentSkill.Columns[13].Visible = false;
-                gridCurrentSkill.Columns[14].Visible = false;
+                gridCurrentSkill.Columns["Download"].Visible = false;
+                gridCurrentSkill.Columns["CertifiedDate"].Visible = false;
                 gridCurrentSkill.Show();
                 gridCurrentSkill.Columns["btn_Download"].DisplayIndex = gridCurrentSkill.Columns.Count-1;
              //   gridCurrentSkill.Columns["btn_Download"].DisplayIndex = 1;
@@ -192,7 +207,7 @@ namespace OperatorTrainingRecord
             //string strSql2 = "Select ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as TheoryTraining,convert(varchar,OJTTraining,106) as OJTTraining,TestResult,convert(varchar,CertifiedDate,106) as CertifiedDate,KnowledgeLevel,SkillLevel,Judgment,convert(varchar,ExpiryDate,106) as ExpiryDate,Verifier,Remark,Download From tblQualified where EmpCode = '" + frmWelcome.UserID + "'and (DisQualifiedBy= ''or DisQualifiedBy is Null) ";
             //DataTable dt2 = new DataTable();
             //DataSet ds = new DataSet();
-            //SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+            //SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
             //da2.Fill(dt2);
             //da2.Fill(ds, "Qualified");
             //if (dt2.Rows.Count > 0)
@@ -345,10 +360,12 @@ namespace OperatorTrainingRecord
                 this.txtSectionName.Text = dt.Rows[0]["SectName"].ToString();
                 this.txtWorkshop.Text = dt.Rows[0]["WorkshopName"].ToString();
                 this.txtShift.Text = dt.Rows[0]["Shift"].ToString();
-                picPhoto.ImageLocation = LegacyPhotoPathResolver.Resolve(
-                    dt.Rows[0]["Photo"].ToString(),
-                    dt.Rows[0]["EmpCode"].ToString(),
-                    @"\\svr120a\PhotoEmp$");
+                try { new DesktopFileService(strConnString).LoadPhoto(picPhoto, dt.Rows[0]["EmpCode"].ToString(), dt.Rows[0]["Photo"].ToString()); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Trace.TraceWarning("Photo load failed: " + ex.GetType().Name);
+                    MessageBox.Show("The employee photo could not be loaded. " + ex.Message, "Photo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
 
                 //********การดึงรูป ที่saveรูปลง sql **********
                 //if (dt.Rows[0]["Photo"].ToString() != "")
@@ -369,7 +386,7 @@ namespace OperatorTrainingRecord
                 //********** นับจำนวนของ Qualified **********
                 string strSql2 = "Select * From tblQualified where Empcode='" + txtEmpNo.Text.Trim() + "'and (DisQualifiedBy= ''or DisQualifiedBy is Null) and KnowledgeLevel != 'X' and SkillLevel != 'X'";
                 DataTable dt2 = new DataTable();
-                SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+                SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
                 da2.Fill(dt2);
                 txtQualified.Text = dt2.Rows.Count.ToString();
 
@@ -447,7 +464,7 @@ namespace OperatorTrainingRecord
 
             //        string strSql2 = "Select * From tblEmployee where Empcode='" + txtEmpNo.Text.Trim() + "'";
             //        DataTable dt2 = new DataTable();
-            //        SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+            //        SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
             //        da2.Fill(dt2);
 
             //        if (dt2.Rows.Count == 0)
@@ -587,7 +604,7 @@ namespace OperatorTrainingRecord
         //    string strSql2 = "Select ProcessName,convert(varchar,CertifiedDate,106) as CertifiedDate,KnowledgeLevel,SkillLevel,Verifier,convert(varchar,DisQualifiedDate,106) as DisQualifiedDate,DisQualifiedBy,TheReason,Remark From tblQualified where Empcode='" + txtEmpNo.Text.Trim() + "'and DisQualifiedBy!=''";
         //    DataTable dt2 = new DataTable();
         //    DataSet ds = new DataSet();
-        //    SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+        //    SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
         //    da2.Fill(dt2);
         //    da2.Fill(ds, "Qualified");
         //    if (dt2.Rows.Count > 0)
@@ -762,7 +779,7 @@ namespace OperatorTrainingRecord
 
                     Cmd.Parameters.Clear();
 
-                    Cmd.Parameters.Add("@sEmpCode", SqlDbType.NVarChar).Value = txtEmpNo.Text.Trim();
+                    Cmd.Parameters.Add("@sEmpCode", SqlDbType.NVarChar, 10).Value = txtEmpNo.Text.Trim();
                     Cmd.Parameters.Add("@sProcessName", SqlDbType.NVarChar).Value = cbbProcess.Text.Trim();
                     Cmd.Parameters.Add("@sOperatorTraining", SqlDbType.NVarChar).Value = cbbOperatorTraining.Text.Trim();
                     Cmd.Parameters.Add("@sTheoryTraining", SqlDbType.Date).Value = dTimeTheory.Text.Trim();
@@ -783,15 +800,48 @@ namespace OperatorTrainingRecord
                     Cmd.Parameters.Add("@sRemark", SqlDbType.NVarChar).Value = txtRemark.Text.Trim();
 
 
-                    //*** Save File \\svr120a\Cert$
-                    System.IO.Directory.CreateDirectory(@"\\svr120a\Cert$\" + frmWelcome.UserID + "");
+                    try
+                    {
+                        if (new DesktopFileService(strConnString).TrySaveCertificate(txtEmpNo.Text.Trim(), null, filePath, (connection, transaction, rowId) =>
+                        {
+                            Cmd.Parameters.Add("@sDownload", SqlDbType.NVarChar).Value = DBNull.Value;
+                            Cmd.Parameters.Add("@sqlRowId", SqlDbType.UniqueIdentifier).Value = rowId;
+                            var insert = Cmd.CommandText.Replace("INSERT INTO tblQualified(", "INSERT INTO tblQualified(OcrSkillRowId,")
+                                .Replace("VALUES (", "VALUES (@sqlRowId,");
+                            DesktopFileService.ExecuteMutation(Cmd, connection, transaction, insert);
+                        }))
+                        {
+                            Conn.Close();
+                            MessageBox.Show("SAVE Complete", "Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            GetData1();
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Conn.Close();
+                        System.Diagnostics.Trace.TraceWarning("Certificate save failed: " + ex.GetType().Name);
+                        MessageBox.Show("The certificate could not be saved. " + ex.Message, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
 
-                    File.Copy(filePath, strFolderPath + fileName, true);
-
-                    Cmd.Parameters.Add("@sDownload", SqlDbType.NVarChar).Value = strFolderPath + fileName;
-
-
-                    Cmd.ExecuteNonQuery();
+                    try
+                    {
+                        new DesktopFileService(strConnString).ExecuteLegacyMutation(txtEmpNo.Text.Trim(), FileKind.Certificate, null, (connection, transaction) =>
+                        {
+                            System.IO.Directory.CreateDirectory(@"\\svr120a\Cert$\" + frmWelcome.UserID);
+                            File.Copy(filePath, strFolderPath + fileName, true);
+                            Cmd.Parameters.Add("@sDownload", SqlDbType.NVarChar).Value = strFolderPath + fileName;
+                            DesktopFileService.ExecuteMutation(Cmd, connection, transaction, Cmd.CommandText);
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Conn.Close();
+                        System.Diagnostics.Trace.TraceWarning("Legacy certificate save failed: " + ex.GetType().Name);
+                        MessageBox.Show("The skill and certificate could not be saved. Reload the record and try again.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
                     //Conn.Close();
 
 
@@ -808,37 +858,31 @@ namespace OperatorTrainingRecord
         }
         private void btnUpdateSkill_Click(object sender, EventArgs e)
         {
+            gridCurrentSkill.EndEdit();
+            var selectedRows = gridCurrentSkill.Rows.Cast<DataGridViewRow>()
+                .Where(row => !row.IsNewRow && Convert.ToBoolean(row.Cells["cbcDisqualified"].Value))
+                .ToList();
 
-            // *****Update Skill*****
-            string strUpdateSkill = string.Empty;
-            bool chkUpdateSkill = false;
-
-            foreach (DataGridViewRow row in this.gridCurrentSkill.Rows)
-            {
-
-                if (Convert.ToBoolean(row.Cells["cbcDisqualified"].Value) == true)
-                {
-
-
-                    chkUpdateSkill = true;
-                    //   strDisQualified = strDisQualified + row.Cells["ProcessName"].Value + ", ";
-                    strUpdateSkill = strUpdateSkill + row.Cells["Process"].Value;
-
-                    // DisqualificationID = row.Cells["ProcessName"].Value.ToString();
-                    SelectqualificationID = strUpdateSkill;
-                    EmpCodeID = txtEmpNo.Text;
-                    frmUpdateSkill frm = new frmUpdateSkill();
-                //    frmDisqualification frm = new frmDisqualification();
-                    frm.ShowDialog();
-                }
-
-            }
-            if (chkUpdateSkill == false)
+            if (selectedRows.Count == 0)
             {
                 MessageBox.Show("Please select Process !!!", "Process None", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                return;
             }
-            
-            
+            if (selectedRows.Count != 1)
+            {
+                MessageBox.Show("Please select only one Process to update.", "Process Selection", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                return;
+            }
+
+            SelectqualificationID = Convert.ToString(selectedRows[0].Cells["Process"].Value);
+            SelectedSkillRowId = selectedRows[0].DataGridView.Columns.Contains("OcrSkillRowId")
+                && selectedRows[0].Cells["OcrSkillRowId"].Value != DBNull.Value
+                ? (Guid?)Guid.Parse(Convert.ToString(selectedRows[0].Cells["OcrSkillRowId"].Value)) : null;
+            EmpCodeID = txtEmpNo.Text;
+            using (frmUpdateSkill frm = new frmUpdateSkill())
+            {
+                frm.ShowDialog(this);
+            }
         }
 
         private void txtFullScore_KeyPress(object sender, KeyPressEventArgs e)
@@ -1234,7 +1278,7 @@ namespace OperatorTrainingRecord
                 string strSql2 = "Select ProcessName as Process,convert(varchar,CertifiedDate,106) as CertifiedDate,KnowledgeLevel as K,SkillLevel as S,Verifier,convert(varchar,DisQualifiedDate,106) as DisQualifiedDate,DisQualifiedBy,TheReason,Remark,Download From tblQualified where Empcode='" + txtEmpNo.Text.Trim() + "'and DisQualifiedBy!='' order by CertifiedDate DESC";
                 DataTable dt2 = new DataTable();
                 DataSet ds = new DataSet();
-                SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+                SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
                 da2.Fill(dt2);
                 da2.Fill(ds, "Qualified");
                 if (dt2.Rows.Count > 0)
@@ -1245,7 +1289,7 @@ namespace OperatorTrainingRecord
                     gridDisqualified.ForeColor = Color.Red;
                     gridDisqualified.ReadOnly = true;                  
 
-                    gridDisqualified.Columns[10].Visible = false;
+                    gridDisqualified.Columns["Download"].Visible = false;
                     gridDisqualified.Show();
                     gridDisqualified.Columns["btn_DownloadDis"].DisplayIndex = gridDisqualified.Columns.Count - 1;
                     
@@ -1262,7 +1306,7 @@ namespace OperatorTrainingRecord
                 string strSql3 = "Select ProcessName as Process,OperatorTraining as CertifyClassification,convert(varchar,TheoryTraining,106) as Theory,convert(varchar,OJTTraining,106) as OJT,TestResult as Result,convert(varchar,CertifiedDate,106) as CertifiedDate,KnowledgeLevel as K,SkillLevel as S,JudgmentPractice as Judgment,convert(varchar,ExpiryDate,106) as ExpiryDate,Verifier,Remark,Download From tblQualified_Obsoleted where Empcode='" + txtEmpNo.Text.Trim() + "' order by CertifiedDate DESC";
                 DataTable dt3 = new DataTable();
                 DataSet ds3 = new DataSet();
-                SqlDataAdapter da3 = new SqlDataAdapter(strSql3, strConnString);
+                SqlDataAdapter da3 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql3, txtEmpNo.Text.Trim()), strConnString);
                 da3.Fill(dt3);
                 da3.Fill(ds3, "Obsoleted");
                 if (dt3.Rows.Count > 0)
@@ -1271,7 +1315,7 @@ namespace OperatorTrainingRecord
                     gridObsoleted.DataSource = ds3.Tables[0];
                     gridObsoleted.ReadOnly = true;
                     gridObsoleted.ForeColor = Color.LightSlateGray;
-                    gridObsoleted.Columns[13].Visible = false;
+                    gridObsoleted.Columns["Download"].Visible = false;
                     gridObsoleted.Show();
                     gridObsoleted.Columns["btn_DownloadObsoleted"].DisplayIndex = gridObsoleted.Columns.Count - 1;
 
@@ -1326,7 +1370,7 @@ namespace OperatorTrainingRecord
         {
             string strSql2 = "Select * From tblEmployee where Empcode='" + txtEmpNo.Text.Trim() + "'";
             DataTable dt2 = new DataTable();
-            SqlDataAdapter da2 = new SqlDataAdapter(strSql2, strConnString);
+            SqlDataAdapter da2 = new SqlDataAdapter(new DesktopFileService(strConnString).SkillProjection(strSql2, string.IsNullOrWhiteSpace(txtEmpNo.Text) ? frmWelcome.UserID : txtEmpNo.Text.Trim()), strConnString);
             da2.Fill(dt2);
          //   txtQualified.Text = dt2.Rows.Count.ToString();
             sb = new StringBuilder();      // reset ค่า sb
@@ -1365,26 +1409,61 @@ namespace OperatorTrainingRecord
 
         private void gridCurrentSkill_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.ColumnIndex == 1)
-                DownloadCertificate(gridCurrentSkill, e.RowIndex, 13);
+            if (e.ColumnIndex >= 0 && gridCurrentSkill.Columns[e.ColumnIndex].Name == "btn_Download")
+                DownloadCertificate(gridCurrentSkill, e.RowIndex, false);
         }
 
         private void gridDisqualified_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.ColumnIndex == 0)
-                DownloadCertificate(gridDisqualified, e.RowIndex, 10);
+            if (e.ColumnIndex >= 0 && gridDisqualified.Columns[e.ColumnIndex].Name == "btn_DownloadDis")
+                DownloadCertificate(gridDisqualified, e.RowIndex, false);
         }
         private void gridObsoleted_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.ColumnIndex == 0)
-                DownloadCertificate(gridObsoleted, e.RowIndex, 13);
+            if (e.ColumnIndex >= 0 && gridObsoleted.Columns[e.ColumnIndex].Name == "btn_DownloadObsoleted")
+                DownloadCertificate(gridObsoleted, e.RowIndex, true);
         }
 
-        private void DownloadCertificate(DataGridView grid, int rowIndex, int pathColumn)
+        private void DownloadCertificate(DataGridView grid, int rowIndex, bool obsolete)
         {
-            if (rowIndex < 0 || rowIndex >= grid.Rows.Count || pathColumn >= grid.Columns.Count)
+            if (rowIndex < 0 || rowIndex >= grid.Rows.Count || !grid.Columns.Contains("Download"))
                 return;
-            var storedPath = Convert.ToString(grid[pathColumn, rowIndex].Value);
+            var storedPath = Convert.ToString(grid["Download", rowIndex].Value);
+            if (grid.Columns.Contains("CertificateFileId") && grid["CertificateFileId", rowIndex].Value != DBNull.Value
+                && grid["CertificateFileId", rowIndex].Value != null)
+            {
+                try
+                {
+                    var rowId = Guid.Parse(Convert.ToString(grid["OcrSkillRowId", rowIndex].Value));
+                    var owner = new FileOwner(obsolete ? FileOwnerTable.Obsolete : FileOwnerTable.Qualified, txtEmpNo.Text.Trim(), rowId);
+                    using (var dialog = CreateCertificateSaveDialog("certificate.pdf"))
+                    {
+                        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                        var fileId = Guid.Parse(Convert.ToString(grid["CertificateFileId", rowIndex].Value));
+                        new DesktopFileService(strConnString).CopyCertificate(owner, storedPath, dialog.FileName, fileId);
+                        MessageBox.Show("Certificate saved to " + dialog.FileName, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Trace.TraceWarning("SQL certificate download failed: " + ex.GetType().Name);
+                    MessageBox.Show("The SQL certificate could not be saved. " + ex.Message, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                return;
+            }
+            try
+            {
+                Guid rowId;
+                Guid? stableId = grid.Columns.Contains("OcrSkillRowId")
+                    && Guid.TryParse(Convert.ToString(grid["OcrSkillRowId", rowIndex].Value), out rowId) ? (Guid?)rowId : null;
+                new DesktopFileService(strConnString).AssertLegacyCertificateFallbackAllowed(txtEmpNo.Text.Trim(), stableId);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Certificate authority check failed: " + ex.GetType().Name);
+                MessageBox.Show("This certificate cannot use the shared drive. Reload the record and check SQL file-storage configuration.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             var source = LegacyCertificatePathResolver.Resolve(storedPath, frmWelcome.UserID);
             if (source == null)
             {
@@ -1405,22 +1484,100 @@ namespace OperatorTrainingRecord
                         throw new IOException("Certificate links are not supported.");
                     current = Path.GetDirectoryName(current);
                 }
-                var destination = Path.Combine(Path.GetTempPath(), "OCR-Certificate-" + Guid.NewGuid().ToString("N") + ".pdf");
+                using (var dialog = CreateCertificateSaveDialog(source))
+                {
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                        return;
+                    var destination = dialog.FileName;
+                    SaveCertificateCopy(source, destination, File.Exists(destination));
+                    MessageBox.Show("Certificate saved to " + destination, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Certificate download failed: " + ex.GetType().Name);
+                MessageBox.Show("The certificate could not be saved. Check shared-drive access and the selected folder, then try again.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        [DllImport("shell32.dll")]
+        private static extern int SHGetKnownFolderPath(ref Guid folderId, uint flags, IntPtr token, out IntPtr path);
+
+        private static SaveFileDialog CreateCertificateSaveDialog(string source)
+        {
+            return new SaveFileDialog
+            {
+                Title = "Save certificate",
+                InitialDirectory = GetCertificateDownloadDirectory(),
+                FileName = Path.GetFileName(source),
+                Filter = "PDF certificate (*.pdf)|*.pdf",
+                DefaultExt = "pdf",
+                AddExtension = true,
+                CheckPathExists = true,
+                OverwritePrompt = true,
+                RestoreDirectory = true
+            };
+        }
+
+        private static string GetCertificateDownloadDirectory()
+        {
+            var folderId = new Guid("374DE290-123F-4565-9164-39C4925E467B");
+            IntPtr pointer = IntPtr.Zero;
+            try
+            {
+                if (SHGetKnownFolderPath(ref folderId, 0, IntPtr.Zero, out pointer) == 0 && pointer != IntPtr.Zero)
+                {
+                    var downloads = Marshal.PtrToStringUni(pointer);
+                    if (!string.IsNullOrEmpty(downloads) && Directory.Exists(downloads))
+                        return downloads;
+                }
+            }
+            finally
+            {
+                if (pointer != IntPtr.Zero)
+                    Marshal.FreeCoTaskMem(pointer);
+            }
+
+            var defaultDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            return Directory.Exists(defaultDownloads)
+                ? defaultDownloads
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        }
+
+        private static void SaveCertificateCopy(string source, string destination, bool overwriteExisting)
+        {
+            if (!string.Equals(Path.GetExtension(destination), ".pdf", StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Certificate destination must be a PDF file.");
+
+            var directory = Path.GetDirectoryName(destination);
+            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+                throw new IOException("Certificate destination folder is unavailable.");
+
+            var stage = Path.Combine(directory, ".ocr-certificate-" + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
                 using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     var signature = new byte[5];
                     if (input.Read(signature, 0, signature.Length) != signature.Length || Encoding.ASCII.GetString(signature) != "%PDF-")
                         throw new IOException("Certificate is not a PDF.");
                     input.Position = 0;
-                    using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    using (var output = new FileStream(stage, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    {
                         input.CopyTo(output);
+                        output.Flush(true);
+                    }
                 }
-                MessageBox.Show("Certificate downloaded to " + destination, "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                if (overwriteExisting && File.Exists(destination))
+                    File.Replace(stage, destination, null);
+                else
+                    File.Move(stage, destination);
             }
-            catch (Exception ex)
+            finally
             {
-                System.Diagnostics.Trace.TraceWarning("Certificate download failed: " + ex.GetType().Name);
-                MessageBox.Show("The certificate could not be downloaded. Check shared-drive access and try again. If the problem continues, contact support.", "Certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (File.Exists(stage))
+                    File.Delete(stage);
             }
         }
 

@@ -10,6 +10,7 @@ public class LoginModel : PageModel
     private readonly IConfiguration _configuration;
     private readonly DepartmentService _departmentService;
     private readonly AdminService _adminService;
+    private readonly ILogger<LoginModel>? _logger;
 
     [BindProperty]
     public string Username { get; set; } = "";
@@ -19,11 +20,12 @@ public class LoginModel : PageModel
 
     public string ErrorMessage { get; set; } = "";
 
-    public LoginModel(IConfiguration configuration, DepartmentService departmentService, AdminService adminService)
+    public LoginModel(IConfiguration configuration, DepartmentService departmentService, AdminService adminService, ILogger<LoginModel>? logger = null)
     {
         _configuration = configuration;
         _departmentService = departmentService;
         _adminService = adminService;
+        _logger = logger;
     }
 
     public void OnGet()
@@ -52,6 +54,9 @@ public class LoginModel : PageModel
                 connection.Open();
                 var query = "SELECT EmpCode, PersonFnameEng, PersonLnameEng, DeptID, Photo FROM tblEmployee WHERE EmpCode = @EmpCode AND EmpPassword = @Password";
 
+                using (var probe = new SqlCommand("SELECT COL_LENGTH('dbo.tblEmployee','PhotoFileId')", connection))
+                    if (await probe.ExecuteScalarAsync() is not DBNull)
+                        query = query.Replace("SELECT EmpCode", "SELECT PhotoFileId, EmpCode");
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@EmpCode", Username);
@@ -72,7 +77,9 @@ public class LoginModel : PageModel
                             HttpContext.Session.SetString("LoginDate", DateTime.Now.ToString("dd MMMM yyyy"));
 
                             // store photo path for later pages
-                            HttpContext.Session.SetString("PhotoPath", reader["Photo"]?.ToString() ?? "");
+                            var photoId = Enumerable.Range(0, reader.FieldCount).Any(i => reader.GetName(i) == "PhotoFileId") ? reader["PhotoFileId"] as Guid? : null;
+                            var photoPath = photoId.HasValue ? EmployeeFileUrls.CurrentPhoto(empCode) : reader["Photo"]?.ToString() ?? "";
+                            HttpContext.Session.SetString("PhotoPath", photoPath);
 
                             // Get department name
                             var departments = await _departmentService.GetAllDepartmentsAsync();
@@ -80,10 +87,7 @@ public class LoginModel : PageModel
                             HttpContext.Session.SetString("DepartmentName", dept?.DeptName ?? "Unknown");
 
                             // Admin check
-                            if (_adminService.IsAdmin(empCode))
-                            {
-                                HttpContext.Session.SetString("IsAdmin", "true");
-                            }
+                            HttpContext.Session.SetString("IsAdmin", _adminService.IsAdmin(empCode) ? "true" : "false");
 
                             return RedirectToPage("/Dashboard");
                         }
@@ -96,7 +100,8 @@ public class LoginModel : PageModel
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"An error occurred: {ex.Message}";
+            _logger?.LogError(ex, "Login failed while loading employee data");
+            ErrorMessage = "Login is temporarily unavailable. Please try again.";
             return Page();
         }
     }

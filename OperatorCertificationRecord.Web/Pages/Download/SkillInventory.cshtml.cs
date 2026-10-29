@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Data.SqlClient;
 using System.IO;
@@ -9,11 +9,13 @@ public class SkillInventoryModel : PageModel
 {
     private readonly IConfiguration _configuration;
     private readonly Services.PdfExportService _pdfExportService;
+    private readonly Services.DeveloperRoleService _developers;
 
-    public SkillInventoryModel(IConfiguration configuration, Services.PdfExportService pdfExportService)
+    public SkillInventoryModel(IConfiguration configuration, Services.PdfExportService pdfExportService, Services.DeveloperRoleService developers)
     {
         _configuration = configuration;
         _pdfExportService = pdfExportService;
+        _developers = developers;
     }
 
     public async Task<IActionResult> OnGetAsync(string? section, string? department, DateTime? start, DateTime? end, string format = "xlsx")
@@ -32,6 +34,7 @@ public class SkillInventoryModel : PageModel
         sb.AppendLine("FROM ViewEmpQualified_All q");
         sb.AppendLine("LEFT JOIN tblEmployee v ON v.EmpCode = q.Verifier");
         sb.AppendLine("WHERE (q.DisQualifiedBy = '' OR q.DisQualifiedBy IS NULL)");
+        sb.AppendLine("/* DeveloperEmployeeExclusion */");
         sb.AppendLine("  AND q.ResignDate IS NULL");
         sb.AppendLine("  AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))");
         sb.AppendLine("  AND q.ProcessName IS NOT NULL");
@@ -43,6 +46,7 @@ public class SkillInventoryModel : PageModel
         try
         {
             using var cmd = new SqlCommand(sb.ToString(), conn);
+            Services.DeveloperReportExclusion.Apply(cmd, _developers.GetAllDevelopersForReports(), "q.EmpCode");
             if (!string.IsNullOrWhiteSpace(department)) cmd.Parameters.AddWithValue("@DeptName", department);
             if (!string.IsNullOrWhiteSpace(section)) cmd.Parameters.AddWithValue("@SectName", section);
             if (start.HasValue && end.HasValue)

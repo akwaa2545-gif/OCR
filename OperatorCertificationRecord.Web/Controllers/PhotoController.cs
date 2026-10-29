@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
+using OperatorCertificationRecord.FileStorage;
+using OperatorCertificationRecord.Web.Services;
 
 namespace OperatorCertificationRecord.Web.Controllers;
 
@@ -14,15 +16,91 @@ public class PhotoController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<PhotoController> _logger;
     private readonly IWebHostEnvironment _env;
+    private readonly WebEmployeeFileStorage? _sqlFiles;
 
-    public PhotoController(IConfiguration configuration, ILogger<PhotoController> logger, IWebHostEnvironment env)
+    public PhotoController(IConfiguration configuration, ILogger<PhotoController> logger, IWebHostEnvironment env, WebEmployeeFileStorage? sqlFiles = null)
     {
         _configuration = configuration;
         _logger = logger;
         _env = env;
+        _sqlFiles = sqlFiles;
+    }
+
+    [HttpGet("employee/{empCode}/{fileId:guid}")]
+    public async Task<IActionResult> GetSqlPhoto(string empCode, Guid fileId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(HttpContext.Session.GetString("UserCode"))) return Unauthorized();
+        if (_sqlFiles == null) return StatusCode(503, "Photo storage is unavailable.");
+        try
+        {
+            var lease = await _sqlFiles.OpenOwnerAsync(new FileOwner(FileOwnerTable.Employee, empCode), fileId, cancellationToken);
+            Response.RegisterForDispose(lease);
+            Response.Headers.CacheControl = "private,no-store";
+            Response.Headers.Append("X-Content-Type-Options", "nosniff");
+            return File(lease.Content, lease.Metadata.ContentType);
+        }
+        catch (FileNotFoundException) { return NotFound(); }
+        catch (ArgumentException) { return NotFound(); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "SQL photo read failed for employee {EmployeeCode}", empCode);
+            return StatusCode(503, "Photo storage is unavailable.");
+        }
+    }
+
+    [HttpGet("employee/{empCode}/current")]
+    public async Task<IActionResult> GetCurrentSqlPhoto(string empCode, CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "private,no-store";
+        if (string.IsNullOrWhiteSpace(HttpContext.Session.GetString("UserCode"))) return Unauthorized();
+        if (_sqlFiles == null) return StatusCode(503, "Photo storage is unavailable.");
+        try
+        {
+            // The session URL remains stable while the immutable owner reference changes in either application.
+            var lease = await _sqlFiles.OpenCurrentPhotoAsync(empCode, cancellationToken);
+            Response.RegisterForDispose(lease);
+            Response.Headers.CacheControl = "private,no-store";
+            Response.Headers.Append("X-Content-Type-Options", "nosniff");
+            return File(lease.Content, lease.Metadata.ContentType);
+        }
+        catch (FileNotFoundException) { return NotFound(); }
+        catch (ArgumentException) { return NotFound(); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Current SQL photo read failed for employee {EmployeeCode}", empCode);
+            return StatusCode(503, "Photo storage is unavailable.");
+        }
     }
 
     [HttpGet("{fileName}")]
+    public async Task<IActionResult> GetPhotoAsync(string fileName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(HttpContext.Session.GetString("UserCode"))) return Unauthorized();
+        if (fileName != Path.GetFileName(fileName) || fileName.Contains('\\') || fileName.Contains('/') || fileName.Contains('%')) return NotFound();
+        if (_sqlFiles != null)
+        {
+            try
+            {
+                var lease = await _sqlFiles.OpenLegacyPhotoAsync(fileName, cancellationToken);
+                if (lease != null)
+                {
+                    Response.RegisterForDispose(lease);
+                    Response.Headers.CacheControl = "private,no-store";
+                    Response.Headers.Append("X-Content-Type-Options", "nosniff");
+                    return File(lease.Content, lease.Metadata.ContentType);
+                }
+            }
+            catch (ArgumentException) { return NotFound(); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "SQL attachment read failed");
+                return StatusCode(503, "Attachment storage is unavailable.");
+            }
+        }
+        return GetPhoto(fileName);
+    }
+
+    [NonAction]
     public IActionResult GetPhoto(string fileName)
     {
         try
@@ -150,10 +228,13 @@ public class PhotoController : ControllerBase
         catch { return null; }
     }
 
-    private static string GetContentType(string path) =>
-        string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase)
-            ? "image/png"
-            : "image/jpeg";
+    private static string GetContentType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".gif" => "image/gif",
+        ".bmp" => "image/bmp",
+        _ => "image/jpeg"
+    };
 
     private static bool IsSafePhotoFileName(string fileName)
     {
@@ -166,7 +247,9 @@ public class PhotoController : ControllerBase
         var extension = Path.GetExtension(fileName);
         return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
                extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-               extension.Equals(".png", StringComparison.OrdinalIgnoreCase);
+               extension.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".gif", StringComparison.OrdinalIgnoreCase);
     }
 
     private IActionResult CreatePhotoResult(string path)

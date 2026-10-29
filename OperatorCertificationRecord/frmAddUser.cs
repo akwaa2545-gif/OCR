@@ -50,10 +50,11 @@ namespace OperatorTrainingRecord
 
         private void frmAddUser_Load(object sender, EventArgs e)
         {
-            cbbJobGrade.Items.Add("O1");
-            cbbJobGrade.Items.Add("O2");
-            cbbJobGrade.Items.Add("O3");
-            cbbJobGrade.Items.Add("S1");
+            // ตัวเลือกระดับงานใหม่สำหรับพนักงานที่เพิ่มเข้าระบบ
+            cbbJobGrade.Items.Add("51T");
+            cbbJobGrade.Items.Add("52T");
+            cbbJobGrade.Items.Add("53T");
+            cbbJobGrade.Items.Add("54T");
 
             cbbPrefixEng.Items.Add("Ms.");
             cbbPrefixEng.Items.Add("Mrs.");
@@ -196,9 +197,10 @@ namespace OperatorTrainingRecord
                 return;
             }
 
-            string strSql = "Select * From tblEmployee where Empcode='" + txtEmpNo.Text.Trim() + "'";
+            string strSql = "SELECT * FROM dbo.tblEmployee WHERE EmpCode=@employeeCode";
             DataTable dt = new DataTable();
             SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
+            da.SelectCommand.Parameters.Add("@employeeCode", SqlDbType.NVarChar, 10).Value = txtEmpNo.Text.Trim();
             da.Fill(dt);
 
             if (dt.Rows.Count == 0)
@@ -209,11 +211,10 @@ namespace OperatorTrainingRecord
 
                     Image UserPhoto = picPhotoEmp.Image;
 
-                    ConvertImg(UserPhoto);
+                    if (UserPhoto != null) ConvertImg(UserPhoto);
 
 
                     Conn.ConnectionString = strConnString;
-                    Conn.Open();
                     sb = new StringBuilder();
                     sb.Remove(0, sb.Length);
                     sb.Append("INSERT INTO tblEmployee(EmpCode,EmpPassword,JoinDate,JobGrade,HEng,PersonFnameEng,PersonLnameEng,HThai,PersonFnameThai,PersonLnameThai,DeptID,SectID,WorkshopID,Shift,Photo) VALUES (@sEmpCode,@sEmpPassword,@sJoinDate,@sJobGrade,@sHEng,@sPersonFnameEng,@sPersonLnameEng,@sHThai,@sPersonFnameThai,@sPersonLnameThai,@sDeptID,@sSectID,@sWorkshopID,@sShift,@sPhoto)");
@@ -226,7 +227,7 @@ namespace OperatorTrainingRecord
                     Cmd.Connection = Conn;
                     Cmd.Parameters.Clear();
 
-                    Cmd.Parameters.Add("@sEmpCode", SqlDbType.Int).Value = txtEmpNo.Text.Trim();
+                    Cmd.Parameters.Add("@sEmpCode", SqlDbType.NVarChar, 10).Value = txtEmpNo.Text.Trim();
                     Cmd.Parameters.Add("@sEmpPassword", SqlDbType.NVarChar).Value = txtEmpNo.Text.Trim();
                     Cmd.Parameters.Add("@sJoinDate", SqlDbType.Date).Value = dTimeEmpDate.Text.Trim();
                     Cmd.Parameters.Add("@sJobGrade", SqlDbType.NVarChar).Value = cbbJobGrade.Text.Trim();
@@ -244,14 +245,51 @@ namespace OperatorTrainingRecord
                     
                     //*** Save Photo \\svr120a\PhotoEmp
 
-                    File.Copy(filePath, strFolderPath + fileName, true);
-
                     Cmd.Parameters.Add("@sPhoto", SqlDbType.NVarChar).Value = strFolderPath + fileName;
-
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(filePath) && new DesktopFileService(strConnString).TrySavePhoto(
+                            txtEmpNo.Text.Trim(), filePath, (connection, transaction) =>
+                            {
+                                using (var mutation = DesktopPhotoCommand.ForTransaction(Cmd, connection, transaction, true))
+                                    mutation.ExecuteNonQuery();
+                            }, createEmployee: true))
+                        {
+                            MessageBox.Show("SAVE Complete", "Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            this.Hide();
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Trace.TraceError("SQL photo creation failed ({0}).", ex.GetType().Name);
+                        MessageBox.Show("The employee and photo could not be saved. Check SQL file storage settings and try again.", "Save failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                    try
+                    {
+                    new DesktopFileService(strConnString).ExecuteLegacyMutation(
+                        txtEmpNo.Text.Trim(), OperatorCertificationRecord.FileStorage.FileKind.Photo, null,
+                        (connection, transaction) =>
+                        {
+                            if (!string.IsNullOrEmpty(filePath))
+                            {
+                                var destination = DesktopPhotoCommand.CreateLegacyPhotoPath(strFolderPath, txtEmpNo.Text.Trim(), Path.GetExtension(filePath));
+                                DesktopPhotoCommand.CopyNewLegacyPhoto(filePath, destination);
+                                Cmd.Parameters["@sPhoto"].Value = destination;
+                            }
+                            else Cmd.Parameters["@sPhoto"].Value = DBNull.Value;
+                            using (var mutation = DesktopPhotoCommand.ForTransaction(Cmd, connection, transaction, false))
+                                mutation.ExecuteNonQuery();
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Trace.TraceError("Employee creation failed ({0}).", ex.GetType().Name);
+                        MessageBox.Show("The employee and photo could not be saved. Check storage settings and try again.", "Save failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
                     MessageBox.Show("SAVE Complete", "Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                    Cmd.ExecuteNonQuery();
-                    Conn.Close();
                 }
 
             }
@@ -278,46 +316,37 @@ namespace OperatorTrainingRecord
 
         private void btnUpdatePhoto_Click(object sender, EventArgs e)
         {
-            if (txtEmpNo.Text.Trim() == "")
+            try
             {
-                MessageBox.Show("Please input the Emp.No. !!!", "Emp None", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                return;
+                var employeeCode = txtEmpNo.Text.Trim();
+                var sourcePath = Phodlg.FileName;
+                var storage = new DesktopFileService(strConnString);
+                if (!storage.TrySavePhoto(employeeCode, sourcePath))
+                {
+                    if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+                        throw new IOException("Select a photo before saving.");
+                    storage.ExecuteLegacyMutation(employeeCode,
+                        OperatorCertificationRecord.FileStorage.FileKind.Photo, null,
+                        (connection, transaction) =>
+                        {
+                            var legacyPath = DesktopPhotoCommand.CreateLegacyPhotoPath(strFolderPath, employeeCode, Path.GetExtension(sourcePath));
+                            DesktopPhotoCommand.CopyNewLegacyPhoto(sourcePath, legacyPath);
+                            using (var mutation = DesktopPhotoCommand.ForLegacyPhotoUpdate(
+                                employeeCode, legacyPath, connection, transaction))
+                            {
+                                if (mutation.ExecuteNonQuery() != 1)
+                                    throw new InvalidOperationException("The employee could not be updated.");
+                            }
+                        });
+                }
+                MessageBox.Show("Photo saved.", "Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-
-            string strSql = "Select * From tblEmployee where Empcode='" + txtEmpNo.Text.Trim() + "'";
-            DataTable dt = new DataTable();
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
-            da.Fill(dt);
-
-            if (dt.Rows.Count > 0)
+            catch (Exception ex)
             {
-                    Image UserPhoto = picPhotoEmp.Image;
-
-                    ConvertImg(UserPhoto);
-      
-
-                    Conn.ConnectionString = strConnString;
-                    Conn.Open();
-                    sb = new StringBuilder();
-                    sb.Remove(0, sb.Length);
-                 
-                    sb.Append("UPDATE tblEmployee set Photo ='").Append(UserPhoto).Append("'");
-
-                    sb.Append("WHERE EmpCode='").Append(txtEmpNo.Text.Trim()).Append("'");
-
-                    string sqlSave = sb.ToString();
-
-                    Cmd.CommandType = CommandType.Text;
-                    Cmd.CommandText = sqlSave;
-                    Cmd.Connection = Conn;
-                    Cmd.Parameters.Clear();
-
-                    Cmd.ExecuteNonQuery();
-                    Conn.Close();              
-
+                System.Diagnostics.Trace.TraceError("Photo update failed ({0}).", ex.GetType().Name);
+                MessageBox.Show("The photo could not be saved. Select a photo and check storage settings.", "Save failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void cbbDeptName_SelectedIndexChanged(object sender, EventArgs e)
         {
             cbbSectionName.SelectedIndex = -1;

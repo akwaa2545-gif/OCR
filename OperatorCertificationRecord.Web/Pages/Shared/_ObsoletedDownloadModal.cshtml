@@ -40,7 +40,8 @@
           <button type="button" class="dm-pill" data-days="7">7 days</button>
           <button type="button" class="dm-pill" data-days="30">30 days</button>
           <button type="button" class="dm-pill" data-days="365">1 year</button>
-          <button type="button" class="dm-pill active" data-days="0">All time</button>
+          <button type="button" class="dm-pill active" data-days="year">This year</button>
+          <button type="button" class="dm-pill" data-days="0">All time</button>
         </div>
         <div class="dm-summary">
           <div class="dm-field dm-format-field">
@@ -80,22 +81,19 @@
   const loading = document.getElementById('obLoading');
   const downloadBtn = document.getElementById('obDownloadBtn');
   const fmt = document.getElementById('obFormat');
-  const presets = Array.from(document.querySelectorAll('.dq-preset-btns button'));
+  const presets = Array.from(document.getElementById('obsoletedModal').querySelectorAll('.dq-preset-btns button'));
 
   const today = new Date();
-  function toInputDate(d){ return d.toISOString().slice(0,10); }
-  
-  // Default to "All time"
-  if (startEl) startEl.value = '2000-01-01';
-  if (endEl) endEl.value = '2099-12-31';
+  function toInputDate(d){ return ReportDateRanges.formatLocal(d); }
+  ReportDateRanges.initialize(startEl, endEl, document.getElementById('obsoletedModal'));
 
   function setActive(days){ presets.forEach(p=> p.classList.toggle('active', p.getAttribute('data-days')==String(days))); }
-  window.setObPreset = function(days){ const now=new Date(); if(days===0){ if (startEl) startEl.value='2000-01-01'; if (endEl) endEl.value='2099-12-31'; } else { const s=new Date(); s.setDate(now.getDate()-(days-1)); if (startEl) startEl.value=toInputDate(s); if (endEl) endEl.value=toInputDate(now); } setActive(days); scheduleAutoPreview(); };
-  setActive(0);
+  window.setObPreset = function(days){ ReportDateRanges.apply(startEl, endEl, days); setActive(days); scheduleAutoPreview(); };
+  setActive('year');
 
   // wire preset buttons
   presets.forEach(btn => btn.addEventListener('click', () => {
-    const days = parseInt(btn.getAttribute('data-days') || '0', 10);
+    const days = btn.getAttribute('data-days') === 'year' ? 'year' : parseInt(btn.getAttribute('data-days') || '0', 10);
     window.setObPreset(days);
   }));
 

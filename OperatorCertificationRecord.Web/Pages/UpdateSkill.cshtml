@@ -46,6 +46,8 @@
 
     <div class="usk-body">
         <form method="post" enctype="multipart/form-data" id="skillForm" data-validate>
+    <input type="hidden" name="SkillRowId" value="@Model.SkillRowId" />
+    <input type="hidden" name="SkillFileStorageVersion" value="@(Model.SkillFileStorageVersion == null ? "" : Convert.ToBase64String(Model.SkillFileStorageVersion))" />
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmpCode" value="@Model.EmpCode" />
             <input type="hidden" name="Skill_TestResult" id="Skill_TestResult" value="@Model.TestResult" />
@@ -192,9 +194,9 @@
             <!-- Action Buttons -->
             <input type="hidden" name="action" id="skillFormActionInput" value="" />
             <div class="usk-actions">
-                @if (Model.IsPromoted)
+                @if (Model.IsResigned || (Model.IsPromoted && !Model.CanOverridePromotion))
                 {
-                    <button type="button" class="usk-btn usk-btn-success disabled" aria-disabled="true" title="Employee promoted — cannot update skills">
+                    <button type="button" class="usk-btn usk-btn-success disabled" aria-disabled="true" title="@(Model.IsResigned ? "Employee resigned — cannot update skills" : "Employee promoted — cannot update skills")">
                         <i class="bi bi-check-lg"></i> Confirm &amp; Save
                     </button>
                 }

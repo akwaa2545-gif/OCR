@@ -15,6 +15,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <!-- Runtime data comes from host volumes, never developer-local publish content. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);**/publish/**;**/logs/**;**/uploads*/**;**/photos/**;**/certs/**;**/App_Data/**;**/dataprotection/**;**/photo-source/**;**/legacy-photos/**;**/.env;**/.env.*;**/appsettings.Local.json;**/appsettings.*.Local.json;**/*.md;**/.tmp*/**;**/*.pfx;**/*.p12;**/*.key;**/*.pem;**/*.bak;**/*.zip</DefaultItemExcludes>
+    <UserSecretsId>OperatorCertificationRecord.Web-7cb7bed5-1dd1-4f34-8f8b-0ed14d145ac2</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,6 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OperatorCertificationRecord.FileStorage\OperatorCertificationRecord.FileStorage.csproj" />
     <ProjectReference Include="..\OperatorCertificationRecord.PhotoCompatibility\OperatorCertificationRecord.PhotoCompatibility.csproj" />
   </ItemGroup>
 

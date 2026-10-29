@@ -36,7 +36,8 @@
           <button type="button" class="dm-pill" data-days="7"  onclick="setSecDlPreset(7)">7 days</button>
           <button type="button" class="dm-pill" data-days="30" onclick="setSecDlPreset(30)">30 days</button>
           <button type="button" class="dm-pill" data-days="365" onclick="setSecDlPreset(365)">1 year</button>
-          <button type="button" class="dm-pill active" data-days="0" onclick="setSecDlPreset(0)">All time</button>
+          <button type="button" class="dm-pill active" data-days="year" onclick="setSecDlPreset('year')">This year</button>
+          <button type="button" class="dm-pill" data-days="0" onclick="setSecDlPreset(0)">All time</button>
         </div>
         <div class="dm-summary">
           <div class="dm-field dm-format-field">
@@ -79,16 +80,17 @@
 
   if (!previewBtn) return;
 
-  function toInputDate(d){ return d.toISOString().slice(0,10); }
-  function setActive(days){ document.querySelectorAll('.secDl-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days))); }
+  function toInputDate(d){ return ReportDateRanges.formatLocal(d); }
+  ReportDateRanges.initialize(startEl, endEl, document.getElementById('sectionDlModal'));
+  function setActive(days){ document.getElementById('sectionDlModal').querySelectorAll('.secDl-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days))); }
 
   window.setSecDlPreset = function(days){
     if (days === 0){ startEl.value = ''; endEl.value = ''; }
-    else { const e = new Date(); const s = new Date(); s.setDate(e.getDate() - (days-1)); startEl.value = toInputDate(s); endEl.value = toInputDate(e); }
+    else { ReportDateRanges.apply(startEl, endEl, days); }
     setActive(days);
     scheduleAutoPreview();
   };
-  setActive(0);
+  setActive('year');
 
   let previewDone = false, timer = null;
   function scheduleAutoPreview(){ if(timer) clearTimeout(timer); timer = setTimeout(() => preview(), 600); }

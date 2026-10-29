@@ -2965,3 +2965,22 @@ thead .msr-col-cur { background: #b45309 !important; color: #fff !important; }
 .ra-month-pivot tbody tr:nth-child(odd) td { background: #fafafa; }
 .ra-month-pivot tbody tr:hover td { background: #f0f9ff !important; }
 
+/* Match the year dropdown to the month control. */
+.flatpickr-calendar .flatpickr-current-month select.fp-year-select {
+    appearance: auto;
+    color: #fff;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 1.08rem;
+    font-weight: 800;
+    min-width: 5.5ch;
+    max-width: 7ch;
+    padding: .1rem;
+    cursor: pointer;
+}
+.flatpickr-calendar select.fp-year-select option { color: #111827; background: #fff; }
+.flatpickr-calendar select.fp-year-select:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.flatpickr-calendar[lang="th"] .flatpickr-weekday { font-size: .82rem; letter-spacing: 0; }
+

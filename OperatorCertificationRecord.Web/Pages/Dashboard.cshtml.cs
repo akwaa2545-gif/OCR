@@ -218,6 +218,7 @@ public class DashboardModel : PageModel
     {
         if (string.IsNullOrWhiteSpace(storedPath))
             return "";
+        if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
         // if input already looks like a path, take the final segment
         var normalized = storedPath.Replace('\\', '/');
         var fileName = Path.GetFileName(normalized);

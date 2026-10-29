@@ -52,6 +52,8 @@ try
     // Add services to the container
     builder.Services.AddRazorPages();
     builder.Services.AddControllers();
+    builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 70L * 1024 * 1024);
+    builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 70L * 1024 * 1024);
     builder.Services.AddSession(options =>
     {
         options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -64,7 +66,11 @@ try
 
     // Admin service to track administrators (from appsettings or App_Data/admins.json)
     builder.Services.AddSingleton<AdminService>();
+    builder.Services.AddSingleton<DeveloperRoleService>();
     builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.AdminOnlyFilter>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.DeveloperOnlyFilter>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.AdminOrDeveloperFilter>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.UpdateUserAccessFilter>();
 
     // Add database services
     builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
@@ -72,9 +78,27 @@ try
     builder.Services.AddScoped<IReadinessProbe, SqlReadinessProbe>();
     builder.Services.AddScoped<EmployeeService>();
     builder.Services.AddScoped<EmployeePhotoStorageService>();
+    builder.Services.AddSingleton(new OperatorCertificationRecord.FileStorage.FileStorageOptions(
+        builder.Configuration.GetValue<bool>("FileStorage:ReadSqlEnabled"),
+        builder.Configuration.GetValue<bool>("FileStorage:WriteSqlEnabled"),
+        builder.Configuration.GetSection("FileStorage:PilotEmployeeCodes").Get<string[]>(),
+        builder.Configuration.GetValue<long?>("FileStorage:MaxPhotoBytes") ?? 5242880,
+        builder.Configuration.GetValue<long?>("FileStorage:MaxCertificateBytes") ?? 67108864));
+    builder.Services.AddScoped(sp => new OperatorCertificationRecord.FileStorage.SqlEmployeeFileRepository(
+        () => new System.Data.SqlClient.SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+    builder.Services.AddScoped<OperatorCertificationRecord.FileStorage.IEmployeeFileRepository>(
+        sp => sp.GetRequiredService<OperatorCertificationRecord.FileStorage.SqlEmployeeFileRepository>());
+    builder.Services.AddScoped(sp => new OperatorCertificationRecord.FileStorage.EmployeeFileService(
+        sp.GetRequiredService<OperatorCertificationRecord.FileStorage.SqlEmployeeFileRepository>(),
+        () => new System.Data.SqlClient.SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")),
+        sp.GetRequiredService<OperatorCertificationRecord.FileStorage.FileStorageOptions>()));
+    builder.Services.AddScoped<WebEmployeeFileStorage>();
+    builder.Services.AddScoped<EmployeeCertificateStorageService>();
     builder.Services.AddScoped<DepartmentService>();
     builder.Services.AddScoped<SectionService>();
     builder.Services.AddScoped<WorkshopService>();
+    builder.Services.AddScoped<IAdminCatalogStore, SqlAdminCatalogStore>();
+    builder.Services.AddScoped<IAdminCatalogService, AdminCatalogService>();
     builder.Services.AddScoped<JobGradeService>();
     builder.Services.AddScoped<OperatorTrainingService>();
     builder.Services.AddScoped<PdfExportService>();

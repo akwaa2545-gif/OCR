@@ -37,7 +37,8 @@
           <button type="button" class="dm-pill" data-days="7" onclick="setPresetModal(7)">7 days</button>
           <button type="button" class="dm-pill" data-days="30" onclick="setPresetModal(30)">30 days</button>
           <button type="button" class="dm-pill" data-days="365" onclick="setPresetModal(365)">1 year</button>
-          <button type="button" class="dm-pill active" data-days="0" onclick="setPresetModal(0)">All time</button>
+          <button type="button" class="dm-pill active" data-days="year" onclick="setPresetModal('year')">This year</button>
+          <button type="button" class="dm-pill" data-days="0" onclick="setPresetModal(0)">All time</button>
         </div>
         <div class="dm-summary">
           <div class="dm-field dm-format-field">
@@ -79,34 +80,19 @@
 
     const today = new Date();
     const prior = new Date(); prior.setDate(today.getDate() - 30);
-    function toInputDate(d){ return d.toISOString().slice(0,10); }
-    
-    // Default to "All time"
-    if (startEl) startEl.value = '2000-01-01';
-    if (endEl) endEl.value = '2099-12-31';
+    function toInputDate(d){ return ReportDateRanges.formatLocal(d); }
+    ReportDateRanges.initialize(startEl, endEl, document.getElementById('disqualificationModal'));
 
     function setActivePresetModal(days){
-      document.querySelectorAll('.dq-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days)));
+      document.getElementById('disqualificationModal').querySelectorAll('.dq-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days)));
     }
     
-    // Set "All time" as active by default
-    setActivePresetModal(0);
-
     window.setPresetModal = function(days){
-      const e = new Date();
-      if (days === 0) {
-        const s = new Date(2000,0,1);
-        startEl.value = toInputDate(s);
-        endEl.value = toInputDate(new Date(2099,11,31));
-      } else {
-        const s = new Date(); s.setDate(e.getDate() - (days-1));
-        startEl.value = toInputDate(s);
-        endEl.value = toInputDate(e);
-      }
+      ReportDateRanges.apply(startEl, endEl, days);
       setActivePresetModal(days);
       scheduleAutoPreviewModal();
     };
-    setActivePresetModal(30);
+    setActivePresetModal('year');
 
     function validateDates(){
       if(!startEl.value || !endEl.value) { if(window.Toast) window.Toast.warning('Missing dates','Please select start and end dates'); return false; }

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Text;
 using System.Data.SqlClient;
@@ -10,11 +10,13 @@ public class SectionModel : PageModel
     private readonly IConfiguration _configuration;
     private readonly Services.SectionService _sectionService;
     private readonly Services.PdfExportService _pdfExportService;
-    public SectionModel(IConfiguration configuration, Services.SectionService sectionService, Services.PdfExportService pdfExportService)
+    private readonly Services.DeveloperRoleService _developers;
+    public SectionModel(IConfiguration configuration, Services.SectionService sectionService, Services.PdfExportService pdfExportService, Services.DeveloperRoleService developers)
     {
         _configuration = configuration;
         _sectionService = sectionService;
         _pdfExportService = pdfExportService;
+        _developers = developers;
     }
 
     public List<Models.Section>? Sections { get; set; }
@@ -53,6 +55,7 @@ public class SectionModel : PageModel
             {
                 sb.AppendLine("WHERE q.SectName = @SectName");
             }
+            sb.AppendLine("/* DeveloperEmployeeExclusion */");
             sb.AppendLine("  AND (q.DisQualifiedBy = '' OR q.DisQualifiedBy IS NULL)");
             sb.AppendLine("  AND q.ResignDate IS NULL");
             sb.AppendLine("  AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))");
@@ -65,6 +68,7 @@ public class SectionModel : PageModel
 
             using (var cmd = new SqlCommand(sb.ToString(), conn))
             {
+                Services.DeveloperReportExclusion.Apply(cmd, _developers.GetAllDevelopersForReports(), "q.EmpCode");
                 if (!string.IsNullOrWhiteSpace(department))
                 {
                     cmd.Parameters.AddWithValue("@DeptName", department);

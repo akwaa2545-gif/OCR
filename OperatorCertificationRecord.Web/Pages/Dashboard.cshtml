@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["ActivePage"] = "Dashboard";
+    ViewData["HasOperatorNoSkillModal"] = true;
 }
 
 
@@ -869,8 +870,8 @@
         <div class="db-hero-avatar">
             @if (!string.IsNullOrEmpty(Model.UserPhotoPath))
             {
-                <img src="/api/photo/@Uri.EscapeDataString(Model.UserPhotoPath)" alt="@Model.UserName"
-                     onerror="this.onerror=null;this.parentElement.innerHTML='<span style=&quot;display:flex;align-items:center;justify-content:center;width:100%;height:100%;&quot;>@userInitials</span>';" />
+                <img src="@OperatorCertificationRecord.Web.Services.EmployeeFileUrls.Photo(Model.UserPhotoPath)" alt="@Model.UserName"
+                     onerror="if(this.src.includes('/api/photo/employee/')){this.alt='Photo unavailable';this.title='Photo unavailable';return;}this.onerror=null;this.parentElement.innerHTML='<span style=&quot;display:flex;align-items:center;justify-content:center;width:100%;height:100%;&quot;>@userInitials</span>';" />
             }
             else
             {
@@ -1071,7 +1072,7 @@
         <!-- Individual Training Record Search -->
         <div class="db-col-search">
             <div class="dbc-search-header">
-                <i class="bi bi-person-lines-fill me-2"></i>Individual Training Record:
+                <i class="bi bi-person-lines-fill me-2"></i>Search Employee
             </div>
         <!-- Search card content -->
         @if (string.IsNullOrEmpty(Model.CurrentUserCode))
@@ -1701,7 +1702,7 @@
                 var exact = e.isExact;
                 var ini = initials(e.firstName, e.lastName);
                 var avatarHtml = e.photoPath
-                    ? '<img src="/api/photo/' + encodeURIComponent(e.photoPath) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.onerror=null;var p=this.parentNode;p.innerHTML=p.getAttribute(\'data-ini\');">'
+                    ? '<img src="' + (e.photoPath.startsWith('/api/photo/') ? e.photoPath : '/api/photo/' + encodeURIComponent(e.photoPath)) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="if(this.src.includes(\'/api/photo/employee/\')){this.alt=\'Photo unavailable\';this.title=\'Photo unavailable\';return;}this.onerror=null;var p=this.parentNode;p.innerHTML=p.getAttribute(\'data-ini\');">'
                     : esc(ini);
                 var fullName = esc((e.prefixEng||'') + ' ' + (e.firstName||'') + ' ' + (e.lastName||'')).trim();
                 grid +=

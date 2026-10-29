@@ -8,14 +8,17 @@ using System.Threading.Tasks;
 
 namespace OperatorCertificationRecord.Web.Pages;
 
-[AdminOnly]
+[AdminOrDeveloper]
 public class UpdateSkillModel : PageModel
 {
     private readonly EmployeeService _employeeService;
     private readonly WorkshopService _workshopService;
     private readonly OperatorTrainingService _operatorTrainingService;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<UpdateSkillModel>? _logger;
 
+    [BindProperty] public Guid? SkillRowId { get; set; }
+    [BindProperty] public byte[]? SkillFileStorageVersion { get; set; }
     [BindProperty] public string? EmpCode { get; set; }
     [BindProperty] public string? ProcessName { get; set; }
     [BindProperty(Name = "Skill_ProcessName")] public string? Skill_ProcessName { get; set; }
@@ -68,15 +71,21 @@ public class UpdateSkillModel : PageModel
     public string? DepartmentName { get; set; }
     public string? SectionName { get; set; }
 
-    public UpdateSkillModel(EmployeeService employeeService, WorkshopService workshopService, OperatorTrainingService operatorTrainingService, IConfiguration configuration)
+    private readonly DeveloperRoleService? _developers;
+
+    public bool CanOverridePromotion => _developers?.IsDeveloper(HttpContext.Session.GetString("UserCode")) == true;
+
+    public UpdateSkillModel(EmployeeService employeeService, WorkshopService workshopService, OperatorTrainingService operatorTrainingService, IConfiguration configuration, ILogger<UpdateSkillModel>? logger = null, DeveloperRoleService? developers = null)
     {
         _employeeService = employeeService;
         _workshopService = workshopService;
         _operatorTrainingService = operatorTrainingService;
         _configuration = configuration;
+        _logger = logger;
+        _developers = developers;
     }
 
-    public async Task OnGetAsync(string? empCode, string? processName)
+    public virtual async Task OnGetAsync(string? empCode, string? processName)
     {
         var userCode = HttpContext.Session.GetString("UserCode");
         if (string.IsNullOrEmpty(userCode))
@@ -131,7 +140,7 @@ public class UpdateSkillModel : PageModel
         {
             IsPromoted = await _employeeService.IsEmployeePromotedAsync(empCode);
             IsResigned = await _employeeService.IsEmployeeResignedAsync(empCode);
-            if (IsPromoted)
+            if (IsPromoted && !CanOverridePromotion)
             {
                 Message = "Employee has been promoted — cannot update skills.";
                 MessageType = "error";
@@ -153,6 +162,8 @@ public class UpdateSkillModel : PageModel
             var skill = skills?.FirstOrDefault(s => s.Process == processName);
             if (skill != null)
             {
+                SkillRowId = skill.OcrSkillRowId;
+                SkillFileStorageVersion = skill.FileStorageVersion;
                 OperatorTraining = skill.OperatorTraining;
                 TheoryTraining = skill.TheoryTraining;
                 OJTTraining = skill.OJTTraining;
@@ -193,7 +204,7 @@ public class UpdateSkillModel : PageModel
         // Prevent updates for promoted or resigned employees
         if (!string.IsNullOrWhiteSpace(EmpCode))
         {
-            if (await _employeeService.IsEmployeePromotedAsync(EmpCode))
+            if (!CanOverridePromotion && await _employeeService.IsEmployeePromotedAsync(EmpCode))
             {
                 Message = "Employee has been promoted — cannot update skills.";
                 MessageType = "error";
@@ -243,7 +254,9 @@ public class UpdateSkillModel : PageModel
                 ExpiryDate = Skill_ExpiryDate ?? ExpiryDate,
                 Verifier = userName,
                 Remark = Skill_Remark ?? Remark,
-                DownloadPath = null
+                DownloadPath = null,
+                OcrSkillRowId = SkillRowId,
+                FileStorageVersion = SkillFileStorageVersion
             };
 
             // Handle PDF file upload
@@ -259,16 +272,7 @@ public class UpdateSkillModel : PageModel
                     return await RedirectToGetAsync();
                 }
 
-                var fileName = CertificateStoragePaths.NewFileName(pdfFile.FileName);
-                var uploadsDir = ResolveUploadDir(_configuration, EmpCode ?? "unknown");
-                Directory.CreateDirectory(uploadsDir);
 
-                var filePath = Path.Combine(uploadsDir, fileName);
-                using (var stream = new FileStream(filePath, FileMode.CreateNew))
-                {
-                    await pdfFile.CopyToAsync(stream);
-                }
-                input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, fileName);
             }
 
             // Compute levels and judgments before saving (same as WinForms logic)
@@ -303,7 +307,8 @@ public class UpdateSkillModel : PageModel
                 input.JudgmentPractice = (input.KnowledgeLevel != "X" && input.SkillLevel != "X") ? "Pass" : "Fail";
             }
 
-            var success = await _employeeService.AddOrUpdateQualifiedAsync(input);
+            var success = await HttpContext.RequestServices.GetRequiredService<EmployeeCertificateStorageService>().SaveAsync(
+                    input, SkillFile, HttpContext.Session.GetString("UserCode") ?? "", HttpContext.RequestAborted);
             if (success)
             {
                 TempData["Message"] = "Skill updated successfully.";
@@ -318,7 +323,8 @@ public class UpdateSkillModel : PageModel
         }
         catch (Exception ex)
         {
-            Message = $"Error: {ex.Message}";
+            _logger?.LogError(ex, "Certificate publication failed for employee {EmployeeCode}", EmpCode);
+            Message = "The skill could not be saved. Reload the employee and try again.";
             MessageType = "error";
         }
 
@@ -343,6 +349,7 @@ public class UpdateSkillModel : PageModel
     private string? ResolvePublicPhotoUrl(string? storedPath)
     {
         if (string.IsNullOrWhiteSpace(storedPath)) return null;
+        if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
         if (storedPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
             storedPath.StartsWith("/photos/", StringComparison.OrdinalIgnoreCase))
         {

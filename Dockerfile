@@ -4,11 +4,13 @@ WORKDIR /src
 
 # Restore layer cached until csproj changes
 COPY OperatorCertificationRecord.PhotoCompatibility/OperatorCertificationRecord.PhotoCompatibility.csproj OperatorCertificationRecord.PhotoCompatibility/
+COPY OperatorCertificationRecord.FileStorage/OperatorCertificationRecord.FileStorage.csproj OperatorCertificationRecord.FileStorage/
 COPY OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj OperatorCertificationRecord.Web/
 RUN dotnet restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj -r linux-x64
 
 # Copy source and publish
 COPY OperatorCertificationRecord.PhotoCompatibility/ OperatorCertificationRecord.PhotoCompatibility/
+COPY OperatorCertificationRecord.FileStorage/ OperatorCertificationRecord.FileStorage/
 COPY OperatorCertificationRecord.Web/ OperatorCertificationRecord.Web/
 RUN dotnet publish OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj \
     -c Release -r linux-x64 --self-contained false -o /app/publish --no-restore

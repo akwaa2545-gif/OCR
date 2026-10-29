@@ -53,6 +53,20 @@ wwwroot/uploads/
 *.log
 appsettings.local.json
 
+# Runtime state, credentials, and local archives
+**/App_Data/
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/secrets.json
+*.zip
+*.bak
+*.pfx
+*.p12
+*.key
+*.pem
+
 # Large files / build artifacts
 *.tar
 *.tar.gz

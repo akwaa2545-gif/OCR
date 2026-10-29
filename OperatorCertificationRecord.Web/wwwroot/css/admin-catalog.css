@@ -1,0 +1,67 @@
+.catalog-page { display: grid; gap: 22px; color: #0f172a; }
+.catalog-page [hidden] { display: none !important; }
+.catalog-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px; border: 1px solid #e2e8f0; border-left: 4px solid #f97316; border-radius: 14px; background: #fff; }
+.catalog-eyebrow { display: block; margin-bottom: 6px; color: #9a3412; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+.catalog-hero h1 { margin: 0 0 7px; font-size: 26px; letter-spacing: -.025em; }
+.catalog-hero p, .catalog-card-heading p, .catalog-map-heading p { margin: 0; color: #475569; font-size: 13px; line-height: 1.6; }
+.catalog-totals { display: flex; gap: 10px; flex-shrink: 0; }
+.catalog-totals > div { display: flex; flex-direction: column; min-width: 88px; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc; }
+.catalog-totals strong { color: #0f172a; font-size: 24px; line-height: 1.2; }
+.catalog-totals span { margin-top: 4px; color: #475569; font-size: 12px; }
+.catalog-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.catalog-card { min-width: 0; border: 1px solid #dbe3ed; border-radius: 13px; background: #fff; overflow: hidden; }
+.catalog-card-heading { display: flex; align-items: flex-start; gap: 12px; padding: 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+.catalog-card-heading h2, .catalog-map-heading h2 { margin: 0 0 4px; font-size: 18px; line-height: 1.3; }
+.catalog-step { display: inline-flex; flex: 0 0 34px; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; background: #0f172a; color: #fff; font-size: 15px; font-weight: 700; }
+.catalog-fields { display: flex; flex-direction: column; gap: 18px; min-width: 0; margin: 0; padding: 20px; border: 0; }
+.catalog-field { display: flex; flex-direction: column; min-width: 0; gap: 7px; }
+.catalog-field label { margin: 0; color: #334155; font-size: 13px; font-weight: 700; }
+.catalog-field input, .catalog-field select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #64748b; border-radius: 7px; background: #fff; color: #0f172a; font: inherit; font-size: 14px; box-sizing: border-box; }
+.catalog-field select { appearance: auto; -webkit-appearance: auto; padding-right: 8px; }
+.catalog-field input:hover, .catalog-field select:hover { border-color: #334155; }
+.catalog-field input:focus-visible, .catalog-field select:focus-visible, .catalog-mode input:focus-visible, .catalog-confirm input:focus-visible, .catalog-save:focus-visible, .catalog-tree summary:focus-visible { outline: 3px solid #c2410c; outline-offset: 3px; }
+.catalog-help { margin: 0; color: #475569; font-size: 12px; line-height: 1.5; }
+.catalog-mode { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.catalog-mode legend { width: 100%; margin: 0 0 7px; padding: 0; color: #334155; font-size: 13px; font-weight: 700; }
+.catalog-mode label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 7px; color: #475569; background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.catalog-mode label:has(input:checked) { border-color: #c2410c; background: #fff7ed; color: #9a3412; }
+.catalog-mode input, .catalog-confirm input { width: 17px; height: 17px; flex-shrink: 0; accent-color: #c2410c; }
+.catalog-save { display: inline-flex; justify-content: center; align-items: center; align-self: flex-start; gap: 8px; min-height: 44px; margin-top: 1px; padding: 11px 18px; border: 1px solid #0f172a; border-radius: 7px; color: #fff; background: #0f172a; font-size: 14px; font-weight: 700; cursor: pointer; }
+.catalog-save:hover { background: #334155; border-color: #334155; }
+.catalog-move-note { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 8px; padding: 12px; border-left: 3px solid #f97316; border-radius: 0 7px 7px 0; background: #fff7ed; color: #9a3412; }
+.catalog-move-note p { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.catalog-confirm { display: flex; align-items: center; gap: 9px; min-height: 44px; margin: 0; color: #334155; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.catalog-notice { padding: 14px 18px; border: 1px solid #cbd5e1; border-radius: 9px; background: #f8fafc; color: #334155; font-size: 14px; line-height: 1.6; }
+.catalog-notice.is-success { border-color: #a7d4b7; background: #f0fdf4; color: #166534; }
+.catalog-notice.is-error { border-color: #fca5a5; background: #fff1f2; color: #991b1b; }
+.catalog-validation:empty, .catalog-validation.validation-summary-valid { display: none; }
+.catalog-validation { color: #991b1b; font-size: 14px; }
+.catalog-validation ul { margin: 0; }
+.catalog-map { min-width: 0; padding: 24px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+.catalog-map-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.catalog-map-key { display: flex; flex-wrap: wrap; max-width: 100%; align-items: center; gap: 8px; flex-shrink: 0; color: #475569; font-size: 12px; }
+.catalog-map-key span { padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 5px; background: #f8fafc; }
+.catalog-map-key i { color: #c2410c; font-size: 10px; }
+.catalog-tree { display: grid; gap: 10px; }
+.catalog-tree summary { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 12px 14px; color: #0f172a; cursor: pointer; list-style: none; border-radius: 8px; }
+.catalog-tree summary::-webkit-details-marker { display: none; }
+.catalog-tree summary::after { content: "+"; width: 18px; flex-shrink: 0; margin-left: 3px; color: #64748b; font-size: 20px; font-weight: 400; text-align: center; }
+.catalog-tree details[open] > summary::after { content: "−"; }
+.catalog-node-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border: 1px solid #fed7aa; border-radius: 7px; color: #9a3412; background: #fff7ed; font-size: 16px; }
+.catalog-node-name { flex: 1; min-width: 0; color: #0f172a; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.catalog-node-name small { display: block; margin-top: 3px; color: #64748b; font-size: 12px; font-weight: 400; line-height: 1.4; }
+.catalog-count { flex-shrink: 0; padding: 4px 7px; border: 1px solid #dbe3ed; border-radius: 5px; background: #fff; color: #475569; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.catalog-workshop-node { min-width: 0; border: 1px solid #e2e8f0; border-radius: 7px; }
+.catalog-workshop-node > summary { min-height: 58px; background: #f8fafc; }
+.catalog-workshop-node[open] > summary { border-bottom: 1px solid #e2e8f0; border-radius: 8px 8px 0 0; }
+.catalog-workshop-node.is-unlinked > summary { background: #fffbf5; }
+.catalog-workshop-node > summary > i { color: #475569; font-size: 16px; }
+.catalog-processes { display: grid; gap: 6px; padding: 10px 14px 14px; }
+.catalog-process-node { display: flex; align-items: flex-start; gap: 9px; padding: 9px 11px; border-radius: 5px; background: #f8fafc; color: #334155; font-size: 13px; line-height: 1.5; }
+.catalog-process-node > i { margin-top: 2px; color: #c2410c; }
+.catalog-process-node > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.catalog-process-node > small { color: #64748b; font-size: 11px; font-variant-numeric: tabular-nums; }
+.catalog-empty { margin: 0; padding: 12px; color: #64748b; font-size: 13px; line-height: 1.5; }
+@media (max-width: 1050px) { .catalog-hero { align-items: flex-start; flex-direction: column; } .catalog-totals { width: 100%; } .catalog-totals > div { flex: 1; } .catalog-map-heading { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 760px) { .catalog-edit-grid { grid-template-columns: minmax(0, 1fr); } .catalog-hero, .catalog-map { padding: 18px; } .catalog-hero h1 { font-size: 23px; } .catalog-totals { gap: 7px; } .catalog-totals > div { min-width: 0; padding: 11px; } .catalog-totals strong { font-size: 22px; } .catalog-totals span { font-size: 11px; } .catalog-card-heading, .catalog-fields { padding: 18px; } .catalog-tree summary { gap: 8px; padding: 11px 10px; } .catalog-node-icon { width: 27px; height: 27px; font-size: 14px; } .catalog-node-name { font-size: 13px; } .catalog-count { font-size: 10px; padding: 3px 5px; } .catalog-save { width: 100%; } .catalog-process-node { padding: 8px; } }
+@media (prefers-reduced-motion: reduce) { .catalog-page * { scroll-behavior: auto; } }

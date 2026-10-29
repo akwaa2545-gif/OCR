@@ -1,0 +1,125 @@
+@model OperatorCertificationRecord.Web.Pages.AdminToolsModel
+@{
+    var catalog = Model.Snapshot;
+    var workshopIds = catalog.Workshops.Select(workshop => workshop.Id).ToHashSet(StringComparer.Ordinal);
+    var unassignedProcesses = catalog.Processes.Where(process => !workshopIds.Contains(process.WorkshopId ?? "")).ToList();
+}
+
+<div class="catalog-page">
+    <header class="catalog-hero">
+        <div>
+            <span class="catalog-eyebrow">Admin Tools</span>
+            <h1>Workshops &amp; processes</h1>
+            <p>Add workshops, organize processes, and see how everything fits together.</p>
+        </div>
+        <div class="catalog-totals" aria-label="Catalog totals">
+            <div><strong>@catalog.Workshops.Count</strong><span>Workshops</span></div>
+            <div><strong>@catalog.Processes.Count</strong><span>Processes</span></div>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="catalog-notice @(Model.StatusType == "success" ? "is-success" : "is-error")" role="@(Model.StatusType == "success" ? "status" : "alert")">@Model.StatusMessage</div>
+    }
+    <div asp-validation-summary="All" class="catalog-validation" role="alert"></div>
+
+    <div class="catalog-edit-grid">
+        <section class="catalog-card" aria-labelledby="catalog-workshop-heading">
+            <div class="catalog-card-heading"><span class="catalog-step" aria-hidden="true">1</span><div><h2 id="catalog-workshop-heading">Workshop</h2><p>Create a workshop to organize its processes.</p></div></div>
+            <form method="post" asp-page-handler="SaveWorkshop" id="catalog-workshop-form">
+                <fieldset class="catalog-fields">
+                    <div class="catalog-field">
+                        <label for="catalog-workshop-name">New workshop name</label>
+                        <input asp-for="WorkshopInput.NewWorkshopName" id="catalog-workshop-name" type="text" maxlength="50" autocomplete="off" required />
+                    </div>
+                    <button type="submit" class="catalog-save"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add Workshop</button>
+                </fieldset>
+            </form>
+        </section>
+
+        <section class="catalog-card" aria-labelledby="catalog-process-heading">
+            <div class="catalog-card-heading"><span class="catalog-step" aria-hidden="true">2</span><div><h2 id="catalog-process-heading">Process</h2><p>Add a process or move one into a workshop.</p></div></div>
+            <form method="post" asp-page-handler="SaveProcess" id="catalog-process-form" data-catalog-form>
+                <fieldset class="catalog-fields">
+                    <div class="catalog-field">
+                        <label for="catalog-process-workshop">Destination workshop</label>
+                        <select asp-for="ProcessInput.DestinationWorkshopId" id="catalog-process-workshop" data-no-fancy required>
+                            <option value="">Choose a workshop</option>
+                            @foreach (var workshop in catalog.Workshops)
+                            {
+                                <option value="@workshop.Id">@workshop.Name</option>
+                            }
+                        </select>
+                        <span class="catalog-help">A newly added workshop appears here after saving.</span>
+                    </div>
+                    <fieldset class="catalog-mode">
+                        <legend>Process choice</legend>
+                        <label><input asp-for="ProcessInput.Mode" id="catalog-process-mode-new" type="radio" value="new" data-catalog-mode /> Add new process</label>
+                        <label><input asp-for="ProcessInput.Mode" id="catalog-process-mode-move" type="radio" value="move" data-catalog-mode /> Move existing</label>
+                    </fieldset>
+                    <div class="catalog-field" data-catalog-mode-fields="new" hidden="@(Model.ProcessInput.Mode != "new")">
+                        <label for="catalog-process-name">New process name</label>
+                        <input asp-for="ProcessInput.NewProcessName" id="catalog-process-name" type="text" maxlength="100" autocomplete="off" required="@(Model.ProcessInput.Mode == "new")" disabled="@(Model.ProcessInput.Mode != "new")" />
+                    </div>
+                    <div data-catalog-mode-fields="move" hidden="@(Model.ProcessInput.Mode != "move")">
+                        <div class="catalog-field">
+                            <label for="catalog-process-existing">Existing process</label>
+                            <select asp-for="ProcessInput.ExistingProcessKey" id="catalog-process-existing" data-no-fancy required="@(Model.ProcessInput.Mode == "move")" disabled="@(Model.ProcessInput.Mode != "move")">
+                                <option value="">Choose a process to move</option>
+                                @foreach (var process in catalog.Processes)
+                                {
+                                    var sourceWorkshop = catalog.Workshops.FirstOrDefault(workshop => workshop.Id == process.WorkshopId)?.Name ?? "No workshop";
+                                    <option value="@process.Key" disabled="@(!process.CanMove)" data-source-workshop="@sourceWorkshop" data-process-name="@process.Name">@process.Name · @sourceWorkshop@(!process.CanMove ? " (needs review)" : "")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="catalog-move-note"><i class="bi bi-arrow-left-right" aria-hidden="true"></i><p id="catalog-move-summary" aria-live="polite">Choose a process and destination to see the move.</p></div>
+                        <label class="catalog-confirm"><input asp-for="ProcessInput.ConfirmMove" id="catalog-confirm-move" aria-describedby="catalog-move-summary" required="@(Model.ProcessInput.Mode == "move")" disabled="@(Model.ProcessInput.Mode != "move")" /> <span>Move this process out of its current workshop.</span></label>
+                        <p class="catalog-help">The process keeps its name and training history.</p>
+                    </div>
+                    <button type="submit" class="catalog-save"><i class="bi bi-check2" aria-hidden="true"></i> Save process</button>
+                </fieldset>
+            </form>
+        </section>
+    </div>
+
+    <section class="catalog-map" aria-labelledby="catalog-map-heading">
+        <div class="catalog-map-heading"><div><span class="catalog-eyebrow">Overview</span><h2 id="catalog-map-heading">Workshops &amp; their processes</h2><p>Open a workshop to explore its processes.</p></div><div class="catalog-map-key" aria-label="Link direction"><span>Workshop</span><i class="bi bi-chevron-right" aria-hidden="true"></i><span>Process</span></div></div>
+        <div class="catalog-tree">
+            @foreach (var workshop in catalog.Workshops)
+            {
+                var processes = catalog.Processes.Where(process => process.WorkshopId == workshop.Id).ToList();
+                <details class="catalog-workshop-node">
+                    <summary><span class="catalog-node-icon"><i class="bi bi-building" aria-hidden="true"></i></span><span class="catalog-node-name">@workshop.Name</span><span class="catalog-count">@processes.Count @(processes.Count == 1 ? "process" : "processes")</span></summary>
+                    <div class="catalog-processes">
+                        @if (processes.Count == 0)
+                        {
+                            <p class="catalog-empty">No processes yet. Use the Process form above to add one.</p>
+                        }
+                        @foreach (var process in processes)
+                        {
+                            <div class="catalog-process-node"><i class="bi bi-gear" aria-hidden="true"></i><span>@process.Name</span>@if (!string.IsNullOrWhiteSpace(process.Id)) { <small>@process.Id</small> }</div>
+                        }
+                    </div>
+                </details>
+            }
+            @if (unassignedProcesses.Count > 0)
+            {
+                <details class="catalog-workshop-node is-unlinked">
+                    <summary><span class="catalog-node-icon"><i class="bi bi-gear" aria-hidden="true"></i></span><span class="catalog-node-name">Processes awaiting a workshop</span><span class="catalog-count">@unassignedProcesses.Count</span></summary>
+                    <div class="catalog-processes">
+                        @foreach (var process in unassignedProcesses)
+                        {
+                            <div class="catalog-process-node"><i class="bi bi-gear" aria-hidden="true"></i><span>@process.Name</span></div>
+                        }
+                    </div>
+                </details>
+            }
+            @if (catalog.Workshops.Count == 0 && catalog.Processes.Count == 0)
+            {
+                <p class="catalog-empty">The catalog is currently empty.</p>
+            }
+        </div>
+    </section>
+</div>

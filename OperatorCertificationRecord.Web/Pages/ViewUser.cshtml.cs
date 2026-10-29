@@ -15,6 +15,7 @@ public class ViewUserModel : PageModel
     private readonly SectionService _sectionService;
     private readonly WorkshopService _workshopService;
     private readonly AdminService _adminService;
+    private readonly DeveloperRoleService? _developers;
     private readonly Microsoft.Extensions.Logging.ILogger<ViewUserModel>? _logger;
     
     public Employee? Employee { get; set; }
@@ -37,7 +38,7 @@ public class ViewUserModel : PageModel
     public string Message { get; set; } = "";
     public string MessageType { get; set; } = "";
 
-    public ViewUserModel(EmployeeService employeeService, DepartmentService departmentService, SectionService sectionService, WorkshopService workshopService, AdminService adminService, Microsoft.Extensions.Logging.ILogger<ViewUserModel>? logger)
+    public ViewUserModel(EmployeeService employeeService, DepartmentService departmentService, SectionService sectionService, WorkshopService workshopService, AdminService adminService, Microsoft.Extensions.Logging.ILogger<ViewUserModel>? logger, DeveloperRoleService? developers = null)
     {
         _employeeService = employeeService;
         _departmentService = departmentService;
@@ -45,6 +46,7 @@ public class ViewUserModel : PageModel
         _workshopService = workshopService;
         _adminService = adminService;
         _logger = logger;
+        _developers = developers;
     }
 
     public async Task<IActionResult> OnGetAsync(string empCode)
@@ -110,10 +112,10 @@ public class ViewUserModel : PageModel
             return RedirectToPage("/Login");
         var disqualifiedByName = HttpContext.Session.GetString("UserName") ?? userCode;
 
-        // only admins may perform disqualifications
-        if (!_adminService.IsAdmin(userCode))
+        var isDeveloper = _developers?.IsDeveloper(userCode) == true;
+        if (!_adminService.IsAdmin(userCode) && !isDeveloper)
         {
-            Message = "Only administrators are allowed to disqualify skills.";
+            Message = "Admin or Developer access is required to disqualify skills.";
             MessageType = "error";
             return await OnGetAndRenderAsync();
         }
@@ -134,7 +136,7 @@ public class ViewUserModel : PageModel
         }
 
         // Do not allow bulk disqualification for promoted or resigned employees
-        if (await _employeeService.IsEmployeePromotedAsync(empCode) || await _employeeService.IsEmployeeResignedAsync(empCode))
+        if ((!isDeveloper && await _employeeService.IsEmployeePromotedAsync(empCode)) || await _employeeService.IsEmployeeResignedAsync(empCode))
         {
             Message = await _employeeService.IsEmployeePromotedAsync(empCode) ? "Employee has been promoted — disqualification disabled." : "Employee has resigned — disqualification disabled.";
             MessageType = "error";
@@ -188,6 +190,7 @@ public class ViewUserModel : PageModel
     {
         _logger?.LogInformation("ViewUser ResolvePublicPhotoUrl called with storedPath={StoredPath}", storedPath);
         if (string.IsNullOrWhiteSpace(storedPath)) return null;
+        if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
         if (storedPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || storedPath.StartsWith("/photos/", StringComparison.OrdinalIgnoreCase))
         {
             var fn = Path.GetFileName(storedPath);
@@ -207,6 +210,13 @@ public class ViewUserModel : PageModel
     // Resolve a Download path stored in the DB to a public URL the browser can use.
     // - If the DB already contains an application-relative uploads/photos path, return it unchanged.
     // - Otherwise return an /api/certificate/{emp}/{fileName} URL so the server will serve UNC or mounted files.
+    public string? ResolvePublicDownloadUrl(EmployeeSkillRecord skill, string empCode)
+    {
+        if (skill.CertificateFileId.HasValue && skill.OcrSkillRowId.HasValue)
+            return EmployeeFileUrls.Certificate(empCode, skill.OcrSkillRowId.Value, skill.CertificateFileId.Value, skill.IsObsolete);
+        return ResolvePublicDownloadUrl(skill.DownloadPath, empCode);
+    }
+
     public string? ResolvePublicDownloadUrl(string? storedPath, string empCode)
     {
         if (string.IsNullOrWhiteSpace(storedPath) || string.IsNullOrWhiteSpace(empCode)) return null;
@@ -524,12 +534,16 @@ public class ViewUserModel : PageModel
 
     public async Task<IActionResult> OnGetDownloadFileAsync(string empCode, string process)
     {
+        if (HttpContext.Session.GetString("IsAdmin") != "true") return StatusCode(403);
         if (string.IsNullOrWhiteSpace(empCode) || string.IsNullOrWhiteSpace(process))
             return BadRequest("Missing empCode or process");
 
         var skills = await _employeeService.GetCurrentSkillRecordsAsync(empCode);
-        var skill = skills.FirstOrDefault(s => s.Process == process);
-        
+        var matching = skills.Where(s => s.Process == process).ToList();
+        if (matching.Count > 1) return StatusCode(409, "Multiple matching skills require a specific certificate link.");
+        var skill = matching.SingleOrDefault();
+        if (skill?.CertificateFileId != null && skill.OcrSkillRowId.HasValue)
+            return Redirect(EmployeeFileUrls.Certificate(empCode, skill.OcrSkillRowId.Value, skill.CertificateFileId.Value));
         if (skill == null || string.IsNullOrWhiteSpace(skill.DownloadPath))
             return NotFound("PDF file not found");
 

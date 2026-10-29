@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using System.Data.SqlClient;
+using OperatorCertificationRecord.FileStorage;
 
 namespace OperatorCertificationRecord.Web.Services;
 
@@ -14,15 +16,67 @@ public sealed class EmployeePhotoStorageService
     private readonly IConfiguration _configuration;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EmployeePhotoStorageService> _logger;
+    private readonly EmployeeService? _employees;
+    private readonly SqlEmployeeFileRepository? _repository;
+    private readonly EmployeeFileService? _files;
+    private readonly FileStorageOptions? _options;
 
     public EmployeePhotoStorageService(
         IConfiguration configuration,
         TimeProvider timeProvider,
-        ILogger<EmployeePhotoStorageService> logger)
+        ILogger<EmployeePhotoStorageService> logger,
+        EmployeeService? employees = null,
+        SqlEmployeeFileRepository? repository = null,
+        EmployeeFileService? files = null,
+        FileStorageOptions? options = null)
     {
         _configuration = configuration;
         _timeProvider = timeProvider;
         _logger = logger;
+        _employees = employees;
+        _repository = repository;
+        _files = files;
+        _options = options;
+    }
+
+    public async Task<PhotoStorageResult> SaveEmployeeAsync(Models.Employee employee, IFormFile photo, bool isNew, string createdBy, CancellationToken ct)
+    {
+        if (_employees == null || _repository == null || _files == null || _options == null)
+            throw new InvalidOperationException("Employee photo storage is unavailable.");
+        ValidateUploadMetadata(photo);
+        var code = employee.EmpCode ?? "";
+        var schema = await _repository.IsSchemaAvailableAsync(ct);
+        if (!schema && !isNew)
+            await LegacyFileAuthorityGuard.EnsureUnlinkedAsync(_configuration, code, FileKind.Photo, ct);
+        var owner = new FileOwner(FileOwnerTable.Employee, code);
+        var state = schema && !isNew ? await _repository.GetOwnerStateAsync(owner, ct) : null;
+        if (!_options.ShouldWriteSql(code, state?.FileId))
+        {
+            return await StoreAndCommitAsync(code, photo, async (stored, _) =>
+            {
+                employee.PhotoPath = stored.DatabasePath;
+                employee.LegacyPhotoPath = stored.DatabasePath;
+                return await _employees.SaveLegacyEmployeeAsync(employee, isNew, ct);
+            }, ct);
+        }
+        if (!schema) throw new InvalidOperationException("SQL file storage is not ready.");
+        await using var input = photo.OpenReadStream();
+        using var staged = await _files.StageAsync(input, code, FileKind.Photo, Path.GetFileName(photo.FileName), createdBy, ct);
+        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+        using var transaction = connection.BeginTransaction();
+        if (isNew)
+        {
+            await _employees.SaveEmployeeInTransactionAsync(employee, true, connection, transaction, ct);
+            state = await _repository.GetOwnerStateAsync(connection, transaction, owner, ct);
+        }
+        var expected = isNew ? state!.RowVersion : employee.FileStorageVersion ?? state!.RowVersion;
+        var saved = await _files.PublishInTransactionAsync(connection, transaction, staged, owner, expected,
+            isNew ? null : async (c, t, token) => { await _employees.SaveEmployeeInTransactionAsync(employee, false, c, t, token); }, ct);
+        transaction.Commit();
+        var url = $"/api/photo/employee/{Uri.EscapeDataString(code)}/{saved.FileId:D}";
+        return new PhotoStorageResult(url, "", "");
     }
 
     internal Task<PhotoStorageResult> StoreAsync(

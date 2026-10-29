@@ -140,15 +140,8 @@ public class AddUserModel : PageModel
             bool success;
             if (PhotoFile != null && PhotoFile.Length > 0)
             {
-                await _photoStorageService.StoreAndCommitAsync(
-                    EmpCode,
-                    PhotoFile,
-                    async (storedPhoto, _) =>
-                    {
-                        employee.PhotoPath = storedPhoto.DatabasePath;
-                        return await _employeeService.AddEmployeeAsync(employee, storedPhoto.DatabasePath);
-                    },
-                    HttpContext.RequestAborted);
+                await _photoStorageService.SaveEmployeeAsync(employee, PhotoFile, true,
+                    HttpContext.Session.GetString("UserCode") ?? "", HttpContext.RequestAborted);
                 success = true;
             }
             else

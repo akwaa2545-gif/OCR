@@ -66,7 +66,26 @@ Existing container `/app/App_Data` contents were exported before first adoption 
 
 **Test certificates are intentionally not copied.** Existing certificate records may refer to missing test files until the owner requests a separate copy. The workflow never copies production certificates or runs the storage migration script.
 
-## Deployment safety and limits
+## Legacy photo share synchronization
+
+Docker's `C:\ocr-photos` mirror is not the legacy network share. `Sync-LegacyPhotos.ps1` bridges committed production uploads from `C:\ocr-uploads` to `\\svr120a\PhotoEmp$\<EmpCode>.<extension>` (the legacy F: mapping). It reads only employee codes/photo references from the production database; it does not update employee records, copy certificates, recurse through upload folders, or access test storage.
+
+`Install-LegacyPhotoSync.ps1` registers `OCR-LegacyPhotoSync` under the existing signed-in Docker user with limited privileges, at logon and every minute. No password is stored. RDP disconnection is fine; signing out or rebooting without signing back in pauses this task, just like the Docker runner. The UNC path avoids dependence on a drive letter's session mapping.
+
+Installed on 2026-09-23 after an interactive-account share read/write and atomic-replacement check. Initialization baselined 5,327 photos, copied only employee `102`, and reported zero errors/conflicts. The share's `102.jpg` was independently read from the client PC and matched the current production upload's SHA-256. No certificate files or test photos were copied.
+
+The first run records existing photo versions and destination hashes without bulk-copying historical photos. Initialization explicitly seeds employee `102`; other historical repairs require a separately reviewed `-SeedEmployee` run. Subsequent committed web photo versions are eligible for synchronization. Unexpected changes on the legacy share are treated as conflicts, not overwritten automatically. Existing photos are atomically replaced with retained `.ocr-sync-backup-*.bak` backups; old extensions and unrelated files are not deleted. Both applications must cooperate to eliminate all concurrent-writer races; the bridge's checks and backups mitigate, but do not provide a cross-application transaction.
+
+Runtime scripts and state live under protected `C:\ocr-deploy`; state is in `photo-sync\state.json` and the latest result is `photo-sync\last-run.json`. Never delete state to force a retry or rerun the installer blindly. A nonzero task result or nonzero error/conflict count needs investigation; share or database outages preserve existing photos and are retried by later runs. The task is bounded to three minutes and ignores overlapping starts.
+
+```powershell
+Get-ScheduledTaskInfo -TaskName OCR-LegacyPhotoSync
+Get-Content -LiteralPath C:\ocr-deploy\photo-sync\last-run.json
+```
+
+Sync script updates are host-side operations, separate from web-image deployment. Review and test the scripts, stop the sync task before replacing its installed script, preserve state, then resume and verify its result. The older repository-root `SyncLegacyPhotos.ps1` is a manual backfill tool and must not run alongside this stateful bridge.
+
+## Container deployment safety and limits
 
 `Deploy-Ocr.ps1` pulls the pinned image, starts a loopback-only candidate and checks `/health/ready`, then replaces the selected container and checks readiness again. A failed replacement attempts to restore the retained old container. Other environments are not stopped. Backups are retained; clean them up only after confirming a successful release and identifying the exact backup.
 

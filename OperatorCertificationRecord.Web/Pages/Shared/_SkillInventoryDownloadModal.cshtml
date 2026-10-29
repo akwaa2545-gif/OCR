@@ -1,8 +1,12 @@
 
 <style>
-/* Taller fancy-select list inside this modal only */
-#skillInventoryModal .fancy-select-list {
-    max-height: 600px;
+/* Keep the section menu visible beyond the card, with room for more choices. */
+#skillInventoryModal .modal-content {
+    overflow: visible !important;
+}
+#skillInventoryModal #skInvSectionModal + .fancy-select-wrapper .fancy-select-list {
+    max-height: clamp(96px, calc(100dvh - 340px), 520px);
+    overscroll-behavior: contain;
 }
 #skillInventoryModal .fancy-select-item {
     padding: 0.72rem 0.9rem;
@@ -162,6 +166,5 @@
       if(window.Toast) window.Toast.error('Network error','Failed to load section list');
     }
   });
- })
 })();
 </script>

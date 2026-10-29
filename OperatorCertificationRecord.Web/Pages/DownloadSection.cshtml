@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Download Reports";
     ViewData["ActivePage"] = "DownloadSection";
+    ViewData["HasOperatorNoSkillModal"] = true;
 }
 
 <style>
@@ -414,7 +415,8 @@
                             <button type="button" class="dm-pill" data-days="7">7 days</button>
                             <button type="button" class="dm-pill" data-days="30">30 days</button>
                             <button type="button" class="dm-pill" data-days="365">1 year</button>
-                            <button type="button" class="dm-pill active" data-days="0">All time</button>
+                            <button type="button" class="dm-pill active" data-days="year">This year</button>
+                            <button type="button" class="dm-pill" data-days="0">All time</button>
                         </div>
                         <div class="dm-summary">
                             <div class="dm-field dm-format-field">
@@ -560,7 +562,7 @@ function setSkillPreset(days){
             btn.classList.add('active');
 
             // determine days and target modal to call the right preset function
-            const days = parseInt(btn.getAttribute('data-days') || '0', 10);
+            const days = btn.getAttribute('data-days') === 'year' ? 'year' : parseInt(btn.getAttribute('data-days') || '0', 10);
             const modal = btn.closest('.modal');
             if(modal){
                 switch(modal.id){
@@ -824,29 +826,15 @@ function setOnsPreset(days){
     const startEl = document.getElementById('onsStart');
     const endEl = document.getElementById('onsEnd');
     if (!startEl || !endEl) return;
-    const today = new Date();
-    function fmt(d){
-        const y = d.getFullYear();
-        const m = String(d.getMonth()+1).padStart(2,'0');
-        const dd = String(d.getDate()).padStart(2,'0');
-        return `${y}-${m}-${dd}`;
-    }
-    if (!days || days <= 0){ startEl.value = ''; endEl.value = ''; return; }
-    const start = new Date(); start.setDate(today.getDate() - (days-1));
-    startEl.value = fmt(start);
-    endEl.value = fmt(today);
+    if (days === 0) { startEl.value = ''; endEl.value = ''; }
+    else ReportDateRanges.apply(startEl, endEl, days);
 }
 
 (function(){
     const modal = document.getElementById('operatorNoSkillModal');
     if(!modal) return;
+    ReportDateRanges.initialize(document.getElementById('onsStart'), document.getElementById('onsEnd'), modal);
     modal.addEventListener('show.bs.modal', function(){
-        const container = modal.querySelector('.dq-presets');
-        if(!container) return;
-        container.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
-        const allBtn = container.querySelector('button[data-days="0"]');
-        if(allBtn) allBtn.classList.add('active');
-        setOnsPreset(0);
         const badge = document.getElementById('onsCountBadge'); if(badge) badge.textContent='—';
         const dl = document.getElementById('downloadOnsBtn'); if(dl) dl.classList.add('dl-pending');
     });

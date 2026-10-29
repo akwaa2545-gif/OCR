@@ -9,19 +9,20 @@
     <title>@ViewData["Title"] - OTD System</title>
     
     <!-- Bootstrap Icons (non-render-blocking) -->
-    <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"></noscript>
+    <link rel="preload" as="style" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" asp-append-version="true" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" asp-append-version="true"></noscript>
     
     <!-- App Styles -->
     <link rel="stylesheet" href="/css/app.css?v=@DateTime.Now.Ticks" />
+    <script src="~/js/report-date-ranges.js" asp-append-version="true"></script>
     <!-- Flatpickr date picker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="~/lib/flatpickr/flatpickr.min.css" asp-append-version="true" />
     <style>
     /* ===== Flatpickr — polished orange theme with animations ===== */
     @@keyframes fp-calendar-in {
-        from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-        to   { opacity: 1; transform: translateY(0) scale(1); }
+        from { opacity: 0; }
+        to   { opacity: 1; }
     }
     @@keyframes fp-overlay-in {
         from { opacity: 0; transform: scale(0.95); }
@@ -43,7 +44,7 @@
 
     /* ── Header ── */
     .flatpickr-months {
-        background: linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%);
+        background: linear-gradient(135deg, #9a3412 0%, #c2410c 100%);
         border-radius: 18px 18px 0 0; padding: 0.35rem 0.25rem;
         position: relative; overflow: hidden;
     }
@@ -73,7 +74,8 @@
         display: flex; align-items: center; justify-content: center;
         gap: 0.3rem; padding: 0.2rem 0;
     }
-    .flatpickr-current-month .cur-month {
+    .flatpickr-current-month .cur-month,
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
         color: #fff; font-weight: 800; font-size: 1.08rem; letter-spacing: -0.01em;
         cursor: pointer;
         text-decoration: underline dotted rgba(255,255,255,.45);
@@ -81,18 +83,16 @@
     }
     .flatpickr-current-month .cur-month:hover { opacity: .82; transform: scale(1.04); }
 
-    /* Year: hide up/down arrows, make whole wrapper clickable */
+    /* Keep the built-in year field editable with keyboard and pointer. */
     .flatpickr-current-month .numInputWrapper {
         background: transparent !important; cursor: pointer; position: relative;
         transition: opacity .15s, transform .15s;
     }
     .flatpickr-current-month .numInputWrapper:hover { opacity: .82; transform: scale(1.04); }
-    .flatpickr-current-month .numInputWrapper span.arrowUp,
-    .flatpickr-current-month .numInputWrapper span.arrowDown { display: none !important; }
     .flatpickr-current-month input.cur-year {
         color: #fff !important; font-weight: 800 !important; font-size: 1.08rem !important;
         background: transparent !important; border: none !important; box-shadow: none !important;
-        outline: none !important; pointer-events: none; width: 4ch; padding: 0;
+        width: 5ch; padding: 0; min-height: 28px;
         letter-spacing: -0.01em;
         text-decoration: underline dotted rgba(255,255,255,.45); text-underline-offset: 3px;
     }
@@ -108,7 +108,7 @@
         width: 100% !important;
     }
     span.flatpickr-weekday {
-        background: #fff7ed; color: #ea580c; font-weight: 700; font-size: 0.7rem;
+        background: #fff7ed; color: #9a3412; font-weight: 700; font-size: 0.7rem;
         text-transform: uppercase; letter-spacing: .04em;
         width: auto !important;
         max-width: none !important;
@@ -160,7 +160,7 @@
     .flatpickr-day.selected,     .flatpickr-day.selected:hover,
     .flatpickr-day.startRange,   .flatpickr-day.startRange:hover,
     .flatpickr-day.endRange,     .flatpickr-day.endRange:hover {
-        background: linear-gradient(135deg,#ea580c,#f97316);
+        background: #c2410c;
         border-color: transparent; color: #fff; font-weight: 700;
         box-shadow: 0 3px 10px rgba(249,115,22,.35);
         animation: fp-day-pop .22s cubic-bezier(.22,1,.36,1) both;
@@ -176,92 +176,41 @@
 
     /* Alt-input wrapper with calendar icon */
     .fp-date-wrap { position: relative; display: block; }
-    .fp-date-wrap .flatpickr-input[readonly] { cursor: pointer; padding-right: 2.4rem; width: 100%; }
+    .fp-date-wrap input { padding-right: 2.4rem; width: 100%; }
     .fp-date-wrap .fp-cal-icon {
         position: absolute; right: 0.65rem; top: 50%; transform: translateY(-50%);
-        pointer-events: none; color: #0d9488; opacity: 0.7; line-height: 1;
+        color: #0d9488; opacity: 0.7; line-height: 1;
+        border: 0; background: transparent; padding: 0.25rem; cursor: pointer;
         transition: opacity .15s;
     }
     .fp-date-wrap:hover .fp-cal-icon,
     .fp-date-wrap:focus-within .fp-cal-icon { opacity: 1; color: #0d9488; }
 
-    .flatpickr-input[readonly] { cursor: pointer; }
-
-    /* ── Month overlay (body-level, position:fixed via JS) ── */
-    .fp-month-overlay, .fp-year-overlay {
-        display: none; position: fixed; z-index: 99999; box-sizing: border-box;
-        background: #fff; border-radius: 20px; overflow: hidden;
-        border: 1.5px solid rgba(249,115,22,.15);
-        box-shadow: 0 20px 60px rgba(0,0,0,.14), 0 6px 18px rgba(249,115,22,.08);
+    .fp-date-wrap input[readonly] { cursor: default; }
+    .fp-cal-icon:disabled { cursor: default; opacity: .35; }
+    .fp-cal-icon { min-width: 24px; min-height: 24px; }
+    .fp-cal-icon:focus-visible { outline: 2px solid #ea580c; outline-offset: 2px; }
+    .flatpickr-calendar { z-index: 11000; max-width: calc(100vw - 16px); }
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+        min-width: 0; width: auto; max-width: 145px; background: transparent; border: 0;
+        border-radius: 4px; padding: 0.1rem; cursor: pointer;
     }
-    .fp-month-overlay {
-        padding: 1rem 0.85rem 0.9rem;
-        grid-template-columns: repeat(3,1fr); gap: 0.45rem; align-content: center;
+    .flatpickr-current-month .flatpickr-monthDropdown-months option { color: #111827; background: #fff; }
+    .flatpickr-current-month .numInputWrapper { width: 6ch; }
+    .flatpickr-current-month input.cur-year:focus-visible,
+    .flatpickr-current-month .flatpickr-monthDropdown-months:focus-visible {
+        outline: 2px solid #fff; outline-offset: 2px;
     }
-    .fp-year-overlay {
-        padding: 1rem 0.85rem 0.9rem;
-        grid-template-columns: repeat(4,1fr); gap: 0.45rem; align-content: start;
-    }
-    .fp-month-overlay.open, .fp-year-overlay.open {
-        display: grid;
-        animation: fp-overlay-in .18s cubic-bezier(.22,1,.36,1) both;
-    }
-
-    /* Overlay header */
-    .fp-overlay-hdr {
-        grid-column: 1 / -1;
-        background: linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%);
-        border-radius: 12px; padding: 0.5rem 0.75rem;
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 0.55rem;
-        position: relative; overflow: hidden;
-    }
-    .fp-overlay-hdr::after {
-        content: ''; position: absolute; inset: 0; pointer-events: none;
-        background: radial-gradient(ellipse at 70% 0%, rgba(255,255,255,.18) 0%, transparent 65%);
-    }
-    .fp-overlay-title {
-        color: #fff; font-weight: 800; font-size: 0.88rem; letter-spacing: .03em;
-        text-transform: uppercase;
-    }
-    .fp-overlay-close {
-        background: rgba(255,255,255,.22); border: none; border-radius: 7px;
-        width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; color: #fff; font-size: 0.9rem; line-height: 1;
-        transition: background .12s, transform .12s; z-index: 1;
-    }
-    .fp-overlay-close:hover { background: rgba(255,255,255,.38); transform: scale(1.1); }
-
-    /* Month / Year buttons */
-    .fp-month-btn, .fp-year-btn {
-        background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px;
-        padding: 0.55rem 0; font-size: 0.84rem; font-weight: 600; color: #374151;
-        cursor: pointer;
-        transition: background .12s, color .12s, border-color .12s, transform .1s, box-shadow .12s;
-    }
-    .fp-month-btn:hover, .fp-year-btn:hover {
-        background: #fff7ed; border-color: #fdba74; color: #ea580c;
-        transform: scale(1.05); box-shadow: 0 2px 8px rgba(249,115,22,.15);
-    }
-    .fp-month-btn.active, .fp-year-btn.active {
-        background: linear-gradient(135deg,#ea580c,#f97316);
-        border-color: transparent; color: #fff; font-weight: 700;
-        box-shadow: 0 3px 10px rgba(249,115,22,.3);
+    .fp-date-wrap input[aria-invalid="true"] { border-color: #dc2626; }
+    .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color: #64748b; }
+    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange { color: #fff; }
+    .flatpickr-day:focus-visible { outline: 2px solid #7c2d12; outline-offset: -3px; }
+    .flatpickr-day.selected:focus-visible, .flatpickr-day.startRange:focus-visible,
+    .flatpickr-day.endRange:focus-visible { outline-color: #fff; }
+    @@media (prefers-reduced-motion: reduce) {
+        .flatpickr-calendar, .flatpickr-day { animation: none; transition: none; }
     }
 
-    /* Year pager nav */
-    .fp-year-nav {
-        grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 0.4rem;
-    }
-    .fp-year-nav-btn {
-        background: #f1f5f9; border: 1.5px solid #e2e8f0; border-radius: 8px;
-        width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; font-size: 1rem; color: #374151;
-        transition: background .12s, transform .12s, border-color .12s;
-    }
-    .fp-year-nav-btn:hover { background: #fff7ed; border-color: #fdba74; color: #ea580c; transform: scale(1.1); }
-    .fp-year-range-lbl { font-size: 0.78rem; font-weight: 700; color: #64748b; }
     </style>
     <!-- Favicon / App icon (minimal logo - SVG) -->
     <link rel="icon" href="/images/otd-logo-minimal.svg" type="image/svg+xml" />
@@ -272,8 +221,8 @@
         .date-card { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; box-shadow: 0 1px 0 rgba(16,24,40,0.03); }
         .date-card .date-input { border: none; padding: 0; margin: 0; background: transparent; outline: none; font-size: 0.95rem; color: inherit; }
         .date-card .date-input::-webkit-calendar-picker-indicator { display: none; }
-        .date-card .date-icon { border: none; background: transparent; padding: 0; margin: 0; color: #6b7280; cursor: pointer; display:flex; align-items:center; }
-        .date-card .date-icon:focus { outline: none; }
+        .date-card .date-icon { border: none; background: transparent; padding: 0; margin: 0; color: #6b7280; cursor: pointer; display:flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; }
+        .date-card .date-icon:focus-visible { outline: 2px solid #9a3412; outline-offset:2px; }
         .date-card .date-icon i { font-size: 1.1rem; }
     </style>
 
@@ -559,6 +508,7 @@
 
     @await RenderSectionAsync("Styles", required: false)
     @inject OperatorCertificationRecord.Web.Services.AdminService AdminService
+    @inject OperatorCertificationRecord.Web.Services.DeveloperRoleService DeveloperRoles
 </head>
 <body>
 <!-- Page navigation progress bar -->
@@ -566,12 +516,13 @@
 @{
     var userCode = Context.Session.GetString("UserCode");
     var isAdmin = !string.IsNullOrEmpty(userCode) && AdminService.IsAdmin(userCode);
+    var isDeveloper = !string.IsNullOrEmpty(userCode) && DeveloperRoles.IsDeveloper(userCode);
 }
 
     @if (ViewData["HideNavbar"] == null)
     {
         <!-- Professional Enterprise Layout with Sidebar -->
-        <div class="app-container">
+        <div class="app-container sidebar-collapsed">
             <!-- Sidebar Navigation -->
             <aside class="app-sidebar">
                 <div class="sidebar-header">
@@ -611,13 +562,16 @@
                                     <i class="bi bi-person-plus-fill"></i>
                                     <span>Add Employee</span>
                                 </a>
-                                <a href="/Admins" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "Admins" ? "active" : "")">
-                                    <i class="bi bi-shield-lock-fill"></i>
-                                    <span>Admin Management</span>
-                                </a>
                                 <a href="/Settings" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active" : "")">
                                     <i class="bi bi-gear-fill"></i>
                                     <span>Settings</span>
+                                </a>
+                            }
+                            @if (isAdmin || isDeveloper)
+                            {
+                                <a href="/Admins" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "Admins" ? "active" : "")">
+                                    <i class="bi bi-shield-lock-fill"></i>
+                                    <span>Admin Management</span>
                                 </a>
                             }
                             <a href="/ViewUser" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "ViewUser" ? "active" : "")">
@@ -663,6 +617,26 @@
                             </a>
                         </div>
                         }
+                        @if (isAdmin || isDeveloper)
+                        {
+                            <div class="sidebar-nav-section">
+                                <div class="sidebar-nav-title">Tools</div>
+                                @if (isAdmin)
+                                {
+                                    <a href="/AdminTools" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "AdminTools" ? "active" : "")" title="Admin Tools">
+                                        <i class="bi bi-shield-check" aria-hidden="true"></i>
+                                        <span>Admin Tools</span>
+                                    </a>
+                                }
+                                @if (isDeveloper)
+                                {
+                                    <a href="/DevTools" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "DevTools" ? "active" : "")" title="Dev Tools">
+                                        <i class="bi bi-code-slash" aria-hidden="true"></i>
+                                        <span>Dev Tools</span>
+                                    </a>
+                                }
+                            </div>
+                        }
                     }
                 </nav>
                 
@@ -673,7 +647,14 @@
                     <div class="sidebar-footer">
                         <div class="sidebar-user">
                             <div class="sidebar-user-avatar">
-                                @Context.Session.GetString("UserCode")?.Substring(0, 2).ToUpper()
+                                @if (!string.IsNullOrWhiteSpace(Context.Session.GetString("PhotoPath")))
+                                {
+                                    <img src="@OperatorCertificationRecord.Web.Services.EmployeeFileUrls.Photo(Context.Session.GetString("PhotoPath"))" alt="Photo unavailable" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                }
+                                else
+                                {
+                                    @Context.Session.GetString("UserCode")?.Substring(0, Math.Min(2, Context.Session.GetString("UserCode")!.Length)).ToUpper()
+                                }
                             </div>
                             <div class="sidebar-user-info">
                                 <span class="sidebar-user-name">@firstName</span>
@@ -739,216 +720,24 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="/js/app.js"></script>
     <script src="/js/fancy-select.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-    <script>
-    // ===== Flatpickr — enhance all input[type="date"] globally =====
-    (function () {
-        if (typeof flatpickr === 'undefined') return;
-        var proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-        var GREGORIAN_WEEKDAYS = {
-            shorthand: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-            longhand: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        };
-        var GREGORIAN_MONTHS = {
-            shorthand: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-            longhand: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-        };
-
-        function enhance(el) {
-            if (el._fpInit) return;
-            if (el.hasAttribute('data-no-flatpickr')) return;
-            if ((el.getAttribute('type') || '').toLowerCase() !== 'date') return;
-            el._fpInit = true;
-
-            var fp = flatpickr(el, {
-                dateFormat: 'Y-m-d',
-                altInput: true,
-                altFormat: 'j M Y',
-                allowInput: true,
-                disableMobile: true,
-                monthSelectorType: 'static',
-                weekNumbers: false,
-                locale: {
-                    firstDayOfWeek: 1,
-                    weekdays: GREGORIAN_WEEKDAYS,
-                    months: GREGORIAN_MONTHS
-                },
-                defaultDate: el.value || null,
-                onChange: function(selectedDates, dateStr) {
-                    // Keep original element's value in sync and fire native change/input events
-                    // so existing onchange="" attributes and addEventListener('change') handlers fire.
-                    proto.set.call(el, dateStr);
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    el.dispatchEvent(new Event('input',  { bubbles: true }));
-                },
-                onReady: function(_, __, instance) {
-                    var cal = instance.calendarContainer;
-                    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-                    function makeHdr(title) {
-                        var hdr = document.createElement('div'); hdr.className = 'fp-overlay-hdr';
-                        var t = document.createElement('span'); t.className = 'fp-overlay-title'; t.textContent = title;
-                        var x = document.createElement('button'); x.type = 'button'; x.className = 'fp-overlay-close'; x.innerHTML = '&#10005;';
-                        hdr.appendChild(t); hdr.appendChild(x);
-                        return hdr;
-                    }
-
-                    // ── Month overlay ─────────────────────────────────────────
-                    var mOverlay = document.createElement('div');
-                    mOverlay.className = 'fp-month-overlay';
-                    document.body.appendChild(mOverlay);
-                    var mHdr = makeHdr('Select Month');
-                    mHdr.querySelector('.fp-overlay-close').addEventListener('mousedown', function(e){ e.preventDefault(); mOverlay.classList.remove('open'); });
-                    mOverlay.appendChild(mHdr);
-                    MONTHS.forEach(function(name, idx) {
-                        var btn = document.createElement('button');
-                        btn.type = 'button'; btn.className = 'fp-month-btn';
-                        btn.textContent = name; btn.dataset.idx = idx;
-                        btn.addEventListener('mousedown', function(e) {
-                            e.preventDefault(); e.stopPropagation();
-                            instance.changeMonth(idx, false);
-                            mOverlay.classList.remove('open');
-                        });
-                        mOverlay.appendChild(btn);
-                    });
-
-                    // ── Year overlay ──────────────────────────────────────────
-                    var yOverlay = document.createElement('div');
-                    yOverlay.className = 'fp-year-overlay';
-                    document.body.appendChild(yOverlay);
-                    var yPageStart = instance.currentYear - 6;
-
-                    function buildYearGrid() {
-                        yOverlay.innerHTML = '';
-                        var yHdr = makeHdr('Select Year');
-                        yHdr.querySelector('.fp-overlay-close').addEventListener('mousedown', function(e){ e.preventDefault(); yOverlay.classList.remove('open'); });
-                        yOverlay.appendChild(yHdr);
-                        // pager nav
-                        var nav = document.createElement('div'); nav.className = 'fp-year-nav';
-                        var prev = document.createElement('button'); prev.type = 'button'; prev.className = 'fp-year-nav-btn'; prev.innerHTML = '&#8249;';
-                        var lbl  = document.createElement('span');  lbl.className = 'fp-year-range-lbl';
-                        lbl.textContent = yPageStart + '\u2013' + (yPageStart + 11);
-                        var next = document.createElement('button'); next.type = 'button'; next.className = 'fp-year-nav-btn'; next.innerHTML = '&#8250;';
-                        prev.addEventListener('mousedown', function(e){ e.preventDefault(); yPageStart -= 12; buildYearGrid(); });
-                        next.addEventListener('mousedown', function(e){ e.preventDefault(); yPageStart += 12; buildYearGrid(); });
-                        nav.appendChild(prev); nav.appendChild(lbl); nav.appendChild(next);
-                        yOverlay.appendChild(nav);
-                        for (var y = yPageStart; y < yPageStart + 12; y++) {
-                            (function(yr){
-                                var btn = document.createElement('button');
-                                btn.type = 'button'; btn.className = 'fp-year-btn';
-                                if (yr === instance.currentYear) btn.classList.add('active');
-                                btn.textContent = yr;
-                                btn.addEventListener('mousedown', function(e) {
-                                    e.preventDefault(); e.stopPropagation();
-                                    instance.changeMonth((yr - instance.currentYear) * 12, true);
-                                    yOverlay.classList.remove('open');
-                                });
-                                yOverlay.appendChild(btn);
-                            })(y);
-                        }
-                    }
-
-                    // ── Month click (event delegation) ─────────────────────────
-                    cal.addEventListener('click', function(e) {
-                        if (!e.target.closest('.cur-month')) return;
-                        e.stopPropagation();
-                        var r = cal.getBoundingClientRect();
-                        yOverlay.classList.remove('open');
-                        mOverlay.querySelectorAll('.fp-month-btn').forEach(function(b) {
-                            b.classList.toggle('active', parseInt(b.dataset.idx) === instance.currentMonth);
-                        });
-                        mOverlay.style.top = r.top + 'px'; mOverlay.style.left = r.left + 'px';
-                        mOverlay.style.width = r.width + 'px'; mOverlay.style.height = r.height + 'px';
-                        mOverlay.classList.toggle('open');
-                    });
-
-                    // ── Year click (direct listener on numInputWrapper) ─────────
-                    var numWrapper = cal.querySelector('.numInputWrapper');
-                    if (numWrapper) {
-                        numWrapper.addEventListener('click', function(e) {
-                            e.stopPropagation(); e.preventDefault();
-                            var r = cal.getBoundingClientRect();
-                            mOverlay.classList.remove('open');
-                            yPageStart = instance.currentYear - 6;
-                            buildYearGrid();
-                            yOverlay.style.top = r.top + 'px'; yOverlay.style.left = r.left + 'px';
-                            yOverlay.style.width = r.width + 'px'; yOverlay.style.height = r.height + 'px';
-                            yOverlay.classList.toggle('open');
-                        });
-                    }
-
-                    // Close on outside click
-                    document.addEventListener('click', function(e) {
-                        if (!mOverlay.contains(e.target) && !cal.contains(e.target)) mOverlay.classList.remove('open');
-                        if (!yOverlay.contains(e.target) && !cal.contains(e.target)) yOverlay.classList.remove('open');
-                    });
-                },
-            });
-
-            // Copy original classes onto altInput so it inherits .dm-input / .ask-input / etc.
-            if (fp && fp.altInput) {
-                Array.from(el.classList)
-                    .filter(function(c){ return c !== 'flatpickr-input'; })
-                    .forEach(function(c){ fp.altInput.classList.add(c); });
-
-                // Wrap altInput in a relative container and append a calendar icon
-                var wrap = document.createElement('div');
-                wrap.className = 'fp-date-wrap';
-                fp.altInput.parentNode.insertBefore(wrap, fp.altInput);
-                wrap.appendChild(fp.altInput);
-                var icon = document.createElement('span');
-                icon.className = 'fp-cal-icon';
-                icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-                wrap.appendChild(icon);
-            }
-
-            // Intercept programmatic el.value = '...' so altInput display stays in sync.
-            // Guard _busy to prevent re-entrant calls when fp.setDate() writes back to el.value.
-            var _busy = false;
-            Object.defineProperty(el, 'value', {
-                get: function() { return proto.get.call(el); },
-                set: function(v) {
-                    proto.set.call(el, v);
-                    if (_busy || !fp) return;
-                    _busy = true;
-                    try { if (v) fp.setDate(v, false); else fp.clear(false); }
-                    finally { _busy = false; }
-                },
-                configurable: true,
-            });
-        }
-
-        // Enhance all date inputs already in the DOM
-        document.querySelectorAll('input[type="date"]').forEach(enhance);
-
-        // Enhance date inputs added later (e.g. dynamic modal content loaded via JS)
-        new MutationObserver(function(muts) {
-            muts.forEach(function(m) {
-                m.addedNodes.forEach(function(node) {
-                    if (node.nodeType !== 1) return;
-                    if (node.matches && node.matches('input[type="date"]')) enhance(node);
-                    if (node.querySelectorAll) node.querySelectorAll('input[type="date"]').forEach(enhance);
-                });
-            });
-        }).observe(document.body, { childList: true, subtree: true });
-    })();
-    </script>
+    <script src="~/lib/flatpickr/flatpickr.min.js" asp-append-version="true"></script>
+    <script src="~/lib/flatpickr/th.js" asp-append-version="true"></script>
+    <script src="~/js/global-date-picker.js" asp-append-version="true"></script>
     <script>
         // Global helper: escape HTML for safe insertion into option lists
         window.escapeHtml = window.escapeHtml || function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); };
 
-        // Sidebar toggle behavior with persistence
+        // Start each page with the sidebar collapsed; opening applies to this page only.
         (function(){
             const container = document.querySelector('.app-container');
             const btn = document.getElementById('toggleSidebarBtn');
-            const STORAGE_KEY = 'ocr_sidebar_collapsed';
             let mobileOverlay = null;
 
             function isMobile() { return window.innerWidth <= 900; }
 
             function applyState(collapsed) {
                 if(!container) return;
+                if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
                 if (collapsed) {
                     container.classList.add('sidebar-collapsed');
                     btn && btn.classList.add('collapsed');
@@ -982,6 +771,7 @@
                 document.body.style.overflow = 'hidden';
                 // show close icon on mobile
                 if (btn) {
+                    btn.setAttribute('aria-expanded', 'true');
                     const ic = btn.querySelector('i');
                     if (ic) ic.className = 'bi bi-x';
                 }
@@ -997,15 +787,12 @@
                 }
                 document.body.style.overflow = '';
                 // restore button icon to collapsed/expanded desktop state
-                try{ const saved = localStorage.getItem(STORAGE_KEY); applyState(saved === '1'); }catch(e){}
+                applyState(container.classList.contains('sidebar-collapsed'));
+                if (btn && isMobile()) btn.setAttribute('aria-expanded', 'false');
             }
 
-            // initialize from localStorage for desktop
-            try{
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (!isMobile()) applyState(saved === '1');
-                else setBtnIconCollapsed(true);
-            }catch(e){}
+            applyState(true);
+            window.addEventListener('pageshow', function(){ closeMobile(); applyState(true); });
 
             if (btn) {
                 btn.addEventListener('click', function(){
@@ -1017,8 +804,7 @@
                     }
 
                     const collapsed = container.classList.toggle('sidebar-collapsed');
-                    try{ localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); }catch(e){}
-                    setBtnIconCollapsed(collapsed);
+                    applyState(collapsed);
                 });
             }
 
@@ -1026,7 +812,6 @@
             window.addEventListener('resize', function(){
                 if (!isMobile()) {
                     closeMobile();
-                    try{ const saved = localStorage.getItem(STORAGE_KEY); applyState(saved === '1'); }catch(e){}
                 }
             });
         })();
@@ -1049,7 +834,10 @@
     </script>
     
     @* Global modals included here so buttons across pages can open them without missing DOM errors *@
-    @await Html.PartialAsync("Shared/_OperatorNoSkillDownloadModal")
+    @if (ViewData["HasOperatorNoSkillModal"] is not true)
+    {
+        @await Html.PartialAsync("Shared/_OperatorNoSkillDownloadModal")
+    }
     @await RenderSectionAsync("Scripts", required: false)
 
     <script>
@@ -1059,35 +847,52 @@
 
         /* Progress bar helpers */
         var _pTimer = null;
+        var _pFrame = null;
+        var _pDoneTimer = null;
+        var _pHideTimer = null;
+        function cancelProgress(){
+            clearTimeout(_pTimer);
+            clearTimeout(_pDoneTimer);
+            clearTimeout(_pHideTimer);
+            cancelAnimationFrame(_pFrame);
+            _pTimer = _pFrame = _pDoneTimer = _pHideTimer = null;
+        }
         function pbStart(){
+            cancelProgress();
             if (!bar) return;
             bar.style.transition = 'width 0.25s ease';
             bar.style.opacity = '1';
             bar.classList.remove('complete');
             bar.style.width = '0%';
-            requestAnimationFrame(function(){
-                requestAnimationFrame(function(){
+            _pFrame = requestAnimationFrame(function(){
+                _pFrame = requestAnimationFrame(function(){
+                    _pFrame = null;
                     bar.style.width = '70%';
                 });
             });
             _pTimer = setTimeout(function(){ bar.style.width = '90%'; }, 500);
         }
         function pbDone(){
+            cancelProgress();
             if (!bar) return;
-            clearTimeout(_pTimer);
             bar.style.transition = 'none';
             bar.style.width = '100%';
             bar.style.opacity = '1';
-            setTimeout(function(){
+            _pDoneTimer = setTimeout(function(){
                 bar.style.transition = 'opacity 0.3s ease';
                 bar.style.opacity = '0';
-                setTimeout(function(){ bar.style.width = '0%'; }, 300);
+                _pHideTimer = setTimeout(function(){ bar.style.width = '0%'; }, 300);
             }, 150);
         }
 
         /* Page-enter: complete bar */
         pbStart();
         window.addEventListener('DOMContentLoaded', function(){ pbDone(); });
+        // History restoration can retain the outgoing page's animation state.
+        window.addEventListener('pageshow', function(){
+            document.body.classList.remove('page-leaving');
+            pbDone();
+        });
 
         /* Page-leave: animate out then navigate */
         document.addEventListener('click', function(e){
@@ -1140,6 +945,7 @@
             if (!card) return;
             var inp = card.querySelector('.date-input');
             if (!inp) return;
+            if (window.AppDatePicker) { window.AppDatePicker.open(inp); return; }
             try { inp.showPicker(); } catch(err) { inp.focus(); inp.click(); }
         });
 

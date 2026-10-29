@@ -1,0 +1,54 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AdminToolsModel
+@{
+    ViewData["Title"] = "Admin Tools";
+    ViewData["ActivePage"] = "AdminTools";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-catalog.css" asp-append-version="true" />
+}
+
+<div class="admin-tools-shell">
+    <aside class="admin-tools-sidebar">
+        <div class="admin-tools-nav-title"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Admin Tools</span></div>
+        <nav class="admin-tools-nav" aria-label="Admin Tools">
+            <a asp-page="/AdminTools" aria-current="@(!Model.IsCatalogTool ? "page" : null)"><i class="bi bi-grid" aria-hidden="true"></i><span>Overview</span></a>
+            <a asp-page="/AdminTools" asp-route-tool="workshops" aria-current="@(Model.IsCatalogTool ? "page" : null)"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Workshops &amp; Processes</span></a>
+        </nav>
+    </aside>
+    <div class="admin-tools-content">
+        @if (Model.IsCatalogTool)
+        {
+            <a asp-page="/AdminTools" class="admin-tools-back"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Admin Tools</a>
+            <partial name="_AdminWorkshopCatalog" model="Model" />
+        }
+        else
+        {
+            <header class="admin-tools-heading">
+                <span class="admin-tools-eyebrow">Administration</span>
+                <h1>Admin Tools</h1>
+                <p>Choose a tool to manage your training records.</p>
+            </header>
+            <section class="admin-tools-features" aria-label="Available admin tools">
+                <a asp-page="/AdminTools" asp-route-tool="workshops" class="admin-tool-card">
+                    <span class="admin-tool-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
+                    <div class="admin-tool-description">
+                        <span class="admin-tool-category">Training catalog</span>
+                        <h2>Workshops &amp; Processes</h2>
+                        <span class="admin-tool-copy">Add workshops and processes, move an existing process, and explore how they connect.</span>
+                        <span class="admin-tool-open">Open tool <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </section>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.IsCatalogTool)
+    {
+        <script src="~/js/admin-catalog.js" asp-append-version="true"></script>
+    }
+}

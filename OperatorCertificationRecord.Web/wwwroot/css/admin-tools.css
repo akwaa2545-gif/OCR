@@ -1,0 +1,30 @@
+.admin-tools-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; color: #0f172a; }
+.admin-tools-sidebar { min-width: 0; padding: 18px 12px 12px; border: 1px solid #dbe3ed; border-radius: 12px; background: #fff; }
+.admin-tools-nav-title { display: flex; align-items: center; gap: 9px; padding: 0 10px 16px; color: #334155; font-size: 14px; font-weight: 800; }
+.admin-tools-nav-title > i { color: #c2410c; font-size: 18px; }
+.admin-tools-nav { display: grid; gap: 6px; }
+.admin-tools-nav a { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: #475569; font-size: 14px; font-weight: 600; line-height: 1.5; text-decoration: none; }
+.admin-tools-nav a span { min-width: 0; overflow-wrap: anywhere; }
+.admin-tools-nav a > i { color: #64748b; font-size: 17px; }
+.admin-tools-nav a:hover { color: #0f172a; background: #f8fafc; }
+.admin-tools-nav a[aria-current="page"] { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+.admin-tools-nav a[aria-current="page"] > i { color: #c2410c; }
+.admin-tools-content { min-width: 0; }
+.admin-tools-heading { padding: 14px 0 28px; }
+.admin-tools-eyebrow { display: block; margin-bottom: 8px; color: #9a3412; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.admin-tools-heading h1 { margin: 0 0 10px; color: #0f172a; font-size: 30px; font-weight: 800; letter-spacing: -.025em; line-height: 1.2; }
+.admin-tools-heading p { margin: 0; color: #475569; font-size: 15px; line-height: 1.6; }
+.admin-tools-features { display: grid; grid-template-columns: minmax(0, 720px); }
+.admin-tool-card { display: flex; align-items: flex-start; gap: 22px; min-width: 0; padding: 28px; border: 1px solid #dbe3ed; border-top: 3px solid #f97316; border-radius: 12px; background: #fff; color: #0f172a; text-decoration: none; box-shadow: 0 4px 14px rgba(15, 23, 42, .035); }
+.admin-tool-card:hover { border-color: #f97316; color: #0f172a; box-shadow: 0 6px 20px rgba(15, 23, 42, .07); }
+.admin-tool-icon { display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; flex-shrink: 0; border: 1px solid #fed7aa; border-radius: 12px; background: #fff7ed; color: #c2410c; font-size: 26px; }
+.admin-tool-description { display: block; min-width: 0; }
+.admin-tool-category { display: block; margin-bottom: 7px; color: #64748b; font-size: 12px; font-weight: 700; }
+.admin-tool-description h2 { margin: 0 0 10px; color: #0f172a; font-size: 21px; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.admin-tool-copy { display: block; max-width: 510px; color: #475569; font-size: 14px; line-height: 1.7; }
+.admin-tool-open { display: inline-flex; align-items: center; gap: 16px; min-height: 44px; margin-top: 14px; color: #9a3412; font-size: 14px; font-weight: 800; }
+.admin-tools-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 12px; color: #475569; font-size: 14px; font-weight: 600; text-decoration: none; }
+.admin-tools-back:hover { color: #9a3412; }
+.admin-tools-nav a:focus-visible, .admin-tool-card:focus-visible, .admin-tools-back:focus-visible { outline: 3px solid #c2410c; outline-offset: 3px; }
+@media (max-width: 1100px) { .admin-tools-shell { grid-template-columns: minmax(0, 1fr); gap: 20px; } .admin-tools-sidebar { padding: 10px; } .admin-tools-nav-title { padding: 4px 10px 10px; } .admin-tools-nav { grid-template-columns: auto auto; justify-content: start; } .admin-tools-heading { padding-top: 0; } }
+@media (max-width: 480px) { .admin-tools-shell { gap: 16px; } .admin-tools-sidebar { padding: 8px; } .admin-tools-nav { grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 4px; } .admin-tools-nav a { gap: 7px; padding: 8px; font-size: 12px; } .admin-tools-nav a > i { font-size: 15px; } .admin-tools-heading { padding-bottom: 22px; } .admin-tools-heading h1 { font-size: 26px; } .admin-tool-card { flex-direction: column; gap: 16px; padding: 22px; } .admin-tool-description h2 { font-size: 20px; } .admin-tool-icon { width: 50px; height: 50px; font-size: 23px; } }

@@ -8,6 +8,7 @@ public class DownloadExpiryDateModel : PageModel {
     private readonly Services.EmployeeService _employeeService;
     private readonly Services.DepartmentService _departmentService;
     private readonly Services.SectionService _sectionService;
+    private readonly DeveloperRoleService _developers;
     private readonly AdminService _adminService;
 
     public List<Models.Department>? Departments { get; set; }
@@ -23,11 +24,12 @@ public class DownloadExpiryDateModel : PageModel {
     [FromQuery(Name = "dept")] public string? Dept { get; set; }
     [FromQuery(Name = "sect")] public string? Sect { get; set; }
 
-    public DownloadExpiryDateModel(Services.EmployeeService employeeService, Services.DepartmentService departmentService, Services.SectionService sectionService, AdminService adminService)
+    public DownloadExpiryDateModel(Services.EmployeeService employeeService, Services.DepartmentService departmentService, Services.SectionService sectionService, AdminService adminService, DeveloperRoleService developers)
     {
         _employeeService = employeeService;
         _departmentService = departmentService;
         _sectionService = sectionService;
+        _developers = developers;
         _adminService = adminService;
     }
 
@@ -68,6 +70,8 @@ public class DownloadExpiryDateModel : PageModel {
             End = DateTime.Today.AddDays(30);
         }
 
+        ExpiringList = DeveloperReportExclusion.Filter(ExpiringList ?? new List<Models.ExpiringSkill>(), row => row.EmpCode, _developers.GetAllDevelopersForReports());
+
         // if dept/sect filters provided via days branch, apply in-memory filter (quick path)
         if (!string.IsNullOrWhiteSpace(Dept) || !string.IsNullOrWhiteSpace(Sect))
         {
@@ -80,6 +84,7 @@ public class DownloadResignModel : PageModel
     private readonly Services.EmployeeService _employeeService;
     private readonly Services.DepartmentService _departmentService;
     private readonly Services.SectionService _sectionService;
+    private readonly DeveloperRoleService _developers;
 
     public List<Models.Department>? Departments { get; set; }
     public List<Models.Section>? Sections { get; set; }
@@ -91,11 +96,12 @@ public class DownloadResignModel : PageModel
     [FromQuery(Name = "dept")]  public string? Dept { get; set; }
     [FromQuery(Name = "sect")]  public string? Sect { get; set; }
 
-    public DownloadResignModel(Services.EmployeeService employeeService, Services.DepartmentService departmentService, Services.SectionService sectionService)
+    public DownloadResignModel(Services.EmployeeService employeeService, Services.DepartmentService departmentService, Services.SectionService sectionService, DeveloperRoleService developers)
     {
         _employeeService = employeeService;
         _departmentService = departmentService;
         _sectionService = sectionService;
+        _developers = developers;
     }
 
     public async Task OnGetAsync()
@@ -107,6 +113,7 @@ public class DownloadResignModel : PageModel
             ResignList = await _employeeService.GetResignListAsync(Start.Value, End.Value, Dept, Sect);
         else
             ResignList = new List<Models.ResignRecord>();
+        ResignList = DeveloperReportExclusion.Filter(ResignList, row => row.EmpCode, _developers.GetAllDevelopersForReports());
     }
 }
 public class DownloadSectionModel : PageModel
@@ -134,14 +141,18 @@ public class DownloadDisqualificationModel : PageModel
     private readonly Services.SectionService _sectionService;
     private readonly Services.DepartmentService _departmentService;
     private readonly Services.EmployeeService _employeeService;
+    private readonly AdminService? _admins;
+    private readonly DeveloperRoleService? _developers;
     public List<Models.Section>? Sections { get; set; }
     public List<Models.Department>? Departments { get; set; }
 
-    public DownloadDisqualificationModel(Services.SectionService sectionService, Services.DepartmentService departmentService, Services.EmployeeService employeeService)
+    public DownloadDisqualificationModel(Services.SectionService sectionService, Services.DepartmentService departmentService, Services.EmployeeService employeeService, AdminService? admins = null, DeveloperRoleService? developers = null)
     {
         _sectionService = sectionService;
         _departmentService = departmentService;
         _employeeService = employeeService;
+        _admins = admins;
+        _developers = developers;
     }
 
     public async Task OnGetAsync()
@@ -153,8 +164,12 @@ public class DownloadDisqualificationModel : PageModel
 
     public async Task<IActionResult> OnPostAsync(string empCode, string processName)
     {
-        if (string.IsNullOrEmpty(HttpContext.Session.GetString("UserCode")))
+        var actor = HttpContext.Session.GetString("UserCode");
+        if (string.IsNullOrEmpty(actor))
             return RedirectToPage("/Login");
+        var isDeveloper = _developers?.IsDeveloper(actor) == true;
+        if (!isDeveloper && _admins?.IsAdmin(actor) != true)
+            return StatusCode(StatusCodes.Status403Forbidden);
 
         if (string.IsNullOrWhiteSpace(empCode) || string.IsNullOrWhiteSpace(processName))
         {
@@ -163,7 +178,12 @@ public class DownloadDisqualificationModel : PageModel
             return RedirectToPage("/DownloadDisqualification");
         }
 
-        var success = await _employeeService.DisqualifySkillAsync(empCode, processName, "Disqualified", HttpContext.Session.GetString("UserName") ?? HttpContext.Session.GetString("UserCode") ?? "System");
+        if (await _employeeService.IsEmployeeResignedAsync(empCode))
+            return BadRequest("Employee has resigned — disqualification disabled.");
+        if (!isDeveloper && await _employeeService.IsEmployeePromotedAsync(empCode))
+            return BadRequest("Employee has been promoted — disqualification disabled.");
+
+        var success = await _employeeService.DisqualifySkillAsync(empCode, processName, "Disqualified", HttpContext.Session.GetString("UserName") ?? actor);
         if (success)
         {
             TempData["Message"] = $"Successfully disqualified {empCode} for {processName}.";

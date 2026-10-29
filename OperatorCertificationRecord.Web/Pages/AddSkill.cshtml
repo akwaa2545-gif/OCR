@@ -235,9 +235,9 @@
 
             <!-- Action Buttons -->
             <div class="ask-actions">
-                @if (Model.IsPromoted)
+                @if (Model.IsResigned || (Model.IsPromoted && !Model.CanOverridePromotion))
                 {
-                    <button type="button" class="ask-btn ask-btn-success disabled" aria-disabled="true" title="Employee promoted — cannot add skills">
+                    <button type="button" class="ask-btn ask-btn-success disabled" aria-disabled="true" title="@(Model.IsResigned ? "Employee resigned — cannot add skills" : "Employee promoted — cannot add skills")">
                         <i class="bi bi-check-lg"></i> Confirm &amp; Save
                     </button>
                 }
