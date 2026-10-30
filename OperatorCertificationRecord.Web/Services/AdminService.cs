@@ -8,16 +8,20 @@ namespace OperatorCertificationRecord.Web.Services;
 public class AdminService
 {
     private readonly string _storePath;
-    private readonly object _lock = new();
+    private readonly object _lock;
     private readonly ILogger<AdminService> _logger;
     private readonly DeveloperRoleService? _developers;
+    private readonly RoleActivityJournal? _activity;
 
-    public AdminService(IConfiguration configuration, ILogger<AdminService>? logger = null, DeveloperRoleService? developers = null)
+    public AdminService(IConfiguration configuration, ILogger<AdminService>? logger = null, DeveloperRoleService? developers = null,
+        RoleActivityJournal? activity = null)
     {
         _logger = logger ?? NullLogger<AdminService>.Instance;
         _developers = developers;
+        _activity = activity;
         _storePath = Path.GetFullPath(configuration["AdminRoles:StorePath"] ??
             Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "admins.json"));
+        _lock = RoleActivityFileGate.SyncRoot(_storePath);
         lock (_lock) TryReadAdmins(out _);
     }
 
@@ -40,24 +44,36 @@ public class AdminService
         {
             lock (_lock)
             {
+                using var fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath);
                 if (!TryReadAdmins(out var admins)) return RoleChangeResult.Forbidden;
                 var actorCode = actor.Trim();
                 var actorIsDeveloper = developers.Contains(actorCode);
-                if (!actorIsDeveloper && !admins.Contains(actorCode)) return RoleChangeResult.Forbidden;
                 if (!IsValidCode(target)) throw new ArgumentException("Invalid employee code.", nameof(target));
                 var targetCode = target.Trim();
+                var replay = _activity?.FindReplay(actorCode, targetCode, "Admin", enabled, admins.Contains(actorCode), actorIsDeveloper);
+                if (replay.HasValue) return replay.Value;
+                if (!actorIsDeveloper && !admins.Contains(actorCode)) return RoleChangeResult.Forbidden;
                 if (!actorIsDeveloper && developers.Contains(targetCode)) return RoleChangeResult.Forbidden;
-                return ChangeMembership(admins, targetCode, enabled, actorCode);
+                return ChangeMembership(admins, targetCode, enabled, actorCode, actorIsDeveloper);
             }
         });
     }
 
-    private RoleChangeResult ChangeMembership(HashSet<string> admins, string target, bool enabled, string actor)
+    private RoleChangeResult ChangeMembership(HashSet<string> admins, string target, bool enabled, string actor, bool actorIsDeveloper)
     {
-        if (admins.Contains(target) == enabled) return RoleChangeResult.Unchanged;
-        if (!enabled && admins.Count == 1) return RoleChangeResult.LastMember;
+        if (admins.Contains(target) == enabled)
+        {
+            _activity?.RecordUnchanged(_storePath, "Admin", actor, target, enabled, admins.Contains(actor), actorIsDeveloper, RoleChangeResult.Unchanged);
+            return RoleChangeResult.Unchanged;
+        }
+        if (!enabled && admins.Count == 1)
+        {
+            _activity?.RecordUnchanged(_storePath, "Admin", actor, target, enabled, admins.Contains(actor), actorIsDeveloper, RoleChangeResult.LastMember);
+            return RoleChangeResult.LastMember;
+        }
         var updated = new HashSet<string>(enabled ? admins.Append(target) : admins.Where(code => code != target), StringComparer.Ordinal);
-        Persist(updated);
+        if (_activity == null) Persist(updated);
+        else _activity.PublishMembership(_storePath, "Admin", admins, updated, actor, target, enabled, admins.Contains(actor), actorIsDeveloper);
         _logger.LogInformation("Admin access changed. Actor={Actor}, Employee={Employee}, Enabled={Enabled}", actor, target, enabled);
         return RoleChangeResult.Updated;
     }
@@ -69,10 +85,8 @@ public class AdminService
         {
             var attributes = File.GetAttributes(_storePath);
             if ((attributes & FileAttributes.Directory) != 0) throw new IOException("Admin store is not a file.");
-            var entries = JsonSerializer.Deserialize<List<string?>>(File.ReadAllText(_storePath))
-                ?? throw new JsonException("Admin store must contain an employee-code array.");
-            if (entries.Any(code => !IsValidCode(code))) throw new JsonException("Admin store contains an invalid employee code.");
-            admins = new HashSet<string>(entries.Select(code => code!.Trim()), StringComparer.Ordinal);
+            var entries = RoleActivityFileStore.Read(_storePath).Members;
+            admins = new HashSet<string>(entries, StringComparer.Ordinal);
             return true;
         }
         catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException)
@@ -89,6 +103,8 @@ public class AdminService
 
     protected virtual void Persist(HashSet<string> admins)
     {
+        if (RoleActivityFileStore.Read(_storePath).SchemaVersion != 0)
+            throw new IOException("Audited access changes require the activity journal.");
         var directory = Path.GetDirectoryName(_storePath)!;
         var temporaryPath = Path.Combine(directory, ".admins-" + Guid.NewGuid().ToString("N") + ".tmp");
         try

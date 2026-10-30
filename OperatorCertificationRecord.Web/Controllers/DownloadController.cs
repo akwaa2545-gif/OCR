@@ -822,13 +822,12 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("SELECT COUNT(1) FROM ViewEmpQualified_All q");
-            sb.AppendLine("WHERE (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')");
+            // Match Download/SkillInventory: inventory includes all shifts and job grades.
+            sb.AppendLine("WHERE (q.DisQualifiedBy = '' OR q.DisQualifiedBy IS NULL)");
             sb.AppendLine("/* DeveloperEmployeeExclusion */");
             sb.AppendLine("  AND q.ResignDate IS NULL");
             sb.AppendLine("  AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))");
             sb.AppendLine("  AND q.ProcessName IS NOT NULL");
-            sb.AppendLine("  AND ISNULL(q.Shift,'') <> 'DAY'");
-            sb.AppendLine("  AND q.JobGrade IN ('51T','52T')");
 
             if (!string.IsNullOrWhiteSpace(department)) sb.AppendLine("  AND q.DeptName = @DeptName");
             if (!string.IsNullOrWhiteSpace(section)) sb.AppendLine("  AND q.SectName = @SectName");

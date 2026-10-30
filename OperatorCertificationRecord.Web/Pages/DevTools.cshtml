@@ -4,3 +4,46 @@
     ViewData["Title"] = "Dev Tools";
     ViewData["ActivePage"] = "DevTools";
 }
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/skill-recovery.css" asp-append-version="true" />
+}
+
+<div class="admin-tools-shell recovery-shell">
+    <aside class="admin-tools-sidebar">
+        <div class="admin-tools-nav-title"><i class="bi bi-code-square" aria-hidden="true"></i><span>Dev Tools</span></div>
+        <nav class="admin-tools-nav" aria-label="Developer tools">
+            <a asp-page="/DevTools" aria-current="page"><i class="bi bi-grid" aria-hidden="true"></i><span>Overview</span></a>
+            <a asp-page="/DevTools/SkillRecovery"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Skill Recovery</span></a>
+            <a asp-page="/DevTools/ActivityLog"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Activity Log</span></a>
+        </nav>
+    </aside>
+    <div class="admin-tools-content">
+        <header class="admin-tools-heading">
+            <span class="admin-tools-eyebrow">Developer workspace</span>
+            <h1>Dev Tools</h1>
+            <p>Review and correct training records with a clear history of every change.</p>
+        </header>
+        <section class="admin-tools-features" aria-label="Available developer tools">
+            <a asp-page="/DevTools/ActivityLog" class="admin-tool-card">
+                <span class="admin-tool-icon"><i class="bi bi-clock-history" aria-hidden="true"></i></span>
+                <div class="admin-tool-description">
+                    <span class="admin-tool-category">Employee history</span>
+                    <h2>Activity Log</h2>
+                    <span class="admin-tool-copy">Search an employee code to see admin changes over time, with results and before-and-after details.</span>
+                    <span class="admin-tool-open">Open <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                </div>
+            </a>
+            <a asp-page="/DevTools/SkillRecovery" class="admin-tool-card">
+                <span class="admin-tool-icon"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></span>
+                <div class="admin-tool-description">
+                    <span class="admin-tool-category">Record corrections</span>
+                    <h2>Skill Recovery</h2>
+                    <span class="admin-tool-copy">Reinstate a skill, restore a version, correct an employee assignment, or undo an incorrect edit or addition.</span>
+                    <span class="admin-tool-open">Open <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                </div>
+            </a>
+        </section>
+    </div>
+</div>

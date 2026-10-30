@@ -213,9 +213,9 @@
 
     </style>
     <!-- Favicon / App icon (minimal logo - SVG) -->
-    <link rel="icon" href="/images/otd-logo-minimal.svg" type="image/svg+xml" />
-    <link rel="shortcut icon" href="/images/otd-logo-minimal.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/images/otd-logo-minimal.svg" />
+    <link rel="icon" href="~/images/otd-logo.png" type="image/png" asp-append-version="true" />
+    <link rel="shortcut icon" href="~/images/otd-logo.png" type="image/png" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/images/otd-logo.png" asp-append-version="true" />
     <style>
         /* Card-style date picker for download modals */
         .date-card { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; box-shadow: 0 1px 0 rgba(16,24,40,0.03); }
@@ -527,7 +527,7 @@
             <aside class="app-sidebar">
                 <div class="sidebar-header">
                     <a href="/Dashboard" class="sidebar-logo">
-                        <img src="/images/otd-logo-minimal.svg" alt="OTD logo" style="height:26px; width:26px; flex-shrink:0;">
+                        <img src="~/images/otd-logo.png" alt="OTD logo" asp-append-version="true" width="32" height="32" style="height:32px; width:32px; object-fit:contain; flex-shrink:0;">
                         <span>OTD System</span>
                     </a>
                 </div>
@@ -580,20 +580,16 @@
                             </a>
                         </div>
                         
-                        <div class="sidebar-nav-section">
-                            <div class="sidebar-nav-title">Training</div>
-                            <a href="/OperatorTraining" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "OperatorTraining" ? "active" : "")">
-                                <i class="bi bi-mortarboard-fill"></i>
-                                <span>Operator Training</span>
-                            </a>
-                            @if (isAdmin)
-                            {
+                        @if (isAdmin)
+                        {
+                            <div class="sidebar-nav-section">
+                                <div class="sidebar-nav-title">Training</div>
                                 <a href="/SkillMatrix" class="sidebar-link @(ViewData["ActivePage"]?.ToString() == "SkillMatrix" ? "active" : "")">
                                     <i class="bi bi-grid-3x3-gap-fill"></i>
                                     <span>Skill Matrix</span>
                                 </a>
-                            }
-                        </div>
+                            </div>
+                        }
 
                         @if (isAdmin)
                         {
@@ -661,10 +657,12 @@
                                 <span class="sidebar-user-role">Online</span>
                             </div>
                         </div>
-                        <a href="/Logout" class="sidebar-link" style="margin-top:0.25rem;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Logout</span>
-                        </a>
+                        <form method="post" asp-page="/Logout" style="margin-top:0.25rem;">
+                            <button type="submit" class="sidebar-link" aria-label="Log out" title="Log out" style="width:100%;border:0;background:transparent;text-align:left;font-family:inherit;cursor:pointer;">
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                                <span>Logout</span>
+                            </button>
+                        </form>
                     </div>
                 }
                 else
@@ -920,6 +918,7 @@
             } catch(err) { console.error('modal placement error', err); }
         });
         document.addEventListener('hidden.bs.modal', function(e){
+            if (document.body.classList.contains('modal-open') || document.querySelector('.modal.show')) return;
             document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
         });
 

@@ -13,15 +13,18 @@ public sealed class EmployeeCertificateStorageService
     private readonly SqlEmployeeFileRepository _repository;
     private readonly EmployeeFileService _files;
     private readonly FileStorageOptions _options;
+    private readonly WebActivityWriter? _activity;
 
     public EmployeeCertificateStorageService(IConfiguration configuration, EmployeeService employees,
-        SqlEmployeeFileRepository repository, EmployeeFileService files, FileStorageOptions options)
+        SqlEmployeeFileRepository repository, EmployeeFileService files, FileStorageOptions options,
+        WebActivityWriter? activity = null)
     {
         _configuration = configuration;
         _employees = employees;
         _repository = repository;
         _files = files;
         _options = options;
+        _activity = activity;
     }
 
     public async Task<bool> SaveAsync(EmployeeQualifiedInput input, IFormFile? upload, string createdBy, CancellationToken ct)
@@ -34,11 +37,21 @@ public sealed class EmployeeCertificateStorageService
         using var connection = new SqlConnection(_configuration.GetConnectionString("DefaultConnection"));
         await connection.OpenAsync(ct);
         var before = schema ? await GetTargetAsync(connection, null, input, ct) : null;
-        if (!_options.ShouldWriteSql(employee, before?.FileId)) return await SaveLegacyAsync(input, upload, ct);
+        if (!_options.ShouldWriteSql(employee, before?.FileId))
+        {
+            if (_activity != null) throw new InvalidOperationException("SQL attachment writes are required to save an audited certificate change.");
+            return await SaveLegacyAsync(input, upload, ct);
+        }
         if (!schema) throw new InvalidOperationException("SQL file storage is not ready.");
         await using var source = upload.OpenReadStream();
         using var staged = await _files.StageAsync(source, employee, FileKind.Certificate, Path.GetFileName(upload.FileName), createdBy, ct);
+        _activity?.SetFileFingerprint(staged.Request);
         using var transaction = connection.BeginTransaction();
+        var capture = _activity == null ? null : await _activity.CaptureAsync(connection, transaction,
+            "skill", input.OcrSkillRowId.HasValue ? "skill-update" : "skill-add", [WebActivityScope.Skills(employee)], ct);
+        if (capture != null && capture.Actor.ActorCode != createdBy)
+            throw new UnauthorizedAccessException("The certificate actor does not match the authenticated user.");
+        if (capture?.Replayed == true) return true;
         await CurrentEmployeePolicy.EnsureCurrentAsync(connection, transaction, employee, ct);
         var locked = await GetTargetAsync(connection, transaction, input, ct);
         var expectedVersion = input.FileStorageVersion ?? before?.RowVersion;
@@ -55,7 +68,9 @@ public sealed class EmployeeCertificateStorageService
         var file = await _repository.InsertVersionAsync(connection, transaction, staged.Request, staged.Content, ct);
         await CurrentEmployeePolicy.EnsureCurrentAsync(connection, transaction, employee, ct);
         await _repository.LinkOwnerAsync(connection, transaction, after.Owner, file.FileId, after.RowVersion, ct);
+        if (capture != null) await _activity!.CompleteAsync(connection, transaction, capture, ct);
         transaction.Commit();
+        if (capture != null) _activity!.MarkCommitted();
         return true;
     }
 

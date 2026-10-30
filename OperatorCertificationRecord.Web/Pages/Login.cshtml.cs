@@ -1,108 +1,65 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Data.SqlClient;
-using OperatorCertificationRecord.Web.Services;
+using OperatorCertificationRecord.Web.Services.Authentication;
 
 namespace OperatorCertificationRecord.Web.Pages;
 
-public class LoginModel : PageModel
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class LoginModel(ILoginAccountStore accounts, RememberedLoginService rememberedLogins,
+    ILogger<LoginModel> logger) : PageModel
 {
-    private readonly IConfiguration _configuration;
-    private readonly DepartmentService _departmentService;
-    private readonly AdminService _adminService;
-    private readonly ILogger<LoginModel>? _logger;
+    [BindProperty] public string Username { get; set; } = "";
+    [BindProperty] public string Password { get; set; } = "";
+    [BindProperty] public bool RememberMe { get; set; }
 
-    [BindProperty]
-    public string Username { get; set; } = "";
+    public string ErrorMessage { get; private set; } = "";
 
-    [BindProperty]
-    public string Password { get; set; } = "";
-
-    public string ErrorMessage { get; set; } = "";
-
-    public LoginModel(IConfiguration configuration, DepartmentService departmentService, AdminService adminService, ILogger<LoginModel>? logger = null)
+    public IActionResult OnGet()
     {
-        _configuration = configuration;
-        _departmentService = departmentService;
-        _adminService = adminService;
-        _logger = logger;
-    }
-
-    public void OnGet()
-    {
+        if (!string.IsNullOrWhiteSpace(HttpContext.Session.GetString("UserCode")))
+            return RedirectToPage("/Dashboard");
+        if (HttpContext.Items[RememberedLoginService.UnavailableKey] is true)
+            ErrorMessage = "Automatic sign-in is temporarily unavailable. You can sign in manually.";
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (string.IsNullOrEmpty(Username) || string.IsNullOrEmpty(Password))
-        {
-            ErrorMessage = "Username and password are required.";
-            return Page();
-        }
+        Username = (Username ?? "").Trim();
+        var suppliedPassword = Password ?? "";
+        Password = "";
+        ModelState.Remove(nameof(Password));
+
+        if (Username.Length == 0 || suppliedPassword.Length == 0)
+            return Invalid("Employee ID and password are required.");
+        if (Username.Length > 20 || !Username.All(character => char.IsAsciiLetterOrDigit(character) || character == '-') ||
+            suppliedPassword.Length > 1024)
+            return Invalid("Use a valid employee ID and password.");
+        if (!ModelState.IsValid) return Invalid("Check the sign-in form and try again.");
 
         try
         {
-            var connectionString = _configuration.GetConnectionString("DefaultConnection");
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                ErrorMessage = "Database connection not configured.";
-                return Page();
-            }
-
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                var query = "SELECT EmpCode, PersonFnameEng, PersonLnameEng, DeptID, Photo FROM tblEmployee WHERE EmpCode = @EmpCode AND EmpPassword = @Password";
-
-                using (var probe = new SqlCommand("SELECT COL_LENGTH('dbo.tblEmployee','PhotoFileId')", connection))
-                    if (await probe.ExecuteScalarAsync() is not DBNull)
-                        query = query.Replace("SELECT EmpCode", "SELECT PhotoFileId, EmpCode");
-                using (var command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@EmpCode", Username);
-                    command.Parameters.AddWithValue("@Password", Password);
-
-                    using (var reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            var empCode = reader["EmpCode"].ToString() ?? "";
-                            var firstName = reader["PersonFnameEng"]?.ToString() ?? "";
-                            var lastName = reader["PersonLnameEng"]?.ToString() ?? "";
-                            var deptId = reader["DeptID"]?.ToString() ?? "";
-
-                            HttpContext.Session.SetString("UserCode", empCode);
-                            HttpContext.Session.SetString("UserName", $"{firstName} {lastName}");
-                            HttpContext.Session.SetString("DeptID", deptId);
-                            HttpContext.Session.SetString("LoginDate", DateTime.Now.ToString("dd MMMM yyyy"));
-
-                            // store photo path for later pages
-                            var photoId = Enumerable.Range(0, reader.FieldCount).Any(i => reader.GetName(i) == "PhotoFileId") ? reader["PhotoFileId"] as Guid? : null;
-                            var photoPath = photoId.HasValue ? EmployeeFileUrls.CurrentPhoto(empCode) : reader["Photo"]?.ToString() ?? "";
-                            HttpContext.Session.SetString("PhotoPath", photoPath);
-
-                            // Get department name
-                            var departments = await _departmentService.GetAllDepartmentsAsync();
-                            var dept = departments.FirstOrDefault(d => d.DeptID == deptId);
-                            HttpContext.Session.SetString("DepartmentName", dept?.DeptName ?? "Unknown");
-
-                            // Admin check
-                            HttpContext.Session.SetString("IsAdmin", _adminService.IsAdmin(empCode) ? "true" : "false");
-
-                            return RedirectToPage("/Dashboard");
-                        }
-                    }
-                }
-            }
-
-            ErrorMessage = "Invalid username or password.";
-            return Page();
+            var account = await accounts.AuthenticateAsync(Username, suppliedPassword, HttpContext.RequestAborted);
+            if (account == null) return Invalid("Invalid username or password.");
+            await rememberedLogins.SignInAsync(HttpContext, account, RememberMe, HttpContext.RequestAborted);
+            return RedirectToPage("/Dashboard");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
         {
-            _logger?.LogError(ex, "Login failed while loading employee data");
-            ErrorMessage = "Login is temporarily unavailable. Please try again.";
-            return Page();
+            HttpContext.Session.Clear();
+            throw;
         }
+        catch (Exception error)
+        {
+            HttpContext.Session.Clear();
+            logger.LogError(error, "Login could not be completed");
+            return Invalid("Login is temporarily unavailable. Please try again.");
+        }
+    }
+
+    private PageResult Invalid(string message)
+    {
+        ErrorMessage = message;
+        return Page();
     }
 }

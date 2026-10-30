@@ -44,6 +44,7 @@ namespace OperatorCertificationRecord.Web.Filters
 
             if (!isAdmin)
             {
+                http.Items[WebActivityContextFactory.OutcomeKey] = "Denied";
                 var req = http.Request;
                 var isAjax = req.Headers["X-Requested-With"] == "XMLHttpRequest" || req.Headers["Accept"].ToString().Contains("application/json");
                 if (isAjax)

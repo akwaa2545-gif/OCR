@@ -1,0 +1,10 @@
+@model string
+<aside class="admin-tools-sidebar">
+    <div class="admin-tools-nav-title"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Admin Tools</span></div>
+    <nav class="admin-tools-nav" aria-label="Admin Tools">
+        <a asp-page="/AdminTools" aria-current="@(Model == "overview" ? "page" : null)"><i class="bi bi-grid" aria-hidden="true"></i><span>Overview</span></a>
+        <a asp-page="/AdminTools" asp-route-tool="workshops" aria-current="@(Model == "workshops" ? "page" : null)"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Workshops &amp; Processes</span></a>
+        <a asp-page="/AdminTools/BulkEmployees" aria-current="@(Model == "bulk" ? "page" : null)"><i class="bi bi-people" aria-hidden="true"></i><span>Bulk Employee Updates</span></a>
+        <a asp-page="/AdminTools/MissingFiles" aria-current="@(Model == "files" ? "page" : null)"><i class="bi bi-file-earmark-search" aria-hidden="true"></i><span>Missing Files Center</span></a>
+    </nav>
+</aside>

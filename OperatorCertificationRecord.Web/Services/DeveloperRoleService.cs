@@ -1,21 +1,21 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace OperatorCertificationRecord.Web.Services;
 
 public sealed class DeveloperRoleService
 {
-    private static readonly ConcurrentDictionary<string, object> StoreLocks = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _storePath;
     private readonly object _gate;
     private readonly ILogger<DeveloperRoleService> _logger;
+    private readonly RoleActivityJournal? _activity;
 
-    public DeveloperRoleService(IConfiguration configuration, ILogger<DeveloperRoleService> logger)
+    public DeveloperRoleService(IConfiguration configuration, ILogger<DeveloperRoleService> logger, RoleActivityJournal? activity = null)
     {
         _storePath = Path.GetFullPath(configuration["DeveloperRoles:StorePath"] ??
             Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "developers.json"));
-        _gate = StoreLocks.GetOrAdd(_storePath, _ => new object());
+        _gate = RoleActivityFileGate.SyncRoot(_storePath);
         _logger = logger;
+        _activity = activity;
     }
 
     public bool IsDeveloper(string? empCode)
@@ -65,13 +65,15 @@ public sealed class DeveloperRoleService
         lock (_gate)
         {
             HashSet<string> roles;
-            try { roles = ReadRoles(requireStore: true); }
+            IDisposable? fileGate = null;
+            try { fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath); roles = ReadRoles(requireStore: true); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                fileGate?.Dispose();
                 _logger.LogError(ex, "Admin role change denied because Developer membership could not be verified");
                 return RoleChangeResult.Forbidden;
             }
-            return mutation(roles);
+            using (fileGate) return mutation(roles);
         }
     }
 
@@ -81,6 +83,7 @@ public sealed class DeveloperRoleService
         if (!TryNormalize(actorCode, out var actor)) return RoleChangeResult.Forbidden;
         lock (_gate)
         {
+            using var fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath);
             if (!ReadRolesForMutation().Contains(actor)) return RoleChangeResult.Forbidden;
             return mutation();
         }
@@ -91,18 +94,31 @@ public sealed class DeveloperRoleService
         if (!TryNormalize(actorCode, out var actor)) return RoleChangeResult.Forbidden;
         lock (_gate)
         {
+            using var fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath);
             var roles = ReadRolesForMutation();
-            if (!roles.Contains(actor)) return RoleChangeResult.Forbidden;
             if (!TryNormalize(targetEmpCode, out var target))
                 throw new ArgumentException("Invalid employee code.", nameof(targetEmpCode));
+            var actorIsAdmin = _activity?.ActorIsAdmin(actor) == true;
+            var replay = _activity?.FindReplay(actor, target, "Developer", enabled, actorIsAdmin, roles.Contains(actor));
+            if (replay.HasValue) return replay.Value;
+            if (!roles.Contains(actor)) return RoleChangeResult.Forbidden;
             var present = roles.Contains(target);
-            if (present == enabled) return RoleChangeResult.Unchanged;
-            if (!enabled && roles.Count == 1) return RoleChangeResult.LastMember;
+            if (present == enabled)
+            {
+                _activity?.RecordUnchanged(_storePath, "Developer", actor, target, enabled, actorIsAdmin, true, RoleChangeResult.Unchanged);
+                return RoleChangeResult.Unchanged;
+            }
+            if (!enabled && roles.Count == 1)
+            {
+                _activity?.RecordUnchanged(_storePath, "Developer", actor, target, enabled, actorIsAdmin, true, RoleChangeResult.LastMember);
+                return RoleChangeResult.LastMember;
+            }
 
             var updated = new HashSet<string>(roles, StringComparer.Ordinal);
             if (enabled) updated.Add(target);
             else updated.Remove(target);
-            Persist(updated);
+            if (_activity == null) Persist(updated);
+            else _activity.PublishMembership(_storePath, "Developer", roles, updated, actor, target, enabled, actorIsAdmin, true);
             _logger.LogInformation("Developer access changed by {ActorCode} for {TargetCode}: {Enabled}", actor, target, enabled);
             return RoleChangeResult.Updated;
         }
@@ -127,10 +143,7 @@ public sealed class DeveloperRoleService
             _logger.LogWarning("Developer role store is missing; developer access is denied");
             return new HashSet<string>(StringComparer.Ordinal);
         }
-        string[]? stored;
-        try { stored = JsonSerializer.Deserialize<string[]>(File.ReadAllText(_storePath)); }
-        catch (JsonException ex) { throw new IOException("The developer role store is invalid.", ex); }
-        if (stored == null) throw new IOException("The developer role store is invalid.");
+        var stored = RoleActivityFileStore.Read(_storePath).Members;
         var roles = new HashSet<string>(StringComparer.Ordinal);
         foreach (var value in stored)
         {
@@ -142,6 +155,8 @@ public sealed class DeveloperRoleService
 
     private void Persist(HashSet<string> roles)
     {
+        if (RoleActivityFileStore.Read(_storePath).SchemaVersion != 0)
+            throw new IOException("Audited access changes require the activity journal.");
         var temporaryPath = _storePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {

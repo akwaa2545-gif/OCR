@@ -6,10 +6,12 @@ namespace OperatorCertificationRecord.Web.Services;
 public partial class EmployeeService
 {
     private readonly string _connectionString;
+    private readonly WebActivityWriter? _activity;
 
-    public EmployeeService(IConfiguration configuration)
+    public EmployeeService(IConfiguration configuration, WebActivityWriter? activity = null)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
+        _activity = activity;
     }
 
     // Fetch expiring skills across all employees
@@ -158,15 +160,15 @@ public partial class EmployeeService
         await connection.OpenAsync();
         var sql = @"
             SELECT
-              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate BETWEEN @cs AND @ce) AS Cur,
-              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate BETWEEN @ps AND @pe) AS Prev
+              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate >= @cs AND ResignDate < @ce) AS Cur,
+              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate >= @ps AND ResignDate < @pe) AS Prev
         ";
         using var cmd = new SqlCommand(sql, connection);
         cmd.CommandTimeout = 300;
-        cmd.Parameters.AddWithValue("@cs", curStart.Date);
-        cmd.Parameters.AddWithValue("@ce", curEnd.Date.AddDays(1).AddTicks(-1));
-        cmd.Parameters.AddWithValue("@ps", prevStart.Date);
-        cmd.Parameters.AddWithValue("@pe", prevEnd.Date.AddDays(1).AddTicks(-1));
+        cmd.Parameters.Add("@cs", SqlDbType.DateTime).Value = curStart.Date;
+        cmd.Parameters.Add("@ce", SqlDbType.DateTime).Value = curEnd.Date.AddDays(1);
+        cmd.Parameters.Add("@ps", SqlDbType.DateTime).Value = prevStart.Date;
+        cmd.Parameters.Add("@pe", SqlDbType.DateTime).Value = prevEnd.Date.AddDays(1);
         using var reader = await cmd.ExecuteReaderAsync();
         if (await reader.ReadAsync())
             return (reader.GetInt32(0), reader.GetInt32(1));
@@ -787,6 +789,8 @@ public partial class EmployeeService
             {
                 try
                 {
+                    var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-add", employee.EmpCode ?? "");
+                    if (activity?.Replayed == true) return true;
                     // Check if EmpCode already exists
                     using (var checkCmd = new SqlCommand("SELECT COUNT(1) FROM tblEmployee WHERE EmpCode = @EmpCode", connection, transaction))
                     {
@@ -823,7 +827,9 @@ public partial class EmployeeService
                         await insertCmd.ExecuteNonQueryAsync();
                     }
 
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity);
                     transaction.Commit();
+                    _activity?.MarkCommitted();
                     return true;
                 }
                 catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
@@ -1034,6 +1040,9 @@ public partial class EmployeeService
         {
             await connection.OpenAsync(cancellationToken);
             transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-promote",
+                normalizedEmpCode, includeSkills: true, ct: cancellationToken);
+            if (activity?.Replayed == true) return true;
 
             const string updateEmployeeSql = @"
 UPDATE tblEmployee
@@ -1073,7 +1082,9 @@ WHERE EmpCode = @EmpCode
                 throw new InvalidOperationException("Promotion requires at least one current skill to archive.");
             }
 
+            await CompleteEmployeeActivityAsync(connection, transaction, activity, cancellationToken);
             transaction.Commit();
+            _activity?.MarkCommitted();
         }
         catch (OperationCanceledException)
         {
@@ -1117,6 +1128,10 @@ WHERE EmpCode = @EmpCode
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-update", employee.EmpCode ?? "");
+            if (activity?.Replayed == true) return true;
+            var passwordChanged = await PasswordWillChangeAsync(connection, transaction, employee.EmpCode ?? "", employee.EmpPassword ?? "");
             var query = @"UPDATE tblEmployee SET 
                          EmpPassword = @EmpPassword, 
                          JoinDate = @JoinDate, 
@@ -1135,7 +1150,7 @@ WHERE EmpCode = @EmpCode
                          Notice = @Notice 
                          WHERE EmpCode = @EmpCode";
 
-            using (var command = new SqlCommand(query, connection))
+            using (var command = new SqlCommand(query, connection, transaction))
             {
                 command.Parameters.AddWithValue("@EmpCode", employee.EmpCode);
                 command.Parameters.AddWithValue("@EmpPassword", employee.EmpPassword ?? "");
@@ -1156,7 +1171,10 @@ WHERE EmpCode = @EmpCode
 
                 try
                 {
-                    await command.ExecuteNonQueryAsync();
+                    if (await command.ExecuteNonQueryAsync() != 1) return false;
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity, passwordChanged: passwordChanged);
+                    transaction.Commit();
+                    _activity?.MarkCommitted();
                     return true;
                 }
                 catch
@@ -1173,23 +1191,30 @@ WHERE EmpCode = @EmpCode
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "security", "password-change", empCode);
+            if (activity?.Replayed == true) return true;
             // Verify current password first
             const string verify = "SELECT COUNT(1) FROM tblEmployee WHERE EmpCode = @EmpCode AND EmpPassword = @Current";
-            using (var cmd = new SqlCommand(verify, connection))
+            using (var cmd = new SqlCommand(verify, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
                 cmd.Parameters.AddWithValue("@Current", currentPassword);
                 var count = (int)await cmd.ExecuteScalarAsync();
                 if (count == 0) return false;
             }
+            var passwordChanged = await PasswordWillChangeAsync(connection, transaction, empCode, newPassword);
             // Update password
             const string update = "UPDATE tblEmployee SET EmpPassword = @New WHERE EmpCode = @EmpCode";
-            using (var cmd = new SqlCommand(update, connection))
+            using (var cmd = new SqlCommand(update, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
                 cmd.Parameters.AddWithValue("@New", newPassword);
-                await cmd.ExecuteNonQueryAsync();
+                if (await cmd.ExecuteNonQueryAsync() != 1) return false;
             }
+            await CompleteEmployeeActivityAsync(connection, transaction, activity, passwordChanged: passwordChanged);
+            transaction.Commit();
+            _activity?.MarkCommitted();
             return true;
         }
     }
@@ -1204,6 +1229,8 @@ WHERE EmpCode = @EmpCode
             {
                 try
                 {
+                    var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-resign", empCode, includeSkills: true);
+                    if (activity?.Replayed == true) return true;
                     // Mark employee as resigned
                     var sql = @"UPDATE tblEmployee SET StatusWork = '0', ResignBy = @ResignBy, ResignDate = GETDATE() WHERE EmpCode = @EmpCode AND (ResignBy IS NULL OR LTRIM(RTRIM(ResignBy)) = '')";
                     using (var cmd = new SqlCommand(sql, connection, transaction))
@@ -1246,7 +1273,9 @@ WHERE EmpCode = @EmpCode
                         await markObCmd.ExecuteNonQueryAsync();
                     }
 
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity);
                     transaction.Commit();
+                    _activity?.MarkCommitted();
                     return true;
                 }
                 catch
@@ -1265,13 +1294,16 @@ WHERE EmpCode = @EmpCode
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-transfer", empCode);
+            if (activity?.Replayed == true) return true;
             var sql = @"UPDATE tblEmployee
                         SET DeptID = @DeptID, SectID = @SectID, WorkshopID = @WorkshopID,
                             Shift = @Shift, Notice = 'Transfer',
                             TransferBy = @TransferBy, TransferDate = GETDATE()
                         WHERE EmpCode = @EmpCode
                           AND (ResignDate IS NULL AND (StatusWork IS NULL OR StatusWork <> '0'))";
-            using (var cmd = new SqlCommand(sql, connection))
+            using (var cmd = new SqlCommand(sql, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
                 cmd.Parameters.AddWithValue("@DeptID", deptId);
@@ -1280,7 +1312,11 @@ WHERE EmpCode = @EmpCode
                 cmd.Parameters.AddWithValue("@Shift", shift);
                 cmd.Parameters.AddWithValue("@TransferBy", transferredBy);
                 var rows = await cmd.ExecuteNonQueryAsync();
-                return rows > 0;
+                if (rows == 0) return false;
+                await CompleteEmployeeActivityAsync(connection, transaction, activity);
+                transaction.Commit();
+                _activity?.MarkCommitted();
+                return true;
             }
         }
     }
@@ -1293,8 +1329,13 @@ WHERE EmpCode = @EmpCode
         using var transaction = connection.BeginTransaction();
         try
         {
+            var action = input.OcrSkillRowId.HasValue ? "skill-update" : "skill-add";
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "skill", action, input.EmpCode ?? "", skillsOnly: true, processName: input.ProcessName);
+            if (activity?.Replayed == true) return true;
             var result = await AddOrUpdateQualifiedInTransactionAsync(input, connection, transaction, CancellationToken.None);
+            await CompleteEmployeeActivityAsync(connection, transaction, activity);
             transaction.Commit();
+            _activity?.MarkCommitted();
             return result;
         }
         catch { transaction.Rollback(); throw; }
@@ -1414,8 +1455,11 @@ WHERE EmpCode = @EmpCode
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
             try
             {
+                var activity = await BeginEmployeeActivityAsync(connection, transaction, "skill", "skill-disqualify", empCode ?? "", skillsOnly: true, processName: processName);
+                if (activity?.Replayed == true) return true;
                 var query = @"
                     UPDATE tblQualified 
                     SET DisQualifiedBy = @DisQualifiedBy, 
@@ -1426,7 +1470,7 @@ WHERE EmpCode = @EmpCode
                       AND (DisQualifiedBy = '' OR DisQualifiedBy IS NULL)
                 ";
 
-                using (var command = new SqlCommand(query, connection))
+                using (var command = new SqlCommand(query, connection, transaction))
                 {
                     command.Parameters.AddWithValue("@EmpCode", empCode ?? "");
                     command.Parameters.AddWithValue("@ProcessName", processName ?? "");
@@ -1434,7 +1478,11 @@ WHERE EmpCode = @EmpCode
                     command.Parameters.AddWithValue("@DisQualifiedBy", disqualifiedBy ?? "");
 
                     int rowsAffected = await command.ExecuteNonQueryAsync();
-                    return rowsAffected > 0;
+                    if (rowsAffected == 0) return false;
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity);
+                    transaction.Commit();
+                    _activity?.MarkCommitted();
+                    return true;
                 }
             }
             catch

@@ -1,7 +1,28 @@
 @page
 @model OperatorCertificationRecord.Web.Pages.LogoutModel
+@{
+    ViewData["Title"] = "Sign out";
+}
 
-<script>
-	// Fallback client-side redirect to ensure navigation to the Login page
-	window.location.replace('/Login');
-</script>
+<section class="card" style="max-width:520px;margin:2rem auto;padding:2rem;">
+    <h1 style="font-size:1.5rem;">Sign out?</h1>
+    @if (Model.ErrorMessage != null)
+    {
+        <p class="alert alert-warning" role="alert">@Model.ErrorMessage</p>
+    }
+    else
+    {
+        <p>Your remembered sign-in will be removed from this browser.</p>
+    }
+    @if (Model.ErrorMessage == null)
+    {
+        <form method="post" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary">Sign out</button>
+            <a asp-page="/Dashboard" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    }
+    else
+    {
+        <a asp-page="/Login" class="btn btn-outline-secondary">Back to sign in</a>
+    }
+</section>

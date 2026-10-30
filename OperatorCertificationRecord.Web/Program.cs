@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
 using OperatorCertificationRecord.Web.Services;
+using OperatorCertificationRecord.Web.Services.Authentication;
 using OperatorCertificationRecord.Web.Services.Logging;
 using QuestPDF.Infrastructure;
 using Serilog;
@@ -51,6 +52,19 @@ try
 
     // Add services to the container
     builder.Services.AddRazorPages();
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddSingleton<WebActivityContextFactory>();
+    builder.Services.AddSingleton<WebActivityCommands>();
+    builder.Services.AddScoped<WebActivityWriter>();
+    builder.Services.AddScoped<IWebActivityReader, WebActivityReader>();
+    builder.Services.AddScoped<WebActivityAccessRecorder>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.WebActivityPageFilter>();
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(options =>
+        options.Filters.AddService<OperatorCertificationRecord.Web.Filters.WebActivityPageFilter>(-2000));
+    builder.Services.AddSingleton<RoleActivityJournal>();
+    builder.Services.AddSingleton<IRoleActivitySink, RoleActivitySqlSink>();
+    builder.Services.AddHostedService<RoleActivityDispatcher>();
+    builder.Services.AddScoped<RecoveryActivityImporter>();
     builder.Services.AddControllers();
     builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 70L * 1024 * 1024);
     builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 70L * 1024 * 1024);
@@ -59,7 +73,14 @@ try
         options.IdleTimeout = TimeSpan.FromMinutes(30);
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     });
+    builder.Services.AddScoped<ILoginAccountStore, SqlLoginAccountStore>();
+    builder.Services.AddScoped<IRememberedLoginStore, SqlRememberedLoginStore>();
+    builder.Services.AddSingleton<LoginSessionWriter>();
+    builder.Services.AddScoped<RememberedLoginService>();
 
     // Add Logging Service (singleton for in-memory log storage)
     builder.Services.AddSingleton<LoggingService>();
@@ -99,6 +120,17 @@ try
     builder.Services.AddScoped<WorkshopService>();
     builder.Services.AddScoped<IAdminCatalogStore, SqlAdminCatalogStore>();
     builder.Services.AddScoped<IAdminCatalogService, AdminCatalogService>();
+    builder.Services.AddScoped<IBulkEmployeeStore, BulkEmployeeSqlStore>();
+    builder.Services.AddScoped<BulkEmployeeService>();
+    builder.Services.AddScoped<IMissingFileStore, MissingFileSqlStore>();
+    builder.Services.AddScoped<IMissingFileAccess, MissingFileAccess>();
+    builder.Services.AddScoped<IMissingFileProbe, MissingFileProbe>();
+    builder.Services.AddScoped<IMissingFileService, MissingFileService>();
+    builder.Services.AddScoped<ISkillRecoveryFileSource, SkillRecoveryFileSource>();
+    builder.Services.AddScoped<SkillRecoveryFiles>();
+    builder.Services.AddSingleton<SkillRecoveryPdfUploads>();
+    builder.Services.AddScoped<ISkillRecoveryStore, SkillRecoverySqlStore>();
+    builder.Services.AddScoped<SkillRecoveryService>();
     builder.Services.AddScoped<JobGradeService>();
     builder.Services.AddScoped<OperatorTrainingService>();
     builder.Services.AddScoped<PdfExportService>();
@@ -160,6 +192,8 @@ try
 
     app.UseRouting();
     app.UseSession();
+    app.UseMiddleware<RememberedLoginMiddleware>();
+    app.UseMiddleware<WebActivityFileAccessMiddleware>();
     
     // Add custom request logging middleware (after session, so we can access user info)
     app.UseRequestLogging();

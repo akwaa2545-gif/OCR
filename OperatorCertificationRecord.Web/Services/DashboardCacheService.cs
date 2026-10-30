@@ -43,6 +43,7 @@ public sealed class DashboardCacheService : IDashboardCacheService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DashboardCacheService> _logger;
+    private readonly Func<CancellationToken, Task<DashboardData>>? _fetchOverride;
 
     // TTL before a background refresh is triggered (proactive refresh at 80% of TTL)
     public static readonly TimeSpan CacheDuration   = TimeSpan.FromMinutes(30);
@@ -55,9 +56,16 @@ public sealed class DashboardCacheService : IDashboardCacheService
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     public DashboardCacheService(IServiceScopeFactory scopeFactory, ILogger<DashboardCacheService> logger)
+        : this(scopeFactory, logger, null)
+    {
+    }
+
+    internal DashboardCacheService(IServiceScopeFactory scopeFactory, ILogger<DashboardCacheService> logger,
+        Func<CancellationToken, Task<DashboardData>>? fetchOverride)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _fetchOverride = fetchOverride;
     }
 
     /// <inheritdoc />
@@ -88,14 +96,14 @@ public sealed class DashboardCacheService : IDashboardCacheService
         _logger.LogWarning("[DashboardCache] cold cache — synchronous fetch required");
         await RefreshAsync(ct);
 
-        // If refresh failed (e.g. DB timeout), return empty data rather than throwing NullReferenceException
-        if (_snapshot is null)
+        // Another caller may own the first refresh. Cold readers join it; stale
+        // readers above still return immediately without waiting for refresh work.
+        await _refreshLock.WaitAsync(ct);
+        try
         {
-            _logger.LogWarning("[DashboardCache] cold cache refresh failed — returning empty dashboard data");
-            return new DashboardData();
+            return _snapshot?.Data ?? throw new InvalidOperationException("Dashboard data is currently unavailable.");
         }
-
-        return _snapshot.Data;
+        finally { _refreshLock.Release(); }
     }
 
     /// <inheritdoc />
@@ -114,7 +122,7 @@ public sealed class DashboardCacheService : IDashboardCacheService
             _logger.LogInformation("[DashboardCache] refresh started (last snapshot age: {Age})", staleAge);
 
             var sw = Stopwatch.StartNew();
-            var newData = await FetchFromDbAsync(ct);
+            var newData = await (_fetchOverride?.Invoke(ct) ?? FetchFromDbAsync(ct));
             sw.Stop();
 
             // Atomic snapshot swap — readers never see partial state
@@ -153,8 +161,9 @@ public sealed class DashboardCacheService : IDashboardCacheService
         var trendTask = employeeService.GetResignMonthlyTrendAsync(6);
         var extStatsTask = employeeService.GetOperatorExtendedStatsAsync();
         var skillTrendTask = employeeService.GetSkillLevelTrendAsync(12);
+        var departmentStatsTask = employeeService.GetDashboardDepartmentStatsAsync(ct);
 
-        await Task.WhenAll(countsTask, previewTask, resignCountsTask, trendTask, extStatsTask, skillTrendTask);
+        await Task.WhenAll(countsTask, previewTask, resignCountsTask, trendTask, extStatsTask, skillTrendTask, departmentStatsTask);
 
         sw.Stop();
         _logger?.LogInformation("[DashboardCache] FetchFromDbAsync: parallel queries completed in {Ms}ms", sw.ElapsedMilliseconds);
@@ -176,6 +185,7 @@ public sealed class DashboardCacheService : IDashboardCacheService
             HandicapCount = handicapCount,
             NoSkillCount = noSkillCount,
             OneSkillCount = oneSkillCount,
+            DepartmentKpis = await departmentStatsTask,
             SkillLevelTrend = (await skillTrendTask) ?? new List<OperatorCertificationRecord.Web.Models.SkillLevelMonthData>()
         };
     }
@@ -183,6 +193,9 @@ public sealed class DashboardCacheService : IDashboardCacheService
 
 public class DashboardData
 {
+    public IReadOnlyDictionary<string, DashboardDepartmentStats> DepartmentKpis { get; init; } =
+        new System.Collections.ObjectModel.ReadOnlyDictionary<string, DashboardDepartmentStats>(
+            new Dictionary<string, DashboardDepartmentStats>());
     public int TotalEmployees { get; set; }
     public int ExpiringCount { get; set; }
     public List<ExpiringSkill> ExpiringSoonPreview { get; set; } = new();

@@ -1,0 +1,266 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.DevTools.SkillRecoveryModel
+@using OperatorCertificationRecord.Web.Services
+@{
+    ViewData["Title"] = "Skill Recovery";
+    ViewData["ActivePage"] = "DevTools";
+    var actions = new[] { "reinstate", "restore", "move", "undo-edit", "undo-add", "move-tab", "remove-pdf", "replace-pdf" };
+    var selected = Model.Selected;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-operations.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/skill-recovery.css" asp-append-version="true" />
+}
+<div class="admin-tools-shell recovery-shell">
+    <aside class="admin-tools-sidebar">
+        <div class="admin-tools-nav-title"><i class="bi bi-code-square" aria-hidden="true"></i><span>Dev Tools</span></div>
+        <nav class="admin-tools-nav" aria-label="Developer tools">
+            <a asp-page="/DevTools"><i class="bi bi-grid" aria-hidden="true"></i><span>Overview</span></a>
+            <a asp-page="/DevTools/SkillRecovery" aria-current="page"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Skill Recovery</span></a>
+            <a asp-page="/DevTools/ActivityLog"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Activity Log</span></a>
+        </nav>
+    </aside>
+    <div class="admin-tools-content admin-ops-page">
+        <header class="admin-ops-header recovery-heading">
+            <div><span class="admin-tools-eyebrow">Record corrections</span><h1>Skill Recovery</h1><p>Choose an employee and skill. Open Actions to review a correction.</p></div>
+            <span class="admin-ops-badge"><i class="bi bi-code-square" aria-hidden="true"></i> Developer</span>
+        </header>
+
+        @if (!Model.OpenDialog)
+        {
+            @if (!string.IsNullOrWhiteSpace(Model.StatusMessage)) { <div id="recovery-notice" class="admin-ops-notice @(Model.HasError ? "is-error" : "is-success")" role="@(Model.HasError ? "alert" : "status")">@Model.StatusMessage</div> }
+            <div asp-validation-summary="All" class="admin-ops-validation" role="alert"></div>
+        }
+        <section class="admin-ops-panel recovery-finder" aria-labelledby="recovery-search-heading">
+            <div class="recovery-section-title"><div><span class="admin-tools-eyebrow">1 · Employee</span><h2 id="recovery-search-heading">Find employee</h2></div><span class="admin-ops-muted">Search by ID or name</span></div>
+            <form method="get" class="admin-ops-toolbar">
+                <div class="admin-ops-field"><label class="admin-ops-sr-only" for="recovery-search">Employee ID or name</label><input asp-for="Query" id="recovery-search" maxlength="80" type="search" placeholder="Employee ID or name" /></div>
+                <button type="submit" class="admin-ops-button"><i class="bi bi-search" aria-hidden="true"></i> Search</button>
+            </form>
+            @if (Model.Employees.Rows.Count > 0)
+            {
+                <details class="recovery-search-results" open="@(Model.Workspace.Employee == null)">
+                    <summary>@Model.Employees.Rows.Count employees on this page</summary>
+                    <div class="recovery-employee-list" tabindex="0" role="region" aria-label="Employee search results">
+                        @foreach (var employee in Model.Employees.Rows)
+                        {
+                            <a class="recovery-employee-link" asp-page="./SkillRecovery" asp-route-EmpCode="@employee.EmployeeCode" asp-route-Query="@Model.Query"><span><strong>@employee.Name</strong><small>@employee.EmployeeCode · Grade @(string.IsNullOrWhiteSpace(employee.JobGrade) ? "—" : employee.JobGrade) · @(employee.Current ? "Current employee" : "Resigned")</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                        }
+                    </div>
+                    <nav class="admin-ops-pagination" aria-label="Employee search pages">
+                        @if (Model.Employees.Page > 1) { <a class="admin-ops-button secondary" asp-route-Query="@Model.Query" asp-route-SearchPage="@(Model.Employees.Page - 1)">Previous</a> }
+                        <span>Page @Model.Employees.Page</span>
+                        @if (Model.Employees.HasMore) { <a class="admin-ops-button secondary" asp-route-Query="@Model.Query" asp-route-SearchPage="@(Model.Employees.Page + 1)">Next</a> }
+                    </nav>
+                </details>
+            }
+            else if (Model.Loaded && !string.IsNullOrWhiteSpace(Model.Query)) { <p class="admin-ops-empty">No employees match this search.</p> }
+        </section>
+        @if (Model.Workspace.Employee is { } employeeCard)
+        {
+            <section class="recovery-directory" aria-labelledby="recovery-skills-heading">
+                <div class="recovery-employee" id="recovery-source-employee" tabindex="-1"><span class="recovery-avatar"><i class="bi bi-person" aria-hidden="true"></i></span><div><strong>@employeeCard.Name</strong><small>@employeeCard.EmployeeCode · @employeeCard.JobGrade · @(employeeCard.Current ? "Current employee" : "Resigned")</small></div><a class="admin-ops-button secondary" asp-page="/ViewUser" asp-route-empCode="@Model.EmpCode">Profile</a></div>
+                <div class="recovery-section-title"><div><span class="admin-tools-eyebrow">2 · Skill</span><h2 id="recovery-skills-heading">Choose a skill</h2></div><span class="admin-ops-muted">Actions open in a popup</span></div>
+                <nav class="recovery-tabs" aria-label="Skill records">
+                    @foreach (var tab in new[] { ("all", "All"), ("current", "Current"), ("disqualified", "Disqualified"), ("obsolete", "Obsolete") })
+                    {
+                        <a asp-page="./SkillRecovery" asp-route-EmpCode="@Model.EmpCode" asp-route-Query="@Model.Query" asp-route-Filter="@tab.Item1" data-recovery-status="@tab.Item2" aria-current="@(Model.Filter == tab.Item1 ? "page" : null)">@tab.Item2 <span class="recovery-tab-count">@Model.TabCount(tab.Item1)</span></a>
+                    }
+                </nav>
+                <div class="recovery-versions" id="recovery-records" tabindex="0" role="region" aria-label="Skill versions">
+                    @foreach (var record in Model.VisibleRows)
+                    {
+                        <article class="recovery-version @(selected?.Key == record.Key ? "is-selected" : "")" data-recovery-row="@record.RowId" data-recovery-table="@record.Table" data-recovery-status="@Model.Status(record)">
+                            <div class="recovery-version-head"><strong>@record.ProcessName</strong><span class="admin-ops-badge">@Model.Status(record)</span></div>
+                            <div class="recovery-version-meta"><span>@record.Values.OperatorTraining</span><span>Certified @Model.Date(record.Values.CertifiedDate)</span><span>Expires @Model.Date(record.Values.ExpiryDate)</span><span>K @record.Values.KnowledgeLevel / S @record.Values.SkillLevel</span></div>
+                            <div class="recovery-version-actions"><span class="admin-ops-muted">@(Model.HasPdf(record) ? "Certificate linked" : "No certificate")</span><div>@if (Model.HasPdf(record)) { <a class="admin-ops-button secondary" href="@Model.PdfUrl(record)" target="_blank" rel="noopener">PDF<span class="admin-ops-sr-only"> for @record.ProcessName certified @Model.Date(record.Values.CertifiedDate)</span></a> } <a id="recovery-actions-@record.Table-@record.RowId" class="admin-ops-button" asp-page="./SkillRecovery" asp-route-EmpCode="@Model.EmpCode" asp-route-Query="@Model.Query" asp-route-Filter="@Model.Filter" asp-route-RowId="@record.RowId" asp-route-Table="@record.Table">Actions<span class="admin-ops-sr-only"> for @record.ProcessName certified @Model.Date(record.Values.CertifiedDate)</span></a></div></div>
+                        </article>
+                    }
+                    @if (!Model.VisibleRows.Any()) { <p class="admin-ops-empty">No skill records in this view. Try All to see expired or failed records.</p> }
+                </div>
+                @if (Model.Workspace.HasMore) { <p class="admin-ops-muted">Showing the latest 300 versions. Older versions remain available in the employee profile.</p> }
+            </section>
+        }
+        @if (Model.Loaded)
+        {
+            <section class="admin-ops-panel recovery-history" aria-labelledby="recovery-history-heading">
+                <span class="admin-tools-eyebrow">Recorded corrections</span><h2 id="recovery-history-heading">History</h2>
+                @if (Model.History.Rows.Count == 0) { <p class="admin-ops-empty">No recovery actions recorded@(Model.Workspace.Employee == null ? "." : " for this employee.")</p> }
+                else
+                {
+                    <div class="admin-ops-table-wrap" tabindex="0" role="region" aria-label="Recovery history">
+                        <table class="admin-ops-table"><thead><tr><th scope="col">When / who</th><th scope="col">Action</th><th scope="col">Skill / employee</th><th scope="col">Reason</th><th scope="col">Recovery</th></tr></thead><tbody>
+                        @foreach (var entry in Model.History.Rows)
+                        {
+                            <tr><td>@entry.CreatedUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm")<small>@entry.Actor</small></td><td>@Model.ActionLabel(entry.Action)@if (entry.ReversesActionId.HasValue) { <small>Reverses a previous recovery</small> }</td><td><strong>@entry.ProcessName</strong><small>@entry.SourceEmployeeCode@if (!string.IsNullOrWhiteSpace(entry.TargetEmployeeCode)) { <span> → @entry.TargetEmployeeCode</span> }</small></td><td class="recovery-reason">@(string.IsNullOrWhiteSpace(entry.Reason) ? "—" : entry.Reason)</td><td>
+                                @if (entry.CanUndo && !entry.ReversesActionId.HasValue)
+                                {
+                                    <a class="admin-ops-button secondary" id="recovery-undo-@entry.ActionId" asp-page="./SkillRecovery" asp-route-EmpCode="@entry.SourceEmployeeCode" asp-route-UndoActionId="@entry.ActionId">Undo<span class="admin-ops-sr-only"> @Model.ActionLabel(entry.Action) for @entry.ProcessName</span></a>
+                                }
+                                else { <span class="admin-ops-muted">Recorded</span> }
+                            </td></tr>
+                        }
+                        </tbody></table>
+                    </div>
+                    <nav class="admin-ops-pagination" aria-label="Recovery history pages">@if (Model.History.Page > 1) { <a class="admin-ops-button secondary" asp-route-EmpCode="@Model.EmpCode" asp-route-HistoryPageNumber="@(Model.History.Page - 1)">Previous</a> }<span>Page @Model.History.Page</span>@if (Model.History.HasMore) { <a class="admin-ops-button secondary" asp-route-EmpCode="@Model.EmpCode" asp-route-HistoryPageNumber="@(Model.History.Page + 1)">Next</a> }</nav>
+                }
+            </section>
+        }
+
+        @if (Model.OpenDialog)
+        {
+            <dialog id="recovery-dialog" class="recovery-dialog" open aria-labelledby="recovery-dialog-title" data-return-focus="@Model.DialogReturnFocusId" data-employee="@Model.EmpCode" data-filter="@Model.Filter" data-postback="@(Model.HttpContext.Request.Method == "POST" ? "true" : "false")">
+                <header class="recovery-dialog-header"><div><span class="admin-tools-eyebrow">Skill Recovery</span><h2 id="recovery-dialog-title" tabindex="-1">@(Model.Preview != null ? "Review action" : Model.UndoActionId.HasValue ? "Undo recovery" : "Skill actions")</h2><p>@(Model.Workspace.Employee?.Name ?? Model.EmpCode) <span>· @Model.EmpCode</span></p></div><button type="button" class="recovery-dialog-close" data-recovery-close aria-label="Close actions"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
+                <div class="recovery-dialog-body">
+                    @if (Model.HasError || !ViewData.ModelState.IsValid)
+                    {
+                        <div class="admin-ops-notice is-error" id="recovery-dialog-error" role="alert" tabindex="-1">@Model.StatusMessage<div asp-validation-summary="All" class="recovery-dialog-validation"></div></div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(Model.StatusMessage)) { <div id="recovery-notice" class="admin-ops-notice is-success" role="status">@Model.StatusMessage</div> }
+                    <div class="recovery-dialog-steps" aria-label="Recovery steps"><span class="@(Model.Preview == null ? "is-current" : "")">1 Action</span><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="@(Model.Preview != null ? "is-current" : "")">2 Review</span></div>
+                            @if (Model.Preview is { } preview)
+        {
+            var certificateVersions = new[] { preview.Plan.Context.Source, preview.Plan.Context.Prior }.Where(row => row != null).Cast<SkillRecoveryRow>()
+                .Concat(preview.Plan.Context.UndoBeforeRows ?? []).Concat(preview.Plan.Context.UndoAfterRows ?? []);
+            <section class="admin-ops-panel recovery-preview" aria-labelledby="recovery-preview-heading">
+                <div class="admin-ops-summary"><div><span class="admin-tools-eyebrow">Review</span><h2 id="recovery-preview-heading" tabindex="-1">@Model.ActionLabel(preview.Plan.Request.Action)</h2></div><span class="admin-ops-badge">Preview</span></div>
+                <p id="recovery-outcome" class="recovery-action-help">@preview.Outcome</p>
+                @if (certificateVersions.Any(row => !row.Values.CertificateFileId.HasValue && !string.IsNullOrWhiteSpace(row.Values.Download)))
+                {
+                    <p class="admin-ops-notice">Legacy PDF: review the file. Older contents may be unavailable.</p>
+                }
+                @if (preview.Plan.Context.TargetEmployee is { } destination)
+                {
+                    var isUndo = preview.Plan.Request.Action == "undo";
+                    var from = isUndo ? destination : preview.Plan.Context.SourceEmployee;
+                    var to = isUndo ? preview.Plan.Context.SourceEmployee : destination;
+                    <div class="recovery-between" aria-label="Employee assignment correction">
+                        <div class="recovery-employee"><div><small>From</small><strong>@from.Name</strong><small>@from.EmployeeCode</small></div></div>
+                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                        <div class="recovery-employee"><div><small>To</small><strong>@to.Name</strong><small>@to.EmployeeCode</small></div></div>
+                    </div>
+                }
+                <div class="admin-ops-table-wrap" tabindex="0" role="region" aria-label="Before and after recovery">
+                    <table class="admin-ops-table"><thead><tr><th scope="col">Field</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>
+                        @foreach (var field in Model.Comparison()) { <tr><th scope="row">@field.Label</th><td class="recovery-snapshot">@field.Before</td><td class="recovery-snapshot">@field.After</td></tr> }
+                    </tbody></table>
+                </div>
+                @if (preview.Plan.Context.Conflicts.Count > 0)
+                {
+                    <div class="admin-ops-notice" id="recovery-conflicts"><strong>Existing version</strong><p>The following version will be archived only if you choose Replace and preview again.</p>
+                        @foreach (var conflict in preview.Plan.Context.Conflicts) { <div><strong>@conflict.ProcessName</strong> · @Model.Date(conflict.Values.CertifiedDate) · Expires @Model.Date(conflict.Values.ExpiryDate) · @Model.Status(conflict) @if (Model.HasPdf(conflict)) { <a class="admin-ops-button secondary" href="@Model.PdfUrl(conflict)" target="_blank" rel="noopener">PDF<span class="admin-ops-sr-only"> for existing @conflict.ProcessName</span></a> }</div> }
+                    </div>
+                }
+                <p class="admin-ops-muted"><strong>Reason:</strong> <span class="recovery-reason">@(string.IsNullOrWhiteSpace(preview.Plan.Request.Reason) ? "—" : preview.Plan.Request.Reason)</span></p>
+                <div class="admin-ops-actions">
+                    @if (preview.Plan.Request.Action != "undo" && preview.Plan.Context.Source is { } source && Model.HasPdf(source)) { <a class="admin-ops-button secondary" href="@Model.PdfUrl(source)" target="_blank" rel="noopener">@(preview.Plan.Request.Action is "remove-pdf" or "replace-pdf" ? "Old PDF" : "PDF")<span class="admin-ops-sr-only"> for selected version</span></a> }
+                    @if (preview.Plan.Request.Action == "undo") { @foreach (var current in (preview.Plan.Context.UndoBeforeRows ?? []).Where(Model.HasPdf)) { <a class="admin-ops-button secondary" href="@Model.PdfUrl(current)" target="_blank" rel="noopener">PDF<span class="admin-ops-sr-only"> for @current.EmployeeCode @current.ProcessName before undo</span></a> } }
+                    @if (Model.RemovedSourcePdfUrl is { } removedPdf) { <a class="admin-ops-button secondary" href="@removedPdf" target="_blank" rel="noopener">Old PDF<span class="admin-ops-sr-only"> from recovery history before restoration</span></a> }
+                    @if (preview.Plan.Context.Prior is { } prior && Model.HasPdf(prior)) { <a class="admin-ops-button secondary" href="@Model.PdfUrl(prior)" target="_blank" rel="noopener">Prior PDF</a> }
+                </div>
+                @if (preview.Plan.Context.ReplacementPdf is { } replacement)
+                {
+                    <div class="recovery-pdf-card"><div><small>New PDF</small><strong>@replacement.FileName</strong><span>@Model.PdfSize(replacement.ByteLength)</span></div><a class="admin-ops-button secondary" href="@Model.UploadPdfUrl(replacement)" target="_blank" rel="noopener">Open PDF<span class="admin-ops-sr-only"> @replacement.FileName</span></a></div>
+                }
+                @if (Model.CanApply)
+                {
+                    <form method="post" asp-page-handler="Apply" class="admin-ops-actions" id="recovery-apply-form">
+                        <input type="hidden" name="PreviewToken" value="@preview.Token" />
+                        <input type="hidden" name="EmpCode" value="@preview.Plan.Context.SourceEmployee.EmployeeCode" />
+                        <input type="hidden" name="Query" value="@Model.Query" /><input type="hidden" name="Filter" value="@(preview.Plan.Request.Action == "move-tab" ? preview.Plan.Request.TargetTab : Model.Filter)" />
+                        @if (preview.Plan.Request.Action is "remove-pdf" or "replace-pdf")
+                        {
+                            <input type="hidden" name="Input.Action" value="@preview.Plan.Request.Action" /><input type="hidden" name="Input.EmployeeCode" value="@preview.Plan.Request.EmployeeCode" /><input type="hidden" name="Input.SourceRowId" value="@preview.Plan.Request.SourceRowId" /><input type="hidden" name="Input.SourceTable" value="@preview.Plan.Request.SourceTable" /><input type="hidden" name="Input.PdfUploadId" value="@preview.Plan.Request.PdfUploadId" /><input type="hidden" name="Input.Reason" value="@preview.Plan.Request.Reason" />
+                        }
+                        <label class="admin-ops-checkbox"><input asp-for="ConfirmApply" required /> I reviewed the record, certificate and outcome.</label>
+                        <button type="submit" class="admin-ops-button" id="recovery-apply"><i class="bi bi-check2" aria-hidden="true"></i> Apply</button>
+                        <button type="button" class="admin-ops-button secondary" data-recovery-close>Cancel</button>
+                    </form>
+                    <p class="admin-ops-notice" id="recovery-preview-stale" role="status" hidden>Selection changed. Preview again.</p>
+                    <p class="admin-ops-muted">This preview expires in 10 minutes. Changed records require a new preview.</p>
+                }
+                else { <p class="admin-ops-muted">Choose Replace in the correction panel and select Preview to review the complete action.</p> }
+            </section>
+        }
+
+
+                    @if (Model.Preview?.Plan.Request.Action != "undo" && !Model.UndoActionId.HasValue)
+                    {
+                        <details class="recovery-edit-preview @(Model.Preview == null ? "is-initial" : "")" open="@(Model.Preview == null || !Model.CanApply)"><summary>Edit action</summary><div class="recovery-dialog-editor">
+                <section class="admin-ops-panel" aria-labelledby="recovery-action-heading">
+                    <span class="admin-tools-eyebrow">Correct one record</span><h2 id="recovery-action-heading">Choose action</h2>
+                    @if (selected == null)
+                    {
+                        <div class="admin-ops-empty"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><p>Select an employee and the exact skill version to correct.</p></div>
+                    }
+                    else
+                    {
+                        <div class="recovery-selected" data-recovery-status="@Model.Status(selected)"><strong>@selected.ProcessName</strong><p class="admin-ops-muted">@Model.Status(selected) · Certified @Model.Date(selected.Values.CertifiedDate) · Expires @Model.Date(selected.Values.ExpiryDate)</p></div>
+                        @if (Model.Workspace.Employee?.Current != true) { <p class="admin-ops-notice">This record needs an employment review before recovery.</p> }
+                        else if (Model.Status(selected) == "Promoted") { <p class="admin-ops-notice">Only PDF changes are available for promoted skills. Training and promotion records stay unchanged.</p> }
+                        <details class="recovery-target-search" hidden="@(Model.Status(selected) == "Promoted")" open="@(Model.Input.Action == "move" || !string.IsNullOrWhiteSpace(Model.TargetQuery))">
+                            <summary>Find destination</summary>
+                            <form method="get" class="admin-ops-toolbar">
+                                <input type="hidden" name="EmpCode" value="@Model.EmpCode" /><input type="hidden" name="RowId" value="@Model.RowId" /><input type="hidden" name="Table" value="@Model.Table" /><input type="hidden" name="Filter" value="@Model.Filter" /><input type="hidden" name="Choice" value="move" />
+                                <div class="admin-ops-field"><label for="recovery-target-search">Employee ID or name</label><input asp-for="TargetQuery" id="recovery-target-search" type="search" maxlength="80" /></div><button type="submit" class="admin-ops-button secondary">Search</button>
+                            </form>
+                            @if (Model.TargetEmployees.Rows.Count > 0) { <div class="recovery-employee-list" tabindex="0" role="region" aria-label="Destination search results">@foreach (var target in Model.TargetEmployees.Rows.Where(target => target.EmployeeCode != Model.EmpCode && target.Current)) { <a class="recovery-employee-link" asp-page="./SkillRecovery" asp-route-EmpCode="@Model.EmpCode" asp-route-RowId="@Model.RowId" asp-route-Table="@Model.Table" asp-route-Filter="@Model.Filter" asp-route-TargetCode="@target.EmployeeCode" asp-route-Choice="move"><span><strong>@target.Name</strong><small>@target.EmployeeCode · Grade @(string.IsNullOrWhiteSpace(target.JobGrade) ? "—" : target.JobGrade)</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a> }</div> }
+                            else if (!string.IsNullOrWhiteSpace(Model.TargetQuery)) { <p class="admin-ops-muted">No destination employees match this search.</p> }
+                        </details>
+                        <form method="post" asp-page-handler="Preview" id="recovery-form" class="recovery-form" enctype="multipart/form-data">
+                            <input type="hidden" asp-for="Input.EmployeeCode" /><input type="hidden" asp-for="Input.SourceRowId" /><input type="hidden" asp-for="Input.SourceTable" /><input type="hidden" name="Query" value="@Model.Query" /><input type="hidden" name="Filter" value="@Model.Filter" />
+                            <fieldset class="recovery-action-grid"><legend>Action</legend>
+                                @foreach (var action in actions) { <label class="recovery-action-option"><input asp-for="Input.Action" id="recovery-action-@action" type="radio" value="@action" data-recovery-action disabled="@(!Model.ActionAvailable(action))" /><span>@Model.ActionLabel(action)</span></label> }
+                            </fieldset>
+                            <p class="recovery-action-help" id="recovery-action-help" aria-live="polite">Choose an action, then review a preview before applying it.</p>
+                            <div class="admin-ops-field" data-recovery-fields="move">
+                                <label for="recovery-destination">Destination employee ID</label><input asp-for="Input.TargetEmployeeCode" id="recovery-destination" maxlength="10" autocomplete="off" aria-describedby="recovery-destination-help" />
+                                <p class="admin-ops-muted" id="recovery-destination-help">Use Find destination above to choose an employee. The preview shows their name and ID.</p>
+                                @if (Model.TargetWorkspace.Employee is { } targetCard) { <div class="recovery-employee" id="recovery-target-employee"><div><small>Destination</small><strong>@targetCard.Name</strong><small>@targetCard.EmployeeCode · @targetCard.JobGrade</small></div></div> }
+                            </div>
+                            <div class="admin-ops-field" data-recovery-fields="move-tab">
+                                <label for="recovery-tab">Destination tab</label>
+                                <select asp-for="Input.TargetTab" id="recovery-tab" data-no-fancy>
+                                    <option value="">Choose a tab</option>
+                                    @foreach (var target in new[] { ("current", "Current"), ("disqualified", "Disqualified"), ("obsolete", "Obsolete") })
+                                    {
+                                        <option value="@target.Item1" disabled="@(!Model.TargetTabAvailable(target.Item1))">@target.Item2</option>
+                                    }
+                                </select>
+                                <span class="admin-ops-muted">Same employee. Current requires a passing, unexpired qualification. Dates, results and PDF stay unchanged.</span>
+                            </div>
+                            <div class="admin-ops-field" data-recovery-fields="undo-edit">
+                                <label for="recovery-prior">Previous version</label><select asp-for="Input.PriorRowId" id="recovery-prior" data-no-fancy><option value="">Choose the version to restore</option>@foreach (var prior in Model.PriorRows) { <option value="@prior.RowId">@prior.ProcessName · @Model.Date(prior.Values.CertifiedDate) · Expires @Model.Date(prior.Values.ExpiryDate) · @prior.Values.TestResult</option> }</select>
+                                <p class="admin-ops-muted">Select the exact earlier version. Its dates, result and PDF will be restored together.</p>
+                            </div>
+                            <div class="admin-ops-field recovery-pdf-upload" data-recovery-fields="replace-pdf">
+                                <input type="hidden" asp-for="Input.PdfUploadId" id="recovery-upload-id" />
+                                <label for="recovery-pdf-file">PDF file</label><input asp-for="ReplacementPdf" id="recovery-pdf-file" type="file" accept=".pdf,application/pdf" required="@(Model.Input.Action == "replace-pdf" && !Model.Input.PdfUploadId.HasValue)" aria-describedby="recovery-pdf-help" />
+                                <span class="admin-ops-muted" id="recovery-pdf-help">PDF only. Preview the selected file before applying. All skill fields stay unchanged.</span>
+                                @if (Model.StagedPdf is { } staged)
+                                {
+                                    <div class="recovery-pdf-card" id="recovery-staged-pdf"><div><small>Selected PDF</small><strong>@staged.FileName</strong><span>@Model.PdfSize(staged.ByteLength) · Retained for this preview</span></div><a class="admin-ops-button secondary" href="@Model.UploadPdfUrl(staged)" target="_blank" rel="noopener">Open PDF<span class="admin-ops-sr-only"> @staged.FileName</span></a></div>
+                                }
+                                <span class="admin-ops-muted" id="recovery-upload-change" hidden>New file selected. Preview again to review it.</span>
+                            </div>
+                            <div data-recovery-replace><label class="admin-ops-checkbox"><input asp-for="Input.ReplaceConflict" id="recovery-replace" /> Replace</label><p class="admin-ops-muted">If another active version exists, archive it before using the selected version. Review both versions in the preview.</p></div>
+                            <div class="admin-ops-field"><label for="recovery-reason">Reason (optional)</label><textarea asp-for="Input.Reason" id="recovery-reason" rows="3" maxlength="500" placeholder="Add a note for recovery history" aria-describedby="recovery-reason-help"></textarea><span class="admin-ops-muted" id="recovery-reason-help">Optional. Up to 500 characters. Saved in recovery history. Original Remark stays unchanged.</span></div>
+                            <button type="submit" class="admin-ops-button" id="recovery-preview" disabled="@(!actions.Any(Model.ActionAvailable))"><i class="bi bi-eye" aria-hidden="true"></i> Preview</button>
+                        </form>
+                        <p class="admin-ops-muted">Dates and results stay unchanged. Expired or failed records do not become valid certificates through recovery.</p>
+                    }
+                </section>
+            </div></details>
+                    }
+                    else if (Model.Preview == null)
+                    {
+                        <section class="recovery-undo-entry"><h3>Undo this recovery</h3><p class="admin-ops-muted">Review the recorded before and after state. Later changes can prevent undo.</p><form method="post" asp-page-handler="Undo" class="recovery-form"><input type="hidden" asp-for="UndoActionId" /><input type="hidden" asp-for="EmpCode" /><input type="hidden" name="Filter" value="@Model.Filter" /><div class="admin-ops-field"><label for="recovery-undo-reason">Reason (optional)</label><textarea asp-for="UndoReason" id="recovery-undo-reason" maxlength="500" rows="3" aria-describedby="recovery-undo-reason-help"></textarea><span class="admin-ops-muted" id="recovery-undo-reason-help">Optional. Up to 500 characters. Saved in recovery history. Original Remark stays unchanged.</span></div><button type="submit" class="admin-ops-button">Preview</button></form></section>
+                    }
+                    <noscript><p><a asp-page="./SkillRecovery" asp-route-EmpCode="@Model.EmpCode" asp-route-Filter="@Model.Filter">Close actions</a></p></noscript>
+                </div>
+            </dialog>
+        }
+    </div>
+</div>
+@section Scripts { <script src="~/js/skill-recovery.js" asp-append-version="true"></script> }

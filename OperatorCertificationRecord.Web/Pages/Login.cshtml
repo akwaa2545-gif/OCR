@@ -12,6 +12,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - OTD System</title>
+    <link rel="icon" href="~/images/otd-logo.png" type="image/png" asp-append-version="true">
+    <link rel="apple-touch-icon" href="~/images/otd-logo.png" asp-append-version="true">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,35 +22,18 @@
     <style>
         body {
             min-height: 100vh;
+            margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            background-color: #0f172a;
+            background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.5)), url('@Url.Content("~/images/login-background.jpg")');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             padding: var(--space-4);
             position: relative;
-            overflow: hidden;
-        }
-        
-        body::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -25%;
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%);
-            border-radius: 50%;
-        }
-        
-        body::after {
-            content: '';
-            position: absolute;
-            bottom: -40%;
-            left: -20%;
-            width: 700px;
-            height: 700px;
-            background: radial-gradient(circle, rgba(30, 64, 175, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
+            overflow-x: hidden;
         }
         
         .login-card {
@@ -69,20 +54,20 @@
         }
         
         .login-logo {
-            width: 72px;
-            height: 72px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            width: 88px;
+            height: 88px;
             border-radius: var(--radius-lg);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto var(--space-4);
-            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.3);
         }
         
-        .login-logo i {
-            font-size: 2.25rem;
-            color: var(--white);
+        .login-logo img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
         }
         
         .login-title {
@@ -121,6 +106,25 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
+
+        .login-remember {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            min-height: 44px;
+            margin: -0.25rem 0 0.5rem;
+            color: var(--gray-700);
+            font-size: 0.8rem;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .login-remember input {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            accent-color: var(--accent);
+        }
         
         .login-footer {
             text-align: center;
@@ -144,7 +148,7 @@
     <div class="login-card">
         <div class="login-header">
             <div class="login-logo">
-                <img src="/images/otd-logo-minimal.svg" alt="OTD logo" style="width:56px;height:56px;display:block;margin:0 auto;border-radius:6px;">
+                <img src="~/images/otd-logo.png" alt="OTD logo" asp-append-version="true" width="88" height="88">
             </div>
             <h1 class="login-title">Welcome Back</h1>
             <p class="login-subtitle">Operator's Training Database</p>
@@ -169,6 +173,7 @@
                            name="username" 
                            asp-for="Username" 
                            placeholder="Enter your employee ID" 
+                           maxlength="20"
                            required
                            autocomplete="username">
                 </div>
@@ -184,10 +189,16 @@
                            name="password" 
                            asp-for="Password" 
                            placeholder="Enter your password" 
+                           maxlength="1024"
                            required
                            autocomplete="current-password">
                 </div>
             </div>
+
+            <label class="login-remember" for="remember-me">
+                <input asp-for="RememberMe" id="remember-me" type="checkbox">
+                <span>Keep me signed in for 30 days</span>
+            </label>
 
             <button type="submit" class="btn btn-primary login-btn">
                 <i class="bi bi-box-arrow-in-right"></i>

@@ -143,8 +143,10 @@ public class ViewUserModel : PageModel
             return await OnGetAndRenderAsync();
         }
 
+        var selectedProcesses = SelectedProcesses.Where(process => !string.IsNullOrWhiteSpace(process))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         int successCount = 0;
-        foreach (var proc in SelectedProcesses)
+        foreach (var proc in selectedProcesses)
         {
             try
             {
@@ -158,13 +160,23 @@ public class ViewUserModel : PageModel
                 var ok = await _employeeService.DisqualifySkillAsync(empCode, proc, reasonText, disqualifiedByName);
                 if (ok) successCount++;
             }
-            catch { }
+            catch (Exception error)
+            {
+                _logger?.LogWarning(error, "Disqualification was not confirmed. Employee={Employee}, Process={Process}", empCode, proc);
+            }
+        }
+
+        if (successCount < selectedProcesses.Length)
+        {
+            HttpContext.Items[WebActivityContextFactory.OutcomeKey] = successCount > 0 ? "Partial" : "Unknown";
+            HttpContext.Items["WebActivity.OutcomeSummary"] = $"Disqualified {successCount} of {selectedProcesses.Length} selected skills.";
         }
 
         if (successCount > 0)
         {
-            Message = $"Disqualified {successCount} skill(s).";
-            MessageType = "success";
+            Message = successCount == selectedProcesses.Length ? $"Disqualified {successCount} skill(s)." :
+                $"Disqualified {successCount} of {selectedProcesses.Length} selected skills; the remaining changes were not confirmed.";
+            MessageType = successCount == selectedProcesses.Length ? "success" : "error";
         }
         else
         {

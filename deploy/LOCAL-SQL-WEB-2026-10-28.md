@@ -321,3 +321,385 @@ and moves with responsive checks at 1280/390/320px, missing-token HTTP 400 and
 non-Admin denial. Security, C#, JavaScript and accessibility reviews passed.
 Release publish and local runtime/assets update completed. No Docker deployment
 or live catalog sample entries were made.
+
+### Workshop directory refresh
+
+Workshops & Processes now places a searchable workshop directory beside the
+process editor on laptops. Search includes workshop names, process names and
+process IDs, opens matching workshops, and restores the previous open/closed
+state when cleared. Unassigned processes have their own group without increasing
+the workshop total. Expand/collapse controls apply to visible groups.
+
+Contextual Add and Move buttons select the appropriate editor fields. Changing
+the process, destination or editor mode clears move confirmation. Add Workshop
+is a separate expandable form. The Admin Tools overview and submenu remain
+available through compact tool navigation. Sections are not linked.
+
+Validation: 45 catalog service/page tests and 19 JavaScript regression tests
+passed. Synthetic browser checks covered creation, moves, search, confirmation,
+and layouts at 1366/1280/390/320px without horizontal page overflow. No live
+catalog entries were created by these checks.
+Release publish passed, and the existing local publication was refreshed with
+the new web assembly and three Admin Tools assets. Localhost was restarted;
+Login and the updated assets returned HTTP 200. Sign in again after the local
+restart. The directory was subsequently enlarged to 65% of viewport height
+(360–760px on desktop), with tighter header, footer and workshop-row spacing so
+more workshops fit in its scroll area. Mobile retains its 430px limit. This
+stylesheet-only follow-up does not require restarting the application.
+
+### Bulk employee updates and Missing Files Center
+
+The Admin Tools overview and shared navigation include two additional pages:
+`/AdminTools/BulkEmployees` and `/AdminTools/MissingFiles`. Both require current
+Admin membership. The overview remains independent of catalog/database reads.
+
+Bulk Employee Updates searches current employees in pages of 50. Select employees
+on a page or paste their IDs, with at most 100 employees per batch. Workshop,
+Shift and Job Grade each default to keeping the current value. Preview shows the
+before/after values; applying requires explicit confirmation. The protected
+preview expires after ten minutes and is bound to the actor and session.
+
+Apply rechecks authorization, Developer target protection, lookup choices,
+employment status, promotion state and employee values under a serializable
+transaction. Any stale or ineligible row stops the entire batch. Promoted
+employees retain their existing grade lock. Only the requested employee columns
+are updated; the service records the actor and before/after fields in structured
+logs. No schema changes are required.
+
+Missing Files Center checks up to 25 attachment records per page for current
+employees and their current skill records, including disqualified skills.
+Search accepts employee IDs, English/Thai names and process names. File-type
+filters apply before pagination; status filters apply to the checked page.
+All counts are page-scoped. SQL checks validate scoped ownership and stored
+content length without downloading the attachment. SQL-linked records never
+fall back to legacy copies. Approved legacy roots are checked separately.
+
+Missing, Not linked and Unavailable are distinct states; a disabled reader,
+unreachable share, denied access or inconsistent file length is not reported as
+a missing file. Open file uses existing attachment routes. Replace photo/PDF
+opens the existing employee or skill form, preserving its validation and save
+behavior. Duplicate or disqualified skill records open the profile for review.
+The center itself performs no writes and does not scan obsolete skill history.
+
+Validation: 81 focused C# tests and 16 JavaScript regression tests passed. Four
+bulk SQL write integration tests require a marked disposable localhost fixture
+and were skipped. Read-only checks of the actual database verified bulk search,
+lookup and selected-row queries, plus photo/certificate metadata queries. No
+live employee updates or attachment replacements were performed during checks.
+Thirteen synthetic browser scenarios verified preview/apply, stale/tampered
+tokens, confirmation, protected accounts, grade locks, file states and paging.
+Nine page/viewport checks covered the hub and both pages at 1280/390/320px with
+no page overflow or JavaScript errors. A positioned table scroll container keeps
+screen-reader action labels from causing mobile overflow.
+
+Release publish passed. The existing local publication received the new web
+DLL/PDB and five Admin Tools styles/scripts, and localhost was restarted with
+its existing SQL-storage launcher. Login/assets return HTTP 200; unauthenticated
+requests to both new tools redirect to AccessDenied. Runtime role stores and
+connection settings were preserved. Sign in again after the restart.
+
+### Developer Skill Recovery
+
+Dev Tools opens a general hub with Skill Recovery at `/DevTools/SkillRecovery`.
+Its short actions are Reinstate, Restore, Move, Undo Edit and Undo Add. Each
+requires a reason, a protected before/after preview and explicit Apply
+confirmation. History offers Undo while affected records remain unchanged.
+Admin-only users cannot access the tool or its scoped PDF endpoint; persisted
+Developer membership is checked again before commit.
+
+Exact skill versions and qualification details are preserved. Replacements and
+incorrect additions are archived; obsolete originals remain available. Conflicts
+require explicit Replace consent. Moves create destination-owned SQL PDFs from
+validated staging, preserving the source history. Preview/apply compares file
+hashes and row versions, and audit events commit atomically with the changes.
+Recovery does not renew dates or turn failed qualifications into passes.
+
+The actual SQL Server is 2014, compatibility 100. Recovery parses history JSON
+in C# and validates/stages PDFs in the application, so no upgrade or compatibility
+change was needed. `deploy/sql/20261029_skill_recovery.sql` added only the audit
+table/indexes; its event count was zero after installation. Read-only live
+queries verified search, a 42-version workspace and history.
+
+Validation: 466 web tests passed (13 unrelated fixture tests skipped); all 95
+recovery cases passed, including 11 real SQL tests in an isolated marked LocalDB
+fixture at compatibility 100. Recovery-service line/branch coverage was
+92.86%/81.41%. Six JavaScript tests and 15 combined browser checks passed for
+all actions/Undo, role enforcement, PDFs, stale/tampered previews, rollback and
+1280/390/320px layouts. Unversioned legacy PDFs carry an explicit review notice.
+
+Release publish passed. The existing local web DLL/PDB and four supporting
+styles/scripts were refreshed, and localhost restarted with its existing SQL
+launcher. Login/assets return HTTP 200; unauthenticated Dev Tools requests
+redirect to Login. Runtime role stores and database settings were preserved.
+No recovery was applied to a live employee during verification. Sign in again.
+
+### Recovery popup and same-employee tab moves
+
+Skill Recovery now uses a full-width employee/skill directory. Actions opens a
+native popup containing the correction, errors, preview and Apply confirmation.
+Close/Escape returns focus and employee/filter context. Closing a POST-rendered
+popup uses a clean GET, avoiding form resubmission on reload.
+
+Move Tab keeps the employee and PDF references while moving the selected version
+to Current, Disqualified or Obsolete. Current requires a passing, unexpired
+qualification; Disqualified records the actor/date and a reason of up to 300
+characters, checked against the actual legacy column capacity. Obsolete archives
+only the selected row. Other active skills remain unchanged unless a Current
+destination conflict is explicitly approved for replacement. All transitions
+retain the protected preview, row-version guards, atomic audit and guarded Undo.
+Successful Apply opens the destination tab.
+
+The audit CHECK allowlist upgrade `20261029_skill_recovery_tabs.sql` was applied
+transactionally on SQL Server 2014, compatibility 100. Audit events remained zero
+after setup, and read-only live queries passed against the 42-version profile.
+No sample tab move or recovery was applied to a live employee.
+
+Validation: 514 web tests passed, including 28 real SQL cases; 13 unrelated
+fixture tests were skipped. Fourteen JavaScript tests and 23 combined browser
+checks passed for the transition/Undo matrix, original actions, conflicts,
+certificate preservation, Current eligibility, focus/Close/Escape, POST-close
+reload and 1280/390/320px layouts. Recovery-service coverage is 93.18% of lines
+and 82.18% of branches. Release publish passed; the existing local publication
+received the new DLL/PDB and two popup assets and was restarted with the same
+launcher, connection and role stores. Sign in again after the restart.
+
+### Optional recovery reason
+
+Reason is optional for corrections and Undo. Opening a selected skill copies its
+existing Remark into the Reason box; editing or clearing this box preserves the
+original Remark. Preview retains an intentionally cleared value. The limit stays
+500 characters, or 300 for Move Tab to Disqualified, where the note also becomes
+the separate disqualification reason (`TheReason`).
+
+Applied `20261029_skill_recovery_optional_reason.sql` to the same SQL Server 2014
+database, changing only the audit Reason CHECK. Existing audit events, skills and
+attachments were preserved. Validation passed: 169 recovery tests, including 37
+real SQL integration cases with no skips, and 14 JavaScript tests. Release publish
+passed. Local DLL/PDB and the reason help script were refreshed, the existing
+launcher restarted, and the route/script HTTP checks passed. Sign in again.
+
+The browser check caught MVC's implicit required rule on the nonnullable Reason
+property. Reason is now nullable at binding and normalized to an empty string
+before preview/audit. A real MVC metadata regression and the page/service tests
+passed (114 cases). Nine isolated browser checks passed through blank Preview,
+Apply and Undo with the original Remark preserved; no live skill was changed.
+
+### Undo Add removal and status colors
+
+Skill Recovery tabs now use navy (All), green (Current), red (Disqualified) and
+amber (Obsolete), with matching counts, explicit labels and active underlines.
+Cards use their status color, including purple for Promoted. Text contrast is at
+least 5.74:1; the existing focus indicator is preserved.
+
+Undo Add removes the exact selected Current or Obsolete row without creating an
+obsolete copy. It preserves PDF storage and complete audit snapshots. Guarded
+History Undo restores the original table; obsolete restoration retains the old
+row GUID with a fresh rowversion. Old audit scopes without a table still mean
+Current. Removed-entry PDFs use a Developer-only audit-action endpoint with
+strict snapshot and attachment ownership checks.
+
+Validation passed: 196 recovery tests including the real SQL fixture, a separate
+cross-connection maintenance-lock test, 54 page tests after the final copy change,
+and 14 JavaScript tests. Browser checks covered colors, exact removal from both
+tables, PDF access while removed, Undo restoration, unrelated-row preservation,
+and 390px layout. Release publish and local route/assets/auth smoke checks passed.
+
+Corrected only the two inspected, unchanged Undo Add archive artifacts for
+employee `101`, process `Aging of FPS A`, through normal protected Preview/Apply.
+The existing original audits remain intact. New correction audit references:
+`14cdee36-0e25-46ec-93ee-7c0c0054546a` and
+`71604d56-2d28-497d-b16f-60042f10dc13`. Every unrelated skill row was checked
+unchanged after each correction. No PDFs or role files were modified.
+
+The local web publication received the new DLL/PDB and Skill Recovery CSS/JS,
+then restarted through its existing launcher and configuration. Sign in again.
+
+### Remove PDF and Replace PDF
+
+The Actions popup now supports Remove PDF and Replace PDF for exact Current or
+Obsolete rows. Promoted records allow these attachment-only corrections while
+qualification actions remain restricted. All skill fields, Remark, status, table
+and row GUID stay unchanged. Remove clears both CertificateFileId and Download;
+Replace links a new immutable SQL PDF version. Prior PDFs remain available in
+Recovery History for attachment-only Undo in the same row, without obsolete
+qualification copies or shared-file deletion.
+
+Replacement uses validated private staging for up to ten minutes, bound to the
+actual Developer, session and source row. The user can open the staged PDF before
+Apply and retain it through Preview without selecting it again. Apply publishes
+the SQL file, link and audit atomically, then consumes the stage. Expired uploads
+return to the selected record with a prompt to choose the file again. The stage
+store has per-session/global limits, byte bounds and safe lease/expiry cleanup.
+
+Applied `20261029_skill_recovery_pdf.sql` to extend only the audit operation CHECK
+on SQL Server 2014, compatibility 100. Existing audit events were preserved; no
+employee PDF was removed or replaced during verification. Local publication
+DLL/PDB and popup CSS/JS were refreshed through the existing launcher and config.
+Route/assets return HTTP 200 and private PDF endpoints deny anonymous requests.
+
+Validation: 239 recovery tests passed with no skips, including actual SQL
+attachment update/rollback/Undo cases and private staging ownership/capacity/race
+checks. Recovery-service coverage is 91.11% of lines and 80.39% of branches.
+Seventeen JavaScript tests and fourteen isolated browser checks passed, covering
+multipart uploads, staged bytes, no publication before Apply, session isolation,
+Current/Obsolete removal/replacement, in-place Undo, old-PDF access, Promoted
+permissions, validation, and 390px layout. Release publish passed. Sign in again.
+
+### Web Activity Log
+
+Added **Dev Tools → Activity Log**, available only to current Developers. The
+table shows Who, Action, Employee ID, Skill / item, Date & time, and Result, with
+filters and read-only before/after details. Changes, page/report activity, and
+unsuccessful attempts have separate views. Bangkok dates default to this year
+through today. Existing Recovery History links retain the original source
+employee. Admins produce history without gaining access to this viewer.
+
+Employee/profile, skill, transfer, promotion/resignation, file, catalog, bulk,
+role and recovery changes are recorded at their actual write boundaries.
+SQL changes and their audit commit together; retries use signed actor/session/form
+commands and durable receipts. Multi-item operations retain honest partial
+results. Role files use atomic membership/outbox publication, bounded durable
+receipts and idempotent SQL delivery, with delivery health visible in the log.
+Existing role memberships and configuration were preserved. Audited file writes
+require SQL mode, already enabled by the existing local launcher.
+
+Applied `20261029_web_activity.sql` to `OperatorCertificationRecordDB` on SQL
+Server 2014, compatibility 100. Setup changed only audit tables/indexes. Imported
+seven original recovery actions into seven references/nine affected-item records;
+a repeated import added zero. Existing recovery audits remain intact. Ordinary
+past edits cannot be reconstructed; other web history starts with this install.
+Windows app edits, direct SQL and external file/role edits remain outside scope.
+
+Validation passed: full web suite 717 tests, 13 unrelated fixture skips; focused
+feature suite 155 tests; final command/recovery-link checks 27 tests; JavaScript
+six tests. SQL-backed isolated browser checks covered real add/update diffs,
+catalog and role delivery, retry protection, filters, permissions, dialog focus
+and 1280/390px layouts. Browser skill/report forms were fixture shells using real
+services; no live employee, skill, PDF or role was edited for verification.
+Activity/role service line coverage was 86.08%; branch coverage was 63.44%.
+
+Release publish passed. The existing local publication received the DLL/PDB and
+Activity Log CSS/JS and restarted through its unchanged launcher and role/config
+stores. Both assets return 200; anonymous list/details access redirects to Login.
+Refresh and sign in again. Detailed design: `DEV-ACTIVITY-LOG-PLAN.md`.
+
+### Employee history view
+
+Activity Log now opens **Employee history** first. Enter an exact Employee code
+such as `101` to see changes to that employee, newest first. **Changed by** is a
+separate optional actor filter. Leading zeros are preserved. Bulk/move results
+display the employee and skill that match the filters, even when another item
+appears first in the original event. Details retain the complete event.
+
+The employee view includes committed, partial and recorded no-change outcomes
+only when an actual employee item was captured. Page/report/sign-in observations
+are excluded; routine page opens no longer generate new events. All changes
+retains nonemployee catalog history, and Attempts retains unsuccessful actions.
+Existing audit data is preserved; this update needs no database migration.
+
+Validation passed: 58 focused C#/SQL/page tests, six JavaScript tests and nine
+isolated browser checks, including employee101 versus actor103, time ordering,
+bulk matching, details/focus, combined filters and 1280/390px layouts. Published
+DLL/PDB and Activity Log CSS were copied into the existing local publication and
+restarted with its unchanged configuration. Anonymous employee-history access
+redirects to Login; the stylesheet returns 200. Refresh and sign in again.
+
+### Dashboard bug fixes
+
+Department KPI buttons now use SQL-backed department snapshots instead of
+hardcoded sample numbers. Department buttons and process cards share a single
+selection; delayed count-up animations can no longer overwrite the selected
+totals. Department expiry eligibility matches the existing All Data cutoff.
+
+Employee search supports trimmed full names, keeps exact employee codes first,
+and prevents cleared or superseded requests from restoring old results. Failed
+queries can retry the same text; HTTP/session failures display safe errors.
+Guest pages safely skip missing search controls and do not perform GET/POST
+employee searches. POST initialization preserves the same identity and cached
+dashboard state as GET.
+
+Expiry Load More fetches beyond the cached 20 rows, uses one in-flight request,
+preserves rows on failure and reports loaded results without inventing a total.
+It loads progressively up to 1,000 rows and points to View full list for more.
+Employee/name/process text is rendered with DOM text nodes, closing stored HTML
+injection paths. Local photo URLs are validated before assignment. The employee
+expiry popup now has real markup and switches Bootstrap modals so closing it
+returns to the list with focus and scroll locking restored. Bangkok calendar-day
+badges handle Today, critical and soon dates consistently.
+
+Cold dashboard readers now wait for an in-progress refresh instead of receiving
+an empty snapshot. Failed loads show an unavailable banner and placeholder
+totals. Resignation periods use exclusive next-day bounds, avoiding SQL datetime
+rounding that counted midnight in adjacent periods.
+
+Validation: 754 web tests passed, with 13 unrelated fixture skips; 25 focused
+JavaScript tests passed. Marked synthetic SQL fixtures cover department totals
+and exact-midnight resignation boundaries. Read-only checks of the two new/fixed
+queries passed on the existing SQL Server 2014 database, compatibility 100.
+Existing guest expiry/report visibility was preserved. No database migration or
+live employee, skill, file or role edits are part of this dashboard update.
+
+Final isolated browser checks passed for all reproduced search/KPI defects and
+the real Expiring soon button, progressive 20/40/45-row loading, literal hostile
+text, Today/15-day badges and 1280/390px popups. Child/parent modal transitions
+preserve one backdrop, scroll lock and row focus; closing the final list releases
+all locks. Load More transfers focus before disabling its button so Escape keeps
+working. Shared backdrop cleanup preserves a newly opening fade modal while
+`body.modal-open` is set. Browser search/preview responses were synthetic; actual
+SQL query behavior was verified separately as described above.
+
+Release publish passed. The existing local runtime received the DLL/PDB and
+three dashboard scripts through its unchanged launcher/configuration. Refresh
+and sign in again after the restart.
+
+### Remembered sign-in
+
+Login now offers an optional **Keep me signed in for 30 days** checkbox, off by
+default. A protected opaque cookie can restore identity after browser and app
+restarts. It stores no employee identity, password or permissions. Fixed expiry,
+SQL revocation and current credential/active-employee checks run for remembered
+requests; roles remain current. Logout is an antiforgery POST and revokes the
+browser's remembered token, including a trusted session marker when its cookie
+is absent or corrupt. Unchecked login retains the existing 30-minute session.
+
+Applied only the new `tblWebRememberedLogin` table/indexes on SQL Server 2014,
+compatibility 100; no employee foreign key or business-row changes. Initial token
+count was zero. Existing role files and persistent Data Protection keys were
+preserved. Production requires HTTPS; the current local Development launcher
+continues to support HTTP. Details: `REMEMBERED-LOGIN.md`.
+
+Validation passed: 801 web tests, 13 unrelated fixture skips, and 20 isolated
+browser checks including browser/app restarts, logout/replay, CSRF, warm-session
+revocation, password/account changes, fresh roles and laptop/mobile layout.
+Release publish passed and local DLL/PDB were refreshed. Login/Logout smoke
+checks passed. Refresh and sign in once with the checkbox selected.
+
+Remembered-login restoration initially hit SQL 468 because the registry's Thai
+default collation differs from the legacy employee-code column's SQL Latin
+collation. Replaced that join with two parameterized reads inside a serializable
+transaction. A mixed-collation SQL test reproduced the failure; 56 focused tests
+then passed, and read-only validation of an existing host sign-in returned true.
+No saved sign-ins, employee data, schema or Data Protection keys were reset.
+
+### Skill Inventory preview count
+
+Read-only comparison found 4,663 old-app rows, 4,663 actual web-export rows and
+only 4,640 preview rows. The preview alone excluded DAY shifts and grades outside
+51T/52T: 22 DAY skill rows and one additional O1/shift-C row. The user confirmed
+the old-app population should be retained. Removed only those extra preview
+restrictions and aligned its disqualification predicate with the existing export.
+Developer, promotion/resignation, section, department and date filters remain.
+The export implementation and database records were not changed.
+
+Six actual SQL cases compare preview counts with actual generated Excel IDs,
+including DAY/other grades, Developer exclusions and representative optional
+filters. All 18 focused inventory/exclusion/verifier tests passed. Release
+publish passed; the local DLL/PDB were updated through the existing launcher.
+Live HTTP verification confirms preview 4,663 and actual CSV download 4,663.
+Refresh and run Preview again.
+
+Separate existing issue observed during testing: the inventory date endpoints
+both use an inclusive SQL datetime end built with AddTicks(-1), which can round
+to next-day midnight. It is outside this preview-only correction; date behavior
+was deliberately left unchanged. The parity fixture uses a July 2 date so it
+does not turn this scope into a separate date-boundary behavior change.
