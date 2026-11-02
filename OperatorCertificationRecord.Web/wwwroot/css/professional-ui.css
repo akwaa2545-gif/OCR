@@ -130,8 +130,8 @@ html { font-size: 16px; }
 /* Dashboard typography and surfaces keep the figures in the foreground. */
 .professional-app .db-hero { background: var(--ui-section); border: 1px solid var(--ui-section-edge); border-left: 4px solid var(--ui-action); border-radius: 10px; box-shadow: var(--ui-shadow); padding: 20px 24px; margin-bottom: 20px; }
 .professional-app .db-hero::before, .professional-app .db-hero::after { display: none; }
-.professional-app :is(.db-hero-name, .db-hero-date) { color: var(--ui-ink); }
-.professional-app :is(.db-hero-dept, .db-hero-time, .db-hero-date-label) { color: var(--ui-muted); }
+.professional-app .db-hero-name { color: var(--ui-ink); }
+.professional-app .db-hero-dept { color: var(--ui-muted); }
 .professional-app .db-hero-avatar { background: #edf2f7; color: var(--ui-ink); border-color: var(--ui-border); border-radius: 10px; }
 .professional-app :is(.otr-section, .itr-section, .dashboard-card) { border-radius: 10px; border-color: var(--ui-border); box-shadow: var(--ui-shadow); }
 .professional-app :is(.otr-header, .itr-header) { background: #203952; color: #fff; }

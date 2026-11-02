@@ -58,15 +58,6 @@
     .db-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .db-hero-name { font-size: 1.35rem; font-weight: 700; color: #fff; line-height: 1.2; }
     .db-hero-dept { font-size: .82rem; color: rgba(255,255,255,.72); margin-top: 2px; }
-    .db-hero-right { text-align: right; position: relative; z-index: 1; }
-    .db-hero-date-label { font-size: .72rem; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .08em; }
-    .db-hero-date { font-size: .92rem; font-weight: 700; color: #fff; }
-    .db-hero-time {
-        font-size: .78rem;
-        color: rgba(255,255,255,.65);
-        margin-top: 2px;
-        font-variant-numeric: tabular-nums;
-    }
 
     /* ── KPI Row ── */
     .db-kpi-row {
@@ -178,7 +169,6 @@
     /* ── Responsive ── */
     &#64;media (max-width:768px) {
         .db-hero { flex-direction: column; align-items: flex-start; }
-        .db-hero-right { text-align: left; margin-top: .25rem; }
         .db-kpi-row { grid-template-columns: 1fr 1fr; }
         .db-kpi-value { font-size: 1.25rem; }
     }
@@ -837,13 +827,8 @@
         </div>
         <div>
             <div class="db-hero-name">Welcome back, @Model.UserName</div>
-            <div class="db-hero-dept">@Model.DepartmentName &bull; <span id="currentDate"></span></div>
+            <div class="db-hero-dept">@Model.DepartmentName</div>
         </div>
-    </div>
-    <div class="db-hero-right">
-        <div class="db-hero-date-label">Logged In</div>
-        <div class="db-hero-date">@Model.LoginDate</div>
-        <div class="db-hero-time" id="currentTime"></div>
     </div>
 </div>
 
@@ -1593,20 +1578,6 @@
             console.warn('[Expiring] failed to embed expiringItems', e);
             window.expiringItems = expiringItems = [];
         }
-    </script>
-    <script>
-        function updateDateTime() {
-            const now = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const dateEl = document.getElementById('currentDate');
-            const timeEl = document.getElementById('currentTime');
-            
-            if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', dateOptions);
-            if (timeEl) timeEl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
-        }
-        
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
     </script>
     <script>
         function openExpiringModal() {
