@@ -208,6 +208,27 @@ This is a compatibility map, not a progress timeline. A connection defines the r
 agreement; it does not claim every installed copy has been updated. Use the delivery
 snapshot and acceptance checks to record which features are ready.
 
+### Separate graph: compatibility gaps
+
+The original shared-feature graph above stays unchanged. This second graph shows
+known gaps, pending verification and intentionally web-only features separately.
+
+![Separate compatibility-gap graph: broken connections for concurrent profile edits, role-controlled edits and the alternate Section report; pending checks and web-only tools are shown separately.](diagrams/legacy-web-compatibility-gaps.svg)
+
+| Feature | Current gap | Required outcome |
+| --- | --- | --- |
+| Concurrent profile edits | Ordinary profile saves do not consistently require the version loaded by the editor. Sharing SQL alone does not prevent stale overwrites. | Both apps reject a stale save and preserve the accepted edit and photo ownership. |
+| Role-controlled edits | Windows reads SQL Developer membership for report exclusions; that does not give its write operations the web app's authorization rules or Developer exceptions. | Enforce the agreed permissions at the write boundary, or keep the unmatched operation read-only. |
+| Alternate Section report | One alternate web count/export route still differs from the main Inventory/Section policy used by the aligned Windows reports. | Preview and export use the same named population for equivalent filters. |
+
+**Not verified yet:** installed releases, workshop/process changes and recovered
+skill states still need the cross-app checks in the task list. They are not marked
+as confirmed incompatibilities solely because testing or deployment is pending.
+
+**Web only by design:** Admin tools, Skill recovery, Activity log and browser sign-in
+do not need Windows counterparts. Windows and direct SQL edits remain outside the
+web Activity Log's documented scope.
+
 ## Acceptance and recovery gates
 
 | Check | Required result |
