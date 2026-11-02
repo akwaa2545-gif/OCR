@@ -38,6 +38,8 @@ RUN apt-get update && \
 # Tell PuppeteerSharp where system Chromium lives (no download needed)
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV ASPNETCORE_URLS=http://+:80
+LABEL ocr.sql-file-storage="1" ocr.sql-access-roles="1"
 
 COPY --from=build /app/publish .
 

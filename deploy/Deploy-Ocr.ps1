@@ -2,6 +2,8 @@
 param(
     [ValidateSet('test', 'prod')][string]$Environment,
     [string]$Image,
+    [string]$ImageArchive,
+    [switch]$EnableSqlStorage,
     [string]$ConfigRoot = 'C:\ocr-deploy',
     [switch]$ValidateOnly
 )
@@ -69,6 +71,112 @@ function Get-OcrDatabase {
     } catch { throw 'Connection string is invalid or has no explicit database.' }
 }
 
+function Read-OcrConnection {
+    param([string]$Root, [string]$Name)
+    $connection = $null
+    foreach ($line in Get-Content -LiteralPath (Join-Path $Root "$Name.env")) {
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.TrimStart().StartsWith('#')) { continue }
+        if ($line -notmatch '^ConnectionStrings__DefaultConnection=(.+)$' -or $null -ne $connection) {
+            throw "$Name.env must contain only one ConnectionStrings__DefaultConnection entry (and optional comments)."
+        }
+        $connection = $Matches[1]
+    }
+    if ($null -eq $connection) { throw "$Name.env must contain a database connection." }
+    return $connection
+}
+
+function Assert-OcrSqlStorageReady {
+    param([string]$Root, [string]$Target, $Config)
+    $connection = $null
+    try {
+        $value = Read-OcrConnection $Root $Target
+        if ((Get-OcrDatabase $value) -ne $Config.ExpectedDatabase) { throw 'Database mismatch.' }
+        $connection = New-Object System.Data.SqlClient.SqlConnection -ArgumentList $value
+        $connection.Open()
+        $command = $connection.CreateCommand()
+        $command.CommandTimeout = 15
+        $command.CommandText = @'
+IF OBJECT_ID(N'dbo.tblEmployeeFileStorageSchema',N'U') IS NULL
+ OR OBJECT_ID(N'dbo.tblEmployeeFile',N'U') IS NULL
+ OR OBJECT_ID(N'dbo.tblEmployeeFileAlias',N'U') IS NULL
+ OR OBJECT_ID(N'dbo.tblEmployeeFileMigration',N'U') IS NULL
+ OR OBJECT_ID(N'dbo.tblApplicationRoleStore',N'U') IS NULL
+ OR OBJECT_ID(N'dbo.tblApplicationRoleMember',N'U') IS NULL
+ OR COL_LENGTH(N'dbo.tblEmployee',N'PhotoFileId') IS NULL
+ OR COL_LENGTH(N'dbo.tblEmployee',N'FileStorageVersion') IS NULL
+ OR COL_LENGTH(N'dbo.tblQualified',N'OcrSkillRowId') IS NULL
+ OR COL_LENGTH(N'dbo.tblQualified',N'CertificateFileId') IS NULL
+ OR COL_LENGTH(N'dbo.tblQualified',N'FileStorageVersion') IS NULL
+ OR COL_LENGTH(N'dbo.tblQualified_Obsoleted',N'OcrSkillRowId') IS NULL
+ OR COL_LENGTH(N'dbo.tblQualified_Obsoleted',N'CertificateFileId') IS NULL
+ OR COL_LENGTH(N'dbo.tblQualified_Obsoleted',N'FileStorageVersion') IS NULL
+    SELECT 0;
+ELSE
+    EXEC sys.sp_executesql N'SELECT CASE WHEN EXISTS(
+        SELECT 1 FROM dbo.tblEmployeeFileStorageSchema WHERE SchemaId=1 AND SchemaVersion=1)
+        AND (SELECT COUNT(*) FROM dbo.tblApplicationRoleStore WHERE RoleName IN(N''Admin'',N''Developer''))=2
+        THEN 1 ELSE 0 END';
+'@
+        try {
+            if ([int]$command.ExecuteScalar() -ne 1) { throw 'Storage not initialized.' }
+        } finally { $command.Dispose() }
+    } catch { throw 'SQL file and access-role storage are not ready. No image or container changes were made.' }
+    finally { if ($null -ne $connection) { $connection.Dispose() } }
+}
+
+function Resolve-OcrImageArchive {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Image archive must be an existing regular file.' }
+    $item = Get-Item -LiteralPath $Path
+    $resolved = $item.FullName
+    while ($null -ne $item) {
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Image archive must not traverse a junction or symbolic link.' }
+        if ($item -is [IO.FileInfo]) { $item = $item.Directory } else { $item = $item.Parent }
+    }
+    return $resolved
+}
+
+function Import-OcrImageArchive {
+    param([string]$Archive, [string]$Tag)
+    $output = Invoke-OcrDocker @('load', '--input', $Archive)
+    $loadedTags = @($output -split "`r?`n" | Where-Object { $_ -cmatch '^Loaded image: (.+)$' } | ForEach-Object { $_.Substring(14).Trim() })
+    if ($loadedTags -cnotcontains $Tag) { throw 'The archive did not provide the requested image tag. Existing containers were not changed.' }
+    try {
+        $details = @((Invoke-OcrDocker @('image', 'inspect', $Tag) | ConvertFrom-Json))[0]
+        if ([string]$details.Id -cnotmatch '^sha256:[a-f0-9]{64}$' -or $details.Os -cne 'linux' -or $details.Architecture -cne 'amd64') {
+            throw 'Unsupported image.'
+        }
+        return [string]$details.Id
+    } catch { throw 'The loaded image must have a verified immutable Linux/amd64 image ID.' }
+}
+
+function Test-OcrSqlCapabilityLabels {
+    param($Config)
+    if ($null -eq $Config -or -not $Config.PSObject.Properties['Labels'] -or $null -eq $Config.Labels) { return $false }
+    foreach ($name in @('ocr.sql-file-storage', 'ocr.sql-access-roles')) {
+        $property = $Config.Labels.PSObject.Properties[$name]
+        if ($null -eq $property -or [string]$property.Value -cne '1') { return $false }
+    }
+    return $true
+}
+
+function Assert-OcrSqlImage {
+    param([string]$ImageReference)
+    try {
+        $details = @((Invoke-OcrDocker @('image', 'inspect', $ImageReference) | ConvertFrom-Json))[0]
+        if ([string]$details.Id -cnotmatch '^sha256:[a-f0-9]{64}$' -or $details.Os -cne 'linux' -or $details.Architecture -cne 'amd64' -or
+            -not (Test-OcrSqlCapabilityLabels $details.Config)) { throw 'Unsupported image.' }
+        return [string]$details.Id
+    } catch { throw 'The image must declare verified SQL storage capabilities for files and access roles.' }
+}
+
+function Test-OcrSqlRollback {
+    param($Container)
+    if ($null -eq $Container -or -not (Test-OcrSqlCapabilityLabels $Container.Config)) { return $false }
+    return (@($Container.Config.Env) -ccontains 'FileStorage__ReadSqlEnabled=true' -and
+        @($Container.Config.Env) -ccontains 'AccessRoles__Storage=Sql')
+}
+
 function Get-OcrRootFields {
     param($Config, [string]$Name)
     $fields = @('CertificatesRoot', 'UploadRoot', 'PhotosRoot', 'DataProtectionRoot')
@@ -114,16 +222,8 @@ function Read-OcrConfiguration {
             if ($roots[$i] -eq $roots[$j] -or $roots[$i].StartsWith($roots[$j] + '/') -or $roots[$j].StartsWith($roots[$i] + '/')) { throw "$Name mount roots must be separate, non-nested directories." }
         }
     }
-    $envPath = Join-Path $Root "$Name.env"
-    $connection = $null
-    foreach ($line in Get-Content -LiteralPath $envPath) {
-        if ([string]::IsNullOrWhiteSpace($line) -or $line.TrimStart().StartsWith('#')) { continue }
-        if ($line -notmatch '^ConnectionStrings__DefaultConnection=(.+)$' -or $null -ne $connection) {
-            throw "$Name.env must contain only one ConnectionStrings__DefaultConnection entry (and optional comments)."
-        }
-        $connection = $Matches[1]
-    }
-    if ($null -eq $connection -or (Get-OcrDatabase $connection) -ne $config.ExpectedDatabase) { throw "$Name connection database does not match ExpectedDatabase." }
+    $connection = Read-OcrConnection $Root $Name
+    if ((Get-OcrDatabase $connection) -ne $config.ExpectedDatabase) { throw "$Name connection database does not match ExpectedDatabase." }
     return $config
 }
 
@@ -191,14 +291,20 @@ function Assert-OcrExistingContainer {
 }
 
 function New-OcrContainer {
-    param($Config, [string]$Name, [string]$Publish, [string]$Release, [string]$Target, [string]$Root)
+    param($Config, [string]$Name, [string]$Publish, [string]$Release, [string]$Target, [string]$Root, [switch]$EnableSqlStorage)
     $rootFields = @(Get-OcrRootFields $Config $Target)
+    if ($EnableSqlStorage -and $rootFields -notcontains 'AppDataRoot') { throw 'SQL storage deployment requires a persistent AppDataRoot.' }
     $arguments = @('create', '--name', $Name, '--restart', 'unless-stopped', '--publish', $Publish,
         '--label', "ocr.environment=$Target", '--label', "ocr.release=$Release", '--env-file', (Join-Path $Root "$Target.env"),
         '--env', 'ASPNETCORE_ENVIRONMENT=Production', '--env', 'ASPNETCORE_URLS=http://+:80',
         '--env', 'PhotoStorage__UploadRoot=/app/photo-source', '--env', 'PhotoStorage__LegacyMirrorRoot=/app/legacy-photos',
         '--env', 'PhotoStorage__DatabasePathPrefix=/app/photos', '--env', 'PhotoPath=/app/legacy-photos',
         '--env', 'CertificatePath=/app/wwwroot/certs')
+    if ($EnableSqlStorage) {
+        $arguments += @('--env', 'FileStorage__ReadSqlEnabled=true', '--env', 'FileStorage__WriteSqlEnabled=true',
+            '--env', 'AccessRoles__Storage=Sql')
+    }
+    if ($rootFields -notcontains 'LegacyTestUploadRoot') { $arguments += @('--env', 'LocalUploadSubfolder=/app/wwwroot/certs') }
     foreach ($mount in @(@('CertificatesRoot', '/app/wwwroot/certs'), @('UploadRoot', '/app/photo-source'), @('UploadRoot', '/app/wwwroot/uploads'), @('PhotosRoot', '/app/legacy-photos'), @('DataProtectionRoot', '/app/dataprotection'))) {
         $arguments += @('--mount', "type=bind,source=$($Config.($mount[0])),target=$($mount[1])")
     }
@@ -226,16 +332,21 @@ function Wait-OcrReady {
 }
 
 function Invoke-OcrDeployment {
-    param([string]$Target, [string]$Release, [string]$Root, [switch]$CheckOnly)
+    param([string]$Target, [string]$Release, [string]$Root, [switch]$CheckOnly, [string]$ImageArchive, [switch]$EnableSqlStorage)
     if ($Target -notin @('test', 'prod')) { throw 'Environment must be test or prod.' }
-    if ($Release -cnotmatch '^ghcr\.io/[a-z0-9][a-z0-9._/-]*@sha256:[a-f0-9]{64}$') { throw 'Image must be an immutable ghcr.io image digest.' }
+    if ($ImageArchive) {
+        if ($Release -cnotmatch '^[a-z0-9][a-z0-9._/-]*(?::[0-9]+/[a-z0-9][a-z0-9._/-]*)?:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$') { throw 'A valid explicit local image tag is required.' }
+        $ImageArchive = Resolve-OcrImageArchive $ImageArchive
+    } elseif ($Release -cnotmatch '^ghcr\.io/[a-z0-9][a-z0-9._/-]*@sha256:[a-f0-9]{64}$') { throw 'Image must be an immutable ghcr.io image digest.' }
     $test = Read-OcrConfiguration $Root 'test'
     $prod = Read-OcrConfiguration $Root 'prod'
     Assert-OcrSeparation $test $prod
     $config = if ($Target -eq 'test') { $test } else { $prod }
+    if ($EnableSqlStorage -and @(Get-OcrRootFields $config $Target) -notcontains 'AppDataRoot') { throw 'SQL storage deployment requires a persistent AppDataRoot.' }
     if ((Invoke-OcrDocker @('info', '--format', '{{.OSType}}')).Trim() -ne 'linux') { throw 'Docker must be running Linux containers.' }
     $old = Get-OcrContainer $config.ContainerName
     Assert-OcrExistingContainer $old $config $Target
+    if ($EnableSqlStorage) { Assert-OcrSqlStorageReady $Root $Target $config }
     if ($CheckOnly) { Write-Output "$Target configuration and existing container validated; no changes made."; return }
 
     $suffix = [Guid]::NewGuid().ToString('N').Substring(0, 12)
@@ -254,9 +365,12 @@ function Invoke-OcrDeployment {
         }
     }
     $wasRunning = $null -ne $old -and $old.State.Running
-    $null = Invoke-OcrDocker @('pull', $Release)
+    $sqlRollbackVerified = -not $EnableSqlStorage -or (Test-OcrSqlRollback $old)
+    if ($ImageArchive) { $Release = Import-OcrImageArchive $ImageArchive $Release }
+    else { $null = Invoke-OcrDocker @('pull', $Release) }
+    if ($EnableSqlStorage) { $Release = Assert-OcrSqlImage $Release }
     try {
-        New-OcrContainer $config $candidate '127.0.0.1::80' $Release $Target $Root
+        New-OcrContainer $config $candidate '127.0.0.1::80' $Release $Target $Root -EnableSqlStorage:$EnableSqlStorage
         $candidateCreated = $true
         $null = Invoke-OcrDocker @('start', $candidate)
         $details = Get-OcrContainer $candidate
@@ -270,7 +384,7 @@ function Invoke-OcrDeployment {
             $null = Invoke-OcrDocker @('rename', $config.ContainerName, $backup)
             $oldRenamed = $true
         }
-        New-OcrContainer $config $config.ContainerName "$($config.Port):80" $Release $Target $Root
+        New-OcrContainer $config $config.ContainerName "$($config.Port):80" $Release $Target $Root -EnableSqlStorage:$EnableSqlStorage
         $finalCreated = $true
         $null = Invoke-OcrDocker @('start', $config.ContainerName)
         Wait-OcrReady ([int]$config.Port)
@@ -282,12 +396,25 @@ function Invoke-OcrDeployment {
         if ($oldRenamed) { Write-Output "Previous container retained as $backup." }
     } catch {
         $failure = $_
+        $disablingUnsafeRestart = $false
         try {
             if ($finalCreated) { $null = Invoke-OcrDocker @('rm', '-f', $config.ContainerName) }
             if ($oldRenamed) { $null = Invoke-OcrDocker @('rename', $backup, $config.ContainerName) }
-            if ($backupPolicyTouched) { $null = Invoke-OcrDocker @('update', '--restart', $oldRestartPolicy, $config.ContainerName) }
-            if ($oldStopped -and $wasRunning) { $null = Invoke-OcrDocker @('start', $config.ContainerName) }
-        } catch { throw "Deployment failed and automatic rollback needs operator intervention. Previous container: $backup. No volumes were removed." }
+            if ($oldStopped -and -not $sqlRollbackVerified) {
+                $disablingUnsafeRestart = $true
+                $null = Invoke-OcrDocker @('update', '--restart', 'no', $config.ContainerName)
+                $disablingUnsafeRestart = $false
+            } elseif ($backupPolicyTouched) { $null = Invoke-OcrDocker @('update', '--restart', $oldRestartPolicy, $config.ContainerName) }
+            if ($oldStopped -and $wasRunning -and $sqlRollbackVerified) { $null = Invoke-OcrDocker @('start', $config.ContainerName) }
+        } catch {
+            if ($disablingUnsafeRestart) {
+                throw "Deployment failed. Previous image SQL compatibility is not verified and automatic restart may still be enabled. Immediate operator intervention is required for $($config.ContainerName). No volumes were removed."
+            }
+            throw "Deployment failed and automatic rollback needs operator intervention. Previous container: $backup. No volumes were removed."
+        }
+        if ($oldStopped -and -not $sqlRollbackVerified) {
+            throw 'Deployment failed. Previous image SQL compatibility is not verified; it remains stopped with automatic restart disabled. No volumes were removed.'
+        }
         throw $failure
     } finally {
         if ($candidateCreated) {
@@ -297,5 +424,5 @@ function Invoke-OcrDeployment {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    Invoke-OcrDeployment -Target $Environment -Release $Image -Root $ConfigRoot -CheckOnly:$ValidateOnly
+    Invoke-OcrDeployment -Target $Environment -Release $Image -Root $ConfigRoot -CheckOnly:$ValidateOnly -ImageArchive $ImageArchive -EnableSqlStorage:$EnableSqlStorage
 }

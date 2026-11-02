@@ -1,28 +1,58 @@
+# Manual SQL-storage deployment on a Windows Docker Desktop host (Linux containers).
+# Create the approved host folders first; bind mounts never create missing roots.
+# The existing protected env file contains the database connection, not this file.
 services:
   ocr-web:
-    image: ocr-web:latest
-    # make sure the host port (left side) is not already in use; change to 4041, 8080, etc. if you get
-    # "port is already allocated" errors (the screenshot you captured earlier showed 4040 in use).
+    image: "${OCR_IMAGE:-ocr-web:sql-storage}"
+    container_name: "${OCR_CONTAINER_NAME:-ocrweb}"
     ports:
-      - "8080:80"                # hostPort:containerPort - adjust hostPort if this conflicts with another service
-
-    volumes:
-    - certshare:/app/wwwroot/certs:ro
-    - "C:/ocr-uploads:/app/photo-source"
-    - "C:/ocr-photos:/app/legacy-photos"
-
+      - "${OCR_HOST_PORT:-8080}:80"
+    env_file:
+      - "${OCR_ENV_FILE:-C:/ocr-deploy/prod.env}"
     environment:
-      CertificatePath: "/certs"
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:80"
+      FileStorage__ReadSqlEnabled: "true"
+      FileStorage__WriteSqlEnabled: "true"
+      AccessRoles__Storage: Sql
+      CertificatePath: "/app/wwwroot/certs"
+      LocalUploadSubfolder: "/app/wwwroot/certs"
+      PhotoPath: "/app/legacy-photos"
       PhotoStorage__UploadRoot: "/app/photo-source"
       PhotoStorage__DatabasePathPrefix: "/app/photos"
       PhotoStorage__LegacyMirrorRoot: "/app/legacy-photos"
       PhotoStorage__MaxFileBytes: "5242880"
-      ConnectionStrings__DefaultConnection: >-
-        Server=10.249.153.30;Database=OperatorCertificationRecordDB;
-        User Id=TETUSR;Password=TETPWD;TrustServerCertificate=True;
-
-    restart: always
-
-volumes:
-  certshare:
-    external: true
+    volumes:
+      - type: bind
+        source: "${OCR_CERTIFICATES_ROOT:-C:/uploads}"
+        target: /app/wwwroot/certs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OCR_UPLOAD_ROOT:-C:/ocr-uploads}"
+        target: /app/photo-source
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OCR_UPLOAD_ROOT:-C:/ocr-uploads}"
+        target: /app/wwwroot/uploads
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OCR_PHOTOS_ROOT:-C:/ocr-photos}"
+        target: /app/legacy-photos
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OCR_KEYS_ROOT:-C:/ocr-dataprotection}"
+        target: /app/dataprotection
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OCR_APPDATA_ROOT:-C:/ocr-appdata}"
+        target: /app/App_Data
+        bind:
+          create_host_path: false
+    restart: unless-stopped
