@@ -139,44 +139,28 @@ html { font-size: 16px; }
     min-height: 176px; padding: 28px; isolation: isolate;
     background: #142c43; border-color: #26435b; border-left-color: #e9a354;
 }
-.db-hero-slideshow { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.db-hero-slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 48%; opacity: 0; }
-.db-hero-slide:first-child { opacity: 1; }
-.db-hero--slideshow[data-slideshow-paused] .db-hero-slide {
-    animation: dashboard-profile-fade 40s linear infinite;
-    animation-delay: var(--slide-delay);
-}
-.db-hero--slideshow[data-slideshow-paused="true"] .db-hero-slide { animation-play-state: paused; }
-.db-hero-slideshow::after {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgb(8 23 39 / 88%), rgb(8 23 39 / 68%) 65%, rgb(8 23 39 / 66%));
-}
-.professional-app .db-hero--slideshow .db-hero-left { z-index: 1; min-width: 0; padding-right: 100px; }
-.professional-app .db-hero--slideshow .db-hero-name { color: #fff; overflow-wrap: anywhere; }
-.professional-app .db-hero--slideshow .db-hero-dept { color: #e6edf6; margin-top: 6px; }
+.db-hero-slideshow { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.db-hero-slide-track { position: absolute; inset: 0; display: flex; }
+.db-hero-slide { flex: 0 0 100%; width: 100%; min-width: 0; height: 100%; object-fit: cover; object-position: center 48%; }
+.db-hero--slideshow[data-slideshow-paused] .db-hero-slide-track { animation: dashboard-profile-slide 40s ease-in-out infinite; }
+.db-hero--slideshow[data-slideshow-paused="true"] .db-hero-slide-track { animation-play-state: paused; }
+.professional-app .db-hero--slideshow .db-hero-left { z-index: 1; min-width: 0; }
+.professional-app .db-hero--slideshow .db-hero-name { color: #fff; overflow-wrap: anywhere; text-shadow: 0 1px 3px #102133, 0 2px 10px #102133; }
+.professional-app .db-hero--slideshow .db-hero-dept { color: #fff; margin-top: 6px; text-shadow: 0 1px 3px #102133, 0 2px 8px #102133; }
 .professional-app .db-hero--slideshow .db-hero-avatar { flex-shrink: 0; background: #edf2f7; border-color: rgb(255 255 255 / 75%); box-shadow: 0 0 0 4px rgb(255 255 255 / 12%); }
-.db-hero-slideshow-toggle {
-    position: absolute; right: 20px; bottom: 18px; z-index: 2;
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    min-width: 86px; min-height: 44px; padding: 8px 12px;
-    border: 1px solid rgb(255 255 255 / 38%); border-radius: 9px;
-    background: rgb(8 23 39 / 58%); color: #fff; font: inherit; font-size: 13px; cursor: pointer;
-}
-.db-hero-slideshow-toggle:hover { background: rgb(8 23 39 / 80%); }
-.db-hero-slideshow-toggle:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-.db-hero-slideshow-toggle[hidden] { display: none; }
-@keyframes dashboard-profile-fade {
-    0%, 17% { opacity: 1; }
-    20%, 97% { opacity: 0; }
-    100% { opacity: 1; }
+@keyframes dashboard-profile-slide {
+    0%, 17% { transform: translateX(0); }
+    20%, 37% { transform: translateX(-100%); }
+    40%, 57% { transform: translateX(-200%); }
+    60%, 77% { transform: translateX(-300%); }
+    80%, 97% { transform: translateX(-400%); }
+    100% { transform: translateX(-500%); }
 }
 @media (max-width: 700px) {
-    .professional-app .db-hero.db-hero--slideshow { min-height: 196px; padding: 22px 18px 70px; }
-    .professional-app .db-hero--slideshow .db-hero-left { padding-right: 0; }
+    .professional-app .db-hero.db-hero--slideshow { min-height: 196px; padding: 22px 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .db-hero--slideshow[data-slideshow-paused] .db-hero-slide { animation: none; opacity: 0; }
-    .db-hero--slideshow[data-slideshow-paused] .db-hero-slide:first-child { opacity: 1; }
+    .db-hero--slideshow[data-slideshow-paused] .db-hero-slide-track { animation: none; transform: none; }
 }
 .professional-app :is(.otr-section, .itr-section, .dashboard-card) { border-radius: 10px; border-color: var(--ui-border); box-shadow: var(--ui-shadow); }
 .professional-app :is(.otr-header, .itr-header) { background: #203952; color: #fff; }
