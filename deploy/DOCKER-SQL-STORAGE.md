@@ -146,11 +146,22 @@ Container port 80 is explicit because the .NET 8 image otherwise defaults to
 8080. See [Microsoft's container-port documentation](https://learn.microsoft.com/en-us/dotnet/core/compatibility/containers/8.0/aspnet-port).
 The private env file and bind syntax are documented by [Docker](https://docs.docker.com/reference/cli/docker/container/run/).
 
-`8080:80` is the backend mapping. Production browser access must use HTTPS:
-session cookies are Secure, and remembered sign-in also requires the app to see
-an HTTPS request. A TLS proxy must use the app's deliberately trusted forwarding
-configuration; this script does not add proxy trust or weaken cookie security.
-Direct plain HTTP to port 8080 is not a complete Production sign-in setup.
+`8080:80` is the backend mapping. Production session cookies require HTTPS by
+default. For an existing HTTP deployment, the selected host JSON file can
+explicitly opt into ordinary, 30-minute manual sessions with:
+
+```json
+"AllowHttpSession": true
+```
+
+This must be a JSON boolean, not a quoted string. An omitted or false setting
+keeps the secure default; true injects `Authentication__AllowHttpSession=true`
+into both the candidate and final container for that environment only. HTTP
+traffic is unencrypted. Remembered sign-in remains HTTPS-only in Production,
+including when this manual-session option is enabled.
+
+With HTTPS, a TLS proxy must use the app's deliberately trusted forwarding
+configuration; this script does not add proxy trust or configure TLS.
 
 ## Compose alternative
 

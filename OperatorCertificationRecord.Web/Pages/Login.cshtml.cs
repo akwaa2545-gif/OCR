@@ -13,6 +13,7 @@ public class LoginModel(ILoginAccountStore accounts, RememberedLoginService reme
     [BindProperty] public bool RememberMe { get; set; }
 
     public string ErrorMessage { get; private set; } = "";
+    public bool CanRememberSignIn => rememberedLogins.CanRememberSignIn(HttpContext);
 
     public IActionResult OnGet()
     {

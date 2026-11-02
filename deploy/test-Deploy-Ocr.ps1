@@ -103,6 +103,34 @@ try {
     [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
     [IO.File]::WriteAllText((Join-Path $script:fixture 'test.env'), 'ConnectionStrings__DefaultConnection=Server=unused;Database=OCR_test;Integrated Security=true')
     Test-Case 'host configuration validates offline' { $null = Read-OcrConfiguration $script:fixture 'test' }
+    Test-Case 'HTTP sessions default to disabled in host configuration' {
+        $read = Read-OcrConfiguration $script:fixture 'test'
+        Assert-True ($read.AllowHttpSession -is [bool] -and -not $read.AllowHttpSession) 'HTTP sessions were not disabled by default.'
+    }
+    $config | Add-Member AllowHttpSession $true
+    [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
+    Test-Case 'explicit HTTP session boolean true validates' {
+        $read = Read-OcrConfiguration $script:fixture 'test'
+        Assert-True ($read.AllowHttpSession -is [bool] -and $read.AllowHttpSession) 'Explicit HTTP sessions were not preserved.'
+    }
+    $config.AllowHttpSession = 'true'
+    [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
+    Test-Case 'HTTP session string true is rejected' { Assert-Throws { Read-OcrConfiguration $script:fixture 'test' } '*AllowHttpSession must be a JSON boolean*' }
+    $config.AllowHttpSession = 'false'
+    [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
+    Test-Case 'HTTP session string false is rejected' { Assert-Throws { Read-OcrConfiguration $script:fixture 'test' } '*AllowHttpSession must be a JSON boolean*' }
+    $config.AllowHttpSession = 1
+    [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
+    Test-Case 'HTTP session numeric true is rejected' { Assert-Throws { Read-OcrConfiguration $script:fixture 'test' } '*AllowHttpSession must be a JSON boolean*' }
+    $config.AllowHttpSession = $null
+    [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
+    Test-Case 'HTTP session null is rejected' { Assert-Throws { Read-OcrConfiguration $script:fixture 'test' } '*AllowHttpSession must be a JSON boolean*' }
+    $config.AllowHttpSession = $false
+    [IO.File]::WriteAllText((Join-Path $script:fixture 'test.json'), ($config | ConvertTo-Json))
+    Test-Case 'explicit HTTP session boolean false validates' {
+        $read = Read-OcrConfiguration $script:fixture 'test'
+        Assert-True ($read.AllowHttpSession -is [bool] -and -not $read.AllowHttpSession) 'False HTTP session setting changed.'
+    }
     $appDataRoot = Join-Path $script:fixture 'appdata'
     $null = New-Item -ItemType Directory -Path $appDataRoot
     $config | Add-Member AppDataRoot $appDataRoot
@@ -275,6 +303,38 @@ function Wait-OcrReady {
 }
 function Reset-Fake { param([string]$Failure='') $script:failure=$Failure; $script:sqlOldCompatible=$true; $script:previousRestartPolicy='unless-stopped'; $script:operations=New-Object 'System.Collections.Generic.List[string]' }
 $digest = 'ghcr.io/example/ocr@sha256:' + ('a' * 64)
+Test-Case 'absent HTTP session opt-in is not injected into candidate or final container' {
+    Reset-Fake
+    Invoke-OcrDeployment 'test' $digest 'C:\unused'
+    Assert-True (@($script:operations | Where-Object { $_ -like 'create *' }).Count -eq 2) 'Candidate/final containers were not created.'
+    Assert-True (-not [bool]($script:operations -like '*Authentication__AllowHttpSession=*')) 'HTTP session opt-in was injected by default.'
+}
+Test-Case 'explicit true HTTP session opt-in reaches candidate and final container' {
+    Reset-Fake
+    $script:testConfig | Add-Member AllowHttpSession $true
+    try {
+        Invoke-OcrDeployment 'test' $digest 'C:\unused'
+        Assert-True (@($script:operations | Where-Object { $_ -like 'create *Authentication__AllowHttpSession=true*' }).Count -eq 2) 'HTTP session opt-in missing from candidate or final container.'
+    } finally { $script:testConfig.PSObject.Properties.Remove('AllowHttpSession') }
+}
+Test-Case 'explicit false HTTP session setting is not injected into either container' {
+    Reset-Fake
+    $script:testConfig | Add-Member AllowHttpSession $false
+    try {
+        Invoke-OcrDeployment 'test' $digest 'C:\unused'
+        Assert-True (@($script:operations | Where-Object { $_ -like 'create *' }).Count -eq 2) 'Candidate/final containers were not created.'
+        Assert-True (-not [bool]($script:operations -like '*Authentication__AllowHttpSession=*')) 'False HTTP session setting enabled an override.'
+    } finally { $script:testConfig.PSObject.Properties.Remove('AllowHttpSession') }
+}
+Test-Case 'HTTP session production opt-in does not leak into test container' {
+    Reset-Fake
+    $prodCopy = New-TestConfig 'prod' 8080
+    $prodCopy | Add-Member AllowHttpSession $true
+    New-OcrContainer $prodCopy 'ocr-prod' '8080:80' $digest 'prod' 'C:\unused'
+    New-OcrContainer $script:testConfig 'ocr-test' '8081:80' $digest 'test' 'C:\unused'
+    Assert-True (@($script:operations | Where-Object { $_ -like 'create --name ocr-prod *Authentication__AllowHttpSession=true*' }).Count -eq 1) 'Production opt-in was not preserved.'
+    Assert-True (-not [bool]($script:operations -like 'create --name ocr-test *Authentication__AllowHttpSession=*')) 'Production HTTP setting leaked into test.'
+}
 Test-Case 'test and production mount their configured app data' {
     foreach ($target in @('test','prod')) {
         Reset-Fake

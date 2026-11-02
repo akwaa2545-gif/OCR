@@ -9,8 +9,13 @@ sign-in has an absolute 30-day expiry; restoration does not extend it.
 
 The browser receives a host-only, HttpOnly, SameSite=Lax cookie containing a
 Data Protection protected random 256-bit token. It contains no employee code,
-password, credential hash or permission claims. Production requires HTTPS;
-Development deliberately supports the existing localhost HTTP launcher.
+password, credential hash or permission claims. Production remembered sign-in
+requires HTTPS; Development deliberately supports the existing localhost HTTP
+launcher. A separately configured `Authentication:AllowHttpSession=true` allows
+ordinary, 30-minute manual sessions on an existing Production HTTP site. It does
+not enable remembered sign-in over HTTP. The Docker deployment helper enables
+that manual-session option only when the selected host JSON explicitly contains
+the boolean `"AllowHttpSession": true`; the default remains HTTPS-only sessions.
 
 SQL stores only the token hash, employee code, timestamps and a separately
 protected proof of the canonical stored password. The proof is bound to its

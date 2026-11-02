@@ -44,6 +44,43 @@ public sealed class RememberedLoginPageTests
     }
 
     [Theory]
+    [InlineData("Production", "http", false)]
+    [InlineData("Production", "https", true)]
+    [InlineData("Development", "http", true)]
+    public void RememberChoiceIsOnlyOfferedWhenTheRequestCanUseIt(string environment, string scheme, bool available)
+    {
+        using var fixture = new Fixture(environment);
+        fixture.Http.Request.Scheme = scheme;
+        Assert.Equal(available, fixture.Login.CanRememberSignIn);
+    }
+
+    [Fact]
+    public async Task ProductionHttpCanSignInManuallyWithoutIssuingARememberedToken()
+    {
+        using var fixture = new Fixture(Environments.Production);
+        fixture.Login.Username = "0000101";
+        fixture.Login.Password = "password";
+
+        Assert.Equal("/Dashboard", Assert.IsType<RedirectToPageResult>(await fixture.Login.OnPostAsync()).PageName);
+        Assert.Equal("0000101", fixture.Http.Session.GetString("UserCode"));
+        Assert.Equal(0, fixture.Remember.StoreCalls);
+        Assert.Null(fixture.Http.Session.GetString(RememberedLoginService.SessionTokenKey));
+    }
+
+    [Fact]
+    public async Task ForgedRememberChoiceOnProductionHttpCannotPublishIdentityOrIssueAToken()
+    {
+        using var fixture = new Fixture(Environments.Production);
+        fixture.Login.Username = "0000101";
+        fixture.Login.Password = "password";
+        fixture.Login.RememberMe = true;
+
+        Assert.IsType<PageResult>(await fixture.Login.OnPostAsync());
+        Assert.Null(fixture.Http.Session.GetString("UserCode"));
+        Assert.Equal(0, fixture.Remember.StoreCalls);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task SuccessfulLoginHonorsTheRememberChoiceAndPublishesFreshIdentity(bool remember)
@@ -139,7 +176,7 @@ public sealed class RememberedLoginPageTests
         public RememberStore Remember { get; } = new();
         public LoginModel Login { get; }
         public LogoutModel Logout { get; }
-        public Fixture()
+        public Fixture(string environment = "Development")
         {
             Directory.CreateDirectory(_directory);
             var admins = Path.Combine(_directory, "admins.json"); var developers = Path.Combine(_directory, "developers.json");
@@ -149,7 +186,7 @@ public sealed class RememberedLoginPageTests
             var roles = new DeveloperRoleService(configuration, NullLogger<DeveloperRoleService>.Instance);
             var writer = new LoginSessionWriter(new AdminService(configuration), roles, TimeProvider.System);
             var service = new RememberedLoginService(Remember, new EphemeralDataProtectionProvider(), writer,
-                TimeProvider.System, new EnvironmentStub(), NullLogger<RememberedLoginService>.Instance);
+                TimeProvider.System, new EnvironmentStub { EnvironmentName = environment }, NullLogger<RememberedLoginService>.Instance);
             Http.Request.Scheme = "http"; Http.Request.Path = "/Login";
             Login = new LoginModel(Accounts, service, NullLogger<LoginModel>.Instance)
             { PageContext = new PageContext { HttpContext = Http } };

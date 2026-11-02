@@ -79,14 +79,7 @@ try
     builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 70L * 1024 * 1024);
     builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 70L * 1024 * 1024);
     builder.Services.AddSession(options =>
-    {
-        options.IdleTimeout = TimeSpan.FromMinutes(30);
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-            ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-    });
+        SessionCookiePolicy.Configure(options, builder.Environment, builder.Configuration));
     builder.Services.AddScoped<ILoginAccountStore, SqlLoginAccountStore>();
     builder.Services.AddScoped<IRememberedLoginStore, SqlRememberedLoginStore>();
     builder.Services.AddSingleton<LoginSessionWriter>();

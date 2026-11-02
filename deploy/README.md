@@ -57,11 +57,19 @@ Each JSON file has these fields (values are installation-specific):
   "DataProtectionRoot": "C:\\ocr-test\\dataprotection",
   "LegacyTestUploadRoot": "C:\\ocr-test\\uploads-test",
   "AppDataRoot": "C:\\ocr-test\\appdata",
+  "AllowHttpSession": false,
   "ExpectedDatabase": "OperatorCertificationRecordDB_Test"
 }
 ```
 
 Each environment's `.env` contains exactly one `ConnectionStrings__DefaultConnection` entry using its own database, plus optional comments. The deployment script validates names, ports, database names, local mount roots, and cross-environment separation before changing containers. Existing host files, not this example, are authoritative. Production uses `ocrweb`, port 8080, and `OperatorCertificationRecordDB`.
+
+`AllowHttpSession` is optional and defaults to false. Only the JSON boolean
+`true` in the selected environment's host configuration enables ordinary manual
+sign-in over HTTP; strings and numbers are rejected. This setting is passed to
+both candidate and final containers without changing the other environment.
+Production remembered sign-in still requires HTTPS. HTTP traffic is unencrypted;
+the option does not configure TLS or change trusted proxy settings.
 
 Installed storage mapping:
 
