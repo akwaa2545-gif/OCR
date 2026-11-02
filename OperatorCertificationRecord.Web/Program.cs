@@ -191,8 +191,11 @@ try
     // Employee photos are served through the session-protected photo controller.
     app.UseMiddleware<PrivateUploadAccessMiddleware>();
 
+    var staticContentTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+    staticContentTypes.Mappings[".avif"] = "image/avif";
     app.UseStaticFiles(new StaticFileOptions
     {
+        ContentTypeProvider = staticContentTypes,
         OnPrepareResponse = ctx =>
         {
             ctx.Context.Response.Headers.Append(

@@ -809,7 +809,14 @@
     </style>
 
 <!-- ═══════════ Hero Banner ═══════════ -->
-<div class="db-hero">
+<div class="db-hero db-hero--slideshow" data-dashboard-slideshow>
+    <div class="db-hero-slideshow" aria-hidden="true">
+        <img class="db-hero-slide" src="~/images/dashboard-slideshow/sunrise.webp" asp-append-version="true" alt="" decoding="async" style="--slide-delay: 0s;" />
+        <img class="db-hero-slide" src="~/images/dashboard-slideshow/mountains.avif" asp-append-version="true" alt="" decoding="async" fetchpriority="low" style="--slide-delay: -32s;" />
+        <img class="db-hero-slide" src="~/images/dashboard-slideshow/waterfall.jpg" asp-append-version="true" alt="" decoding="async" fetchpriority="low" style="--slide-delay: -24s;" />
+        <img class="db-hero-slide" src="~/images/dashboard-slideshow/islands.jpg" asp-append-version="true" alt="" decoding="async" fetchpriority="low" style="--slide-delay: -16s;" />
+        <img class="db-hero-slide" src="~/images/dashboard-slideshow/beach.webp" asp-append-version="true" alt="" decoding="async" fetchpriority="low" style="--slide-delay: -8s;" />
+    </div>
     <div class="db-hero-left">
         @{
             var userInitials = !string.IsNullOrWhiteSpace(Model.UserName) ? Model.UserName.Substring(0, 1).ToUpper() : "U";
@@ -830,6 +837,10 @@
             <div class="db-hero-dept">@Model.DepartmentName</div>
         </div>
     </div>
+    <button type="button" class="db-hero-slideshow-toggle" data-slideshow-toggle hidden aria-label="Pause background slideshow">
+        <i class="bi bi-pause-fill" data-slideshow-icon aria-hidden="true"></i>
+        <span data-slideshow-label>Pause</span>
+    </button>
 </div>
 
 @if (!Model.DashboardDataAvailable)
@@ -1490,6 +1501,7 @@
 }
 
 @section Scripts {
+    <script src="~/js/dashboard-slideshow.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
     /* ===== Skill Level Bar Chart ===== */

@@ -133,6 +133,51 @@ html { font-size: 16px; }
 .professional-app .db-hero-name { color: var(--ui-ink); }
 .professional-app .db-hero-dept { color: var(--ui-muted); }
 .professional-app .db-hero-avatar { background: #edf2f7; color: var(--ui-ink); border-color: var(--ui-border); border-radius: 10px; }
+
+/* Decorative photos stay behind the profile and never move its content. */
+.professional-app .db-hero.db-hero--slideshow {
+    min-height: 176px; padding: 28px; isolation: isolate;
+    background: #142c43; border-color: #26435b; border-left-color: #e9a354;
+}
+.db-hero-slideshow { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.db-hero-slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 48%; opacity: 0; }
+.db-hero-slide:first-child { opacity: 1; }
+.db-hero--slideshow[data-slideshow-paused] .db-hero-slide {
+    animation: dashboard-profile-fade 40s linear infinite;
+    animation-delay: var(--slide-delay);
+}
+.db-hero--slideshow[data-slideshow-paused="true"] .db-hero-slide { animation-play-state: paused; }
+.db-hero-slideshow::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgb(8 23 39 / 88%), rgb(8 23 39 / 68%) 65%, rgb(8 23 39 / 66%));
+}
+.professional-app .db-hero--slideshow .db-hero-left { z-index: 1; min-width: 0; padding-right: 100px; }
+.professional-app .db-hero--slideshow .db-hero-name { color: #fff; overflow-wrap: anywhere; }
+.professional-app .db-hero--slideshow .db-hero-dept { color: #e6edf6; margin-top: 6px; }
+.professional-app .db-hero--slideshow .db-hero-avatar { flex-shrink: 0; background: #edf2f7; border-color: rgb(255 255 255 / 75%); box-shadow: 0 0 0 4px rgb(255 255 255 / 12%); }
+.db-hero-slideshow-toggle {
+    position: absolute; right: 20px; bottom: 18px; z-index: 2;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-width: 86px; min-height: 44px; padding: 8px 12px;
+    border: 1px solid rgb(255 255 255 / 38%); border-radius: 9px;
+    background: rgb(8 23 39 / 58%); color: #fff; font: inherit; font-size: 13px; cursor: pointer;
+}
+.db-hero-slideshow-toggle:hover { background: rgb(8 23 39 / 80%); }
+.db-hero-slideshow-toggle:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.db-hero-slideshow-toggle[hidden] { display: none; }
+@keyframes dashboard-profile-fade {
+    0%, 17% { opacity: 1; }
+    20%, 97% { opacity: 0; }
+    100% { opacity: 1; }
+}
+@media (max-width: 700px) {
+    .professional-app .db-hero.db-hero--slideshow { min-height: 196px; padding: 22px 18px 70px; }
+    .professional-app .db-hero--slideshow .db-hero-left { padding-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .db-hero--slideshow[data-slideshow-paused] .db-hero-slide { animation: none; opacity: 0; }
+    .db-hero--slideshow[data-slideshow-paused] .db-hero-slide:first-child { opacity: 1; }
+}
 .professional-app :is(.otr-section, .itr-section, .dashboard-card) { border-radius: 10px; border-color: var(--ui-border); box-shadow: var(--ui-shadow); }
 .professional-app :is(.otr-header, .itr-header) { background: #203952; color: #fff; }
 .professional-app :is(.otr-kpi-card, .otr-process-card) { border-radius: 8px; box-shadow: none; }
