@@ -201,43 +201,49 @@ The two main lines are **Old program** and **Web app**. Shared features merge in
 both lines; known compatibility gaps remain unmerged in the same graph.
 
 ```mermaid
-%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#209776","git3":"#cb5147","git4":"#cb5147","git5":"#cb5147"}}}%%
+%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#209776","git3":"#cb5147","git4":"#cb5147","git5":"#cb5147","git6":"#cb5147"}}}%%
 gitGraph
     commit id: "Shared SQL database"
     branch "Web app"
     commit id: "Web development"
     checkout "Old program"
     branch "Shared features"
-    commit id: "Employee records"
-    commit id: "Photos and PDFs"
-    commit id: "Skills and certificates"
-    commit id: "Main report rules"
-    commit id: "SQL role exclusions"
-    commit id: "Workshop and process data"
+    commit id: "Profile: view and edit"
+    commit id: "Picture: view and replace"
+    commit id: "Cert PDF: open and download"
+    commit id: "Cert PDF: upload and replace"
+    commit id: "Skill: add edit disqualify"
+    commit id: "Reports: dates and role filters"
+    commit id: "Read workshops and processes"
     checkout "Old program"
     merge "Shared features" id: "Shared features in old app"
     checkout "Web app"
     merge "Shared features" id: "Shared features in web app"
-    commit id: "Web-only tools"
+    commit id: "Web: Undo skill and Remove PDF"
     checkout "Web app"
-    branch "Concurrent profile edits"
+    branch "Profile edit conflicts"
     commit id: "Stale-save gap" type: REVERSE
     checkout "Web app"
-    branch "Role-controlled edits"
-    commit id: "Permission gap" type: REVERSE
+    branch "Skill edit permissions"
+    commit id: "Role checks differ" type: REVERSE
+    commit id: "Promoted skill override differs" type: REVERSE
     checkout "Web app"
-    branch "Alternate Section report"
-    commit id: "Filter gap" type: REVERSE
+    branch "Section preview and export"
+    commit id: "Alternate filters differ" type: REVERSE
+    checkout "Web app"
+    branch "Promotion"
+    commit id: "Grade and archive not aligned" type: REVERSE
     checkout "Old program"
     commit id: "Compatibility work continues"
     checkout "Web app"
     commit id: "Web development continues"
 ```
 
-- **Green, merged into both apps:** common records, attachments, skill data,
-  main report rules, report role exclusions and catalog data.
-- **Red, unmerged:** concurrent profile saves, role-controlled edits and the
-  alternate Section report still need alignment.
+- **Green, merged into both apps:** profile viewing/editing, picture viewing/replacement,
+  certificate PDF download/upload/replacement, skill add/edit/disqualification,
+  main report counts/dates, Developer report exclusions and catalog reading.
+- **Red, unmerged:** profile edit conflicts, skill-edit permissions and promoted-employee
+  exceptions, alternate Section filters, and the promotion action still need alignment.
 - **Web-only tools stay on the Web app line:** Admin tools, Skill recovery,
   Activity log and browser sign-in do not require matching Windows screens.
 
@@ -258,12 +264,13 @@ gitGraph
     commit id: "Web app"
     checkout "Old program"
     branch "Shared features"
-    commit id: "Employee records"
-    commit id: "Photos and PDFs"
-    commit id: "Skills and certificates"
-    commit id: "Main report rules"
-    commit id: "SQL role exclusions"
-    commit id: "Workshop and process data"
+    commit id: "Profile: view and edit"
+    commit id: "Picture: view and replace"
+    commit id: "Cert PDF: open and download"
+    commit id: "Cert PDF: upload and replace"
+    commit id: "Skill: add edit disqualify"
+    commit id: "Reports: dates and role filters"
+    commit id: "Read workshops and processes"
     checkout "Old program"
     merge "Shared features" id: "Shared features in old app"
     checkout "Web app"
@@ -276,24 +283,55 @@ This view keeps only the known gaps. Red branches remain unmerged until the two
 apps follow the agreed behavior. Intentionally web-only tools are not counted as gaps.
 
 ```mermaid
-%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#cb5147","git3":"#cb5147","git4":"#cb5147"}}}%%
+%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#cb5147","git3":"#cb5147","git4":"#cb5147","git5":"#cb5147"}}}%%
 gitGraph
     commit id: "Old program"
     branch "Web app"
     commit id: "Web app"
-    branch "Concurrent profile edits"
+    branch "Profile edit conflicts"
     commit id: "Stale-save gap" type: REVERSE
     checkout "Web app"
-    branch "Role-controlled edits"
-    commit id: "Permission gap" type: REVERSE
+    branch "Skill edit permissions"
+    commit id: "Role checks differ" type: REVERSE
+    commit id: "Promoted skill override differs" type: REVERSE
     checkout "Web app"
-    branch "Alternate Section report"
-    commit id: "Filter gap" type: REVERSE
+    branch "Section preview and export"
+    commit id: "Alternate filters differ" type: REVERSE
+    checkout "Web app"
+    branch "Promotion"
+    commit id: "Grade and archive not aligned" type: REVERSE
     checkout "Old program"
     commit id: "Old program continues"
     checkout "Web app"
     commit id: "Web app continues"
 ```
+
+### Specific feature inventory
+
+“Shared” below means the updated apps use compatible data/storage for that action.
+It does not mean all permissions, concurrent edits or installed releases are already aligned.
+
+| Feature | Old program | Web app | Compatibility |
+| --- | --- | --- | --- |
+| Profile: view employee information | Reads the employee record. | Reads the same employee record. | Shared. |
+| Profile: edit name, department, workshop, shift or grade | Saves employee profile fields. | Saves the corresponding profile fields. | Shared storage; promotion and conflicting saves have separate gaps below. |
+| Profile: two editors saving the same employee | Does not require the version displayed when the edit started. | Ordinary profile paths also need a consistent expected-version check. | Not aligned for safe concurrent edits. |
+| Picture: view employee photo | Resolves the exact SQL photo owner, or an approved unresolved legacy path. | Uses the corresponding SQL photo owner/approved legacy resolver. | Shared routing. |
+| Picture: upload or replace photo | Publishes through the shared SQL file service when enabled. | Publishes through the shared SQL file service when enabled. | Shared storage; verify the installed UI in both directions. |
+| Certificate PDF: open or download | Downloads the selected skill's linked certificate. | Opens/downloads the same SQL-owned certificate, or an approved unresolved legacy reference. | Shared ownership and routing. |
+| Certificate PDF: upload with a new skill | Commits the skill and new PDF link together on the SQL path. | Commits the skill and new PDF link together on the SQL path. | Shared publication contract. |
+| Certificate PDF: replace during skill update | Archives the prior skill/file ownership and publishes the replacement. | Preserves the prior version and publishes the replacement. | Shared storage; exact row/version checks still apply. |
+| Certificate PDF: remove or replace without editing the skill | No equivalent dedicated Developer recovery action is established. | Provides Remove PDF / Replace PDF in Skill Recovery. | Web-only tool; the resulting file links must remain readable by Windows. |
+| Skill: add, update or disqualify | Writes the shared qualification records; updates preserve archive/file identity. | Uses the same qualification records and storage contracts. | Shared data; edit permissions and special exceptions are separate. |
+| Skill: view obsolete/history and its certificate | Reads archived qualifications and their certificate links. | Reads archived qualifications and their certificate links. | Shared history contract; recovered states need cross-app verification. |
+| Promotion: change grade and archive current skills | The current promotion click handler is empty; an ordinary grade edit does not reproduce the web promotion command. | The promotion command changes an eligible employee to 54T and archives current skills in one transaction. | Not aligned; do not treat a manual grade edit as equivalent promotion. |
+| Skill: add/edit for a promoted employee as Developer | Equivalent SQL-role-based exception is not established for Windows writers. | Developer exceptions exist in the relevant web skill flows. | Not aligned; authorization/data-integrity checks must still be enforced. |
+| Reports: main download populations, dates and Developer exclusions | Uses the aligned report query helpers and SQL Developer membership. | Main menus use the aligned eligibility/date policies and same role authority. | Shared rules; compare full export rows for equivalent filters. |
+| Reports: alternate Section preview/export | Windows follows the main Inventory/Section policy. | One alternate route still uses different eligibility. | Not aligned. |
+| Workshops/processes: read existing catalog | Uses existing workshop/process lookup records. | Uses the same lookup records. | Shared catalog data; verify refresh after changes. |
+| Workshops/processes: add or move catalog entries | No equivalent new Admin Tools interface is required. | Provides the catalog administration interface. | Web-only interface; preserve Windows readers and historical skill identities. |
+| Recovery: undo add/edit, move employee or move skill tab | No matching Developer recovery tool is established. | Provides the selected-row/version recovery actions. | Web-only tool; verify its resulting records in Windows. |
+| Activity: record and search administrator changes | Windows/direct SQL actions are outside the web audit scope. | Records supported web actions. | Web-only history; not a complete cross-app audit. |
 
 ### Gaps and verification
 
@@ -302,6 +340,8 @@ gitGraph
 | Concurrent profile edits | Ordinary profile saves do not consistently require the version loaded by the editor. Sharing SQL alone does not prevent stale overwrites. | Both apps reject a stale save and preserve the accepted edit and photo ownership. |
 | Role-controlled edits | Windows reads SQL Developer membership for report exclusions; that does not give its write operations the web app's authorization rules or Developer exceptions. | Enforce the agreed permissions at the write boundary, or keep the unmatched operation read-only. |
 | Alternate Section report | One alternate web count/export route still differs from the main Inventory/Section policy used by the aligned Windows reports. | Preview and export use the same named population for equivalent filters. |
+| Promotion: grade and skill archive | The Windows promotion handler is empty; the web action changes grade and archives current skills atomically. | Define one promotion rule and implement the equivalent approved Windows command, or make promotion web-only and prevent unsafe grade-only shortcuts. |
+| Promoted-employee skill exceptions | Web Developer exceptions do not establish equivalent authorization for Windows skill writes. | Use the same role/eligibility policy at an enforceable write boundary. |
 
 **Not verified yet:** installed releases, workshop/process changes and recovered
 skill states still need the cross-app checks in the task list. They are not marked
@@ -413,6 +453,9 @@ and Skill Recovery services.
 - [ ] Refresh the Windows process lookup and confirm the new workshop assignment without rewriting historical skills.
 - [ ] Check web recovery to Current, Disqualified and Obsolete against the Windows views.
 - [ ] Check PDF replacement/removal and exact skill/file ownership after a state change or employee transfer.
+- [ ] Compare promotion explicitly: grade change, required current skills, archive rows,
+  certificate ownership and promotion markers. The empty Windows handler does not
+  satisfy this check; a profile grade edit is not equivalent to the web transaction.
 - [ ] Preserve remarks unless the selected operation explicitly edits them; keep web-only audit scope unchanged.
 
 ### T6: Transfer write ownership and retire features
