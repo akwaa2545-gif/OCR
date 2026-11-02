@@ -194,6 +194,8 @@ as a substitute for client rollout or bulk-import unrelated legacy history into 
 
 ## Old program and web app compatibility
 
+### Combined view
+
 This restores the original **Git-style layout** in one combined feature graph.
 The two main lines are **Old program** and **Web app**. Shared features merge into
 both lines; known compatibility gaps remain unmerged in the same graph.
@@ -242,6 +244,58 @@ gitGraph
 The graph represents feature compatibility, not actual repository history or a
 deployment timeline. Shared data does not imply identical edit permissions or
 safe concurrent edits. Installed releases and the checks below still need verification.
+
+### Compatible features only
+
+This view keeps only the shared features and their merges into both app lines.
+It describes shared data and supported rules, not completion of every rollout check.
+
+```mermaid
+%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#209776"}}}%%
+gitGraph
+    commit id: "Shared SQL database"
+    branch "Web app"
+    commit id: "Web app"
+    checkout "Old program"
+    branch "Shared features"
+    commit id: "Employee records"
+    commit id: "Photos and PDFs"
+    commit id: "Skills and certificates"
+    commit id: "Main report rules"
+    commit id: "SQL role exclusions"
+    commit id: "Workshop and process data"
+    checkout "Old program"
+    merge "Shared features" id: "Shared features in old app"
+    checkout "Web app"
+    merge "Shared features" id: "Shared features in web app"
+```
+
+### Not yet compatible features only
+
+This view keeps only the known gaps. Red branches remain unmerged until the two
+apps follow the agreed behavior. Intentionally web-only tools are not counted as gaps.
+
+```mermaid
+%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#cb5147","git3":"#cb5147","git4":"#cb5147"}}}%%
+gitGraph
+    commit id: "Old program"
+    branch "Web app"
+    commit id: "Web app"
+    branch "Concurrent profile edits"
+    commit id: "Stale-save gap" type: REVERSE
+    checkout "Web app"
+    branch "Role-controlled edits"
+    commit id: "Permission gap" type: REVERSE
+    checkout "Web app"
+    branch "Alternate Section report"
+    commit id: "Filter gap" type: REVERSE
+    checkout "Old program"
+    commit id: "Old program continues"
+    checkout "Web app"
+    commit id: "Web app continues"
+```
+
+### Gaps and verification
 
 | Feature | Current gap | Required outcome |
 | --- | --- | --- |
