@@ -5,19 +5,24 @@ using System.IO;
 
 namespace OperatorCertificationRecord.Web.Pages.Download;
 
+[Filters.DownloadSession]
 public class SkillInventoryModel : PageModel
 {
     private readonly IConfiguration _configuration;
     private readonly Services.PdfExportService _pdfExportService;
+    private readonly Services.DeveloperRoleService _developers;
 
-    public SkillInventoryModel(IConfiguration configuration, Services.PdfExportService pdfExportService)
+    public SkillInventoryModel(IConfiguration configuration, Services.PdfExportService pdfExportService, Services.DeveloperRoleService developers)
     {
         _configuration = configuration;
         _pdfExportService = pdfExportService;
+        _developers = developers;
     }
 
     public async Task<IActionResult> OnGetAsync(string? section, string? department, DateTime? start, DateTime? end, string format = "xlsx")
     {
+        if (!ModelState.IsValid) return BadRequest("Please provide valid report dates in yyyy-MM-dd format.");
+        if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
         // Generate and return the Excel file directly, optionally filtered by section/department and date
         var connStr = _configuration.GetConnectionString("DefaultConnection") ?? "";
         if (string.IsNullOrWhiteSpace(connStr)) return StatusCode(500, "Database connection string not configured.");
@@ -32,23 +37,25 @@ public class SkillInventoryModel : PageModel
         sb.AppendLine("FROM ViewEmpQualified_All q");
         sb.AppendLine("LEFT JOIN tblEmployee v ON v.EmpCode = q.Verifier");
         sb.AppendLine("WHERE (q.DisQualifiedBy = '' OR q.DisQualifiedBy IS NULL)");
+        sb.AppendLine("/* DeveloperEmployeeExclusion */");
         sb.AppendLine("  AND q.ResignDate IS NULL");
         sb.AppendLine("  AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))");
         sb.AppendLine("  AND q.ProcessName IS NOT NULL");
         if (!string.IsNullOrWhiteSpace(department)) sb.AppendLine("  AND q.DeptName = @DeptName");
         if (!string.IsNullOrWhiteSpace(section)) sb.AppendLine("  AND q.SectName = @SectName");
-        if (start.HasValue && end.HasValue) sb.AppendLine("  AND q.CertifiedDate BETWEEN @start AND @end");
+        if (start.HasValue && end.HasValue) sb.AppendLine("  AND q.CertifiedDate >= @start AND q.CertifiedDate < @end");
 
         var dt = new System.Data.DataTable();
         try
         {
             using var cmd = new SqlCommand(sb.ToString(), conn);
+            Services.DeveloperReportExclusion.Apply(cmd, _developers.GetAllDevelopersForReports(), "q.EmpCode");
             if (!string.IsNullOrWhiteSpace(department)) cmd.Parameters.AddWithValue("@DeptName", department);
             if (!string.IsNullOrWhiteSpace(section)) cmd.Parameters.AddWithValue("@SectName", section);
             if (start.HasValue && end.HasValue)
             {
                 var s = start.Value.Date;
-                var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                var e = end.Value.Date.AddDays(1);
                 cmd.Parameters.Add("@start", System.Data.SqlDbType.DateTime).Value = s;
                 cmd.Parameters.Add("@end", System.Data.SqlDbType.DateTime).Value = e;
             }

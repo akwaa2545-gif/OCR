@@ -26,7 +26,7 @@ namespace OperatorCertificationRecord.Web.Controllers
         public async Task<IActionResult> ExpiryDebug()
         {
             var startDate = DateTime.Today;
-            var endDate = DateTime.Today.AddDays(30).Date.AddDays(1).AddTicks(-1);
+            var endDate = DateTime.Today.AddDays(30).Date.AddDays(1);
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr)) return StatusCode(500, new { error = "Database connection string is not configured." });
 
@@ -34,7 +34,7 @@ namespace OperatorCertificationRecord.Web.Controllers
             {
                 var sqlView = @"SELECT TOP (500) EmpCode, ProcessName, Remark, ResignDate, DisQualifiedBy, ExpiryDate
                         FROM ViewEmpQualified_All
-                        WHERE ExpiryDate BETWEEN @start AND @end
+                        WHERE ExpiryDate >= @start AND ExpiryDate < @end
                           AND (ISNULL(DisQualifiedBy,'') = '')
                           AND ProcessName IS NOT NULL
                         ORDER BY ExpiryDate ASC";

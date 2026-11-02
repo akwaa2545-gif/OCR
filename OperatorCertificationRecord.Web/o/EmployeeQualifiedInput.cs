@@ -2,6 +2,7 @@ namespace OperatorCertificationRecord.Web.Models;
 
 public class EmployeeQualifiedInput
 {
+    internal bool IsLegacyFileUpload { get; set; }
     public string? EmpCode { get; set; }
     public string? ProcessName { get; set; }
     public string? OperatorTraining { get; set; }
@@ -21,4 +22,7 @@ public class EmployeeQualifiedInput
     public string? Verifier { get; set; }
     public string? Remark { get; set; }
     public string? DownloadPath { get; set; }
+    public Guid? OcrSkillRowId { get; set; }
+    public Guid? CertificateFileId { get; set; }
+    public byte[]? FileStorageVersion { get; set; }
 }

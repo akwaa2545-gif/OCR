@@ -292,6 +292,7 @@
 
 <!-- Upload form (hidden) -->
 <form method="post" enctype="multipart/form-data" asp-page-handler="UploadPhoto" id="stgPhotoForm" style="display:none;">
+    <input type="hidden" name="PhotoFileStorageVersion" value="@(Model.PhotoFileStorageVersion == null ? "" : Convert.ToBase64String(Model.PhotoFileStorageVersion))" />
     <input type="file" asp-for="PhotoFile" id="stgPhotoFile" accept="image/*" onchange="openSettingsCropModal(event)" />
 </form>
 
@@ -305,10 +306,10 @@
             <div class="stg-av-inner" data-ini="@ini" id="stgAvWrap">
                 @if (!string.IsNullOrEmpty(Model.PhotoUrl)) {
                     <img id="settingsPhotoPreview"
-                         src="/api/photo/@Uri.EscapeDataString(Model.PhotoUrl)"
+                         src="@OperatorCertificationRecord.Web.Services.EmployeeFileUrls.Photo(Model.PhotoUrl)"
                          alt="Profile photo"
                          onclick="openPhotoModal(this.src)"
-                         onerror="this.onerror=null;this.style.display='none';document.getElementById('stgAvIni').style.display='flex';" />
+                         onerror="if(this.src.includes('/api/photo/employee/')){this.alt='Photo unavailable';this.title='Photo unavailable';return;}this.onerror=null;this.style.display='none';document.getElementById('stgAvIni').style.display='flex';" />
                 }
                 <span id="stgAvIni" style="@(string.IsNullOrEmpty(Model.PhotoUrl) ? "" : "display:none;") width:100%;height:100%;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:#f97316;">@ini</span>
             </div>

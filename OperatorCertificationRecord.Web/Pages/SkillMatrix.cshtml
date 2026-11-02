@@ -833,7 +833,7 @@
     async function refreshFilters() {
         otEl.innerHTML   = '<option value="">All types</option>';
         procEl.innerHTML = '<option value="">All processes</option>';
-
+        searchEl.value = '';
         /* training types via /filters endpoint */
         try {
             const r = await fetch('/api/download/skillmatrix/filters');

@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using System.Data.SqlClient;
+using OperatorCertificationRecord.FileStorage;
 
 namespace OperatorCertificationRecord.Web.Services;
 
@@ -14,15 +16,94 @@ public sealed class EmployeePhotoStorageService
     private readonly IConfiguration _configuration;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EmployeePhotoStorageService> _logger;
+    private readonly EmployeeService? _employees;
+    private readonly SqlEmployeeFileRepository? _repository;
+    private readonly EmployeeFileService? _files;
+    private readonly FileStorageOptions? _options;
+    private readonly WebActivityWriter? _activity;
 
     public EmployeePhotoStorageService(
         IConfiguration configuration,
         TimeProvider timeProvider,
-        ILogger<EmployeePhotoStorageService> logger)
+        ILogger<EmployeePhotoStorageService> logger,
+        EmployeeService? employees = null,
+        SqlEmployeeFileRepository? repository = null,
+        EmployeeFileService? files = null,
+        FileStorageOptions? options = null,
+        WebActivityWriter? activity = null)
     {
         _configuration = configuration;
         _timeProvider = timeProvider;
         _logger = logger;
+        _employees = employees;
+        _repository = repository;
+        _files = files;
+        _options = options;
+        _activity = activity;
+    }
+
+    public async Task<PhotoStorageResult> SaveEmployeeAsync(Models.Employee employee, IFormFile photo, bool isNew, string createdBy, CancellationToken ct)
+    {
+        if (_employees == null || _repository == null || _files == null || _options == null)
+            throw new InvalidOperationException("Employee photo storage is unavailable.");
+        ValidateUploadMetadata(photo);
+        var code = employee.EmpCode ?? "";
+        var schema = await _repository.IsSchemaAvailableAsync(ct);
+        if (!schema && !isNew)
+            await LegacyFileAuthorityGuard.EnsureUnlinkedAsync(_configuration, code, FileKind.Photo, ct);
+        var owner = new FileOwner(FileOwnerTable.Employee, code);
+        var state = schema && !isNew ? await _repository.GetOwnerStateAsync(owner, ct) : null;
+        if (!_options.ShouldWriteSql(code, state?.FileId))
+        {
+            if (_activity != null) throw new InvalidOperationException("SQL attachment writes are required to save an audited photo change.");
+            return await StoreAndCommitAsync(code, photo, async (stored, _) =>
+            {
+                employee.PhotoPath = stored.DatabasePath;
+                employee.LegacyPhotoPath = stored.DatabasePath;
+                return await _employees.SaveLegacyEmployeeAsync(employee, isNew, ct);
+            }, ct);
+        }
+        if (!schema) throw new InvalidOperationException("SQL file storage is not ready.");
+        await using var input = photo.OpenReadStream();
+        using var staged = await _files.StageAsync(input, code, FileKind.Photo, Path.GetFileName(photo.FileName), createdBy, ct);
+        _activity?.SetFileFingerprint(staged.Request);
+        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+        using var transaction = connection.BeginTransaction();
+        var capture = _activity == null ? null : await _activity.CaptureAsync(connection, transaction,
+            isNew ? "employee" : "file", isNew ? "employee-add" : "photo-change", [WebActivityScope.Employee(code)], ct);
+        if (capture != null && capture.Actor.ActorCode != createdBy)
+            throw new UnauthorizedAccessException("The photo actor does not match the authenticated user.");
+        if (capture?.Replayed == true) return new PhotoStorageResult(EmployeeFileUrls.CurrentPhoto(code), "", "");
+        var passwordChanged = capture != null && !isNew &&
+            await PhotoPasswordChangedAsync(connection, transaction, code, employee.EmpPassword ?? "", ct);
+        if (isNew)
+        {
+            await _employees.SaveEmployeeInTransactionAsync(employee, true, connection, transaction, ct);
+            state = await _repository.GetOwnerStateAsync(connection, transaction, owner, ct);
+        }
+        var expected = isNew ? state!.RowVersion : employee.FileStorageVersion ?? state!.RowVersion;
+        var saved = await _files.PublishInTransactionAsync(connection, transaction, staged, owner, expected,
+            isNew ? null : async (c, t, token) => { await _employees.SaveEmployeeInTransactionAsync(employee, false, c, t, token); }, ct);
+        if (capture != null) await _activity!.CompleteAsync(connection, transaction, capture, ct, passwordChanged);
+        transaction.Commit();
+        if (capture != null) _activity!.MarkCommitted();
+        var url = $"/api/photo/employee/{Uri.EscapeDataString(code)}/{saved.FileId:D}";
+        return new PhotoStorageResult(url, "", "");
+    }
+
+    private static async Task<bool> PhotoPasswordChangedAsync(SqlConnection connection, SqlTransaction transaction,
+        string employee, string password, CancellationToken ct)
+    {
+        // The publication helper also updates the password field. Return only its
+        // exact changed flag; no old/new password enters any audit projection.
+        using var command = new SqlCommand("SELECT CASE WHEN CONVERT(varbinary(max),CONVERT(nvarchar(max),EmpPassword))=" +
+            "CONVERT(varbinary(max),@password) THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END " +
+            "FROM dbo.tblEmployee WITH(UPDLOCK,HOLDLOCK) WHERE EmpCode=@employee", connection, transaction);
+        command.Parameters.AddWithValue("@employee", employee);
+        command.Parameters.AddWithValue("@password", password);
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(ct));
     }
 
     internal Task<PhotoStorageResult> StoreAsync(

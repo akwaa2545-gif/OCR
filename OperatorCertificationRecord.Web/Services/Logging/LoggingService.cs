@@ -48,6 +48,7 @@ public class LoggingService
         
         // Trim if over limit
         while (_requestMetrics.Count > MaxRequestMetrics && _requestMetrics.TryDequeue(out _)) { }
+
         
         Interlocked.Increment(ref _totalRequests);
         Interlocked.Add(ref _totalResponseTime, metrics.DurationMs);

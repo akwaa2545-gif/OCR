@@ -505,6 +505,7 @@ namespace OperatorCertificationRecord.Web.Pages.Reports
                     endDate: compareEndDate,
                     topN: Math.Min(TopN, 100),
                     cancellationToken: HttpContext.RequestAborted
+
                 );
 
                 if (result.Columns.Count == 2)

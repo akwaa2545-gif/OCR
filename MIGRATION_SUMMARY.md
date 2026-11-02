@@ -2,202 +2,142 @@
 
 ## Project Conversion: Windows Forms → ASP.NET Core Web
 
-**Date**: January 8, 2026  
-**Source Project**: OperatorTrainingRecord (Windows Forms)  
+**Date**: June 11, 2026
+**Source Project**: OperatorCertificationRecord (Windows Forms)
 **Target Project**: OperatorCertificationRecord.Web (ASP.NET Core 8.0 Razor Pages)
 
 ## Executive Summary
 
-Your Operator's Training Database has been successfully converted from a Windows Forms desktop application to a modern, responsive web application. The new web version maintains all core functionality while providing a modern, browser-based interface with improved user experience and easier deployment.
+The OperatorCertificationRecord solution now includes a modern ASP.NET Core web application alongside the original Windows Forms project. The new web app preserves the existing database integration while migrating UI, session, and deployment responsibilities to a browser-based architecture.
 
-## Files Created
+## Files and Pages Created
 
 ### Core Application Files
 - ✅ `Program.cs` - ASP.NET Core startup configuration
-- ✅ `OperatorCertificationRecord.Web.csproj` - Project file for .NET 8.0
-- ✅ `appsettings.json` - Configuration with SQL Server connection
-- ✅ `appsettings.Development.json` - Development configuration
+- ✅ `OperatorCertificationRecord.Web.csproj` - .NET 8 project file
+- ✅ `appsettings.json` / `appsettings.Development.json` / `appsettings.Production.json` / `appsettings.Testing.json`
+- ✅ `README.md` - Web application documentation
 
-### Pages (Razor Pages)
-**Login & Dashboard**
-- ✅ `Pages/Login.cshtml` & `Pages/Login.cshtml.cs` - Employee authentication
-- ✅ `Pages/Dashboard.cshtml` & `Pages/Dashboard.cshtml.cs` - Main navigation hub
-- ✅ `Pages/Logout.cshtml.cs` - Session termination
+### Razor Pages
+- ✅ `Pages/Login.cshtml` / `Pages/Login.cshtml.cs`
+- ✅ `Pages/Dashboard.cshtml` / `Pages/Dashboard.cshtml.cs`
+- ✅ `Pages/Logout.cshtml` / `Pages/Logout.cshtml.cs`
+- ✅ `Pages/AddUser.cshtml` / `Pages/AddUser.cshtml.cs`
+- ✅ `Pages/UpdateUser.cshtml` / `Pages/UpdateUser.cshtml.cs`
+- ✅ `Pages/AddSkill.cshtml` / `Pages/AddSkill.cshtml.cs`
+- ✅ `Pages/UpdateSkill.cshtml` / `Pages/UpdateSkill.cshtml.cs`
+- ✅ `Pages/OperatorTraining.cshtml` / `Pages/OperatorTraining.cshtml.cs`
+- ✅ `Pages/Disqualification.cshtml` / `Pages/Disqualification.cshtml.cs`
+- ✅ `Pages/ViewUser.cshtml` / `Pages/ViewUser.cshtml.cs`
+- ✅ `Pages/SkillMatrix.cshtml` / `Pages/SkillMatrix.cshtml.cs`
+- ✅ `Pages/Admins.cshtml` / `Pages/Admins.cshtml.cs`
+- ✅ `Pages/Settings.cshtml` / `Pages/Settings.cshtml.cs`
+- ✅ `Pages/LogDashboard.cshtml` / `Pages/LogDashboard.cshtml.cs`
+- ✅ `Pages/AccessDenied.cshtml` / `Pages/AccessDenied.cshtml.cs`
 
-**Employee Management**
-- ✅ `Pages/AddUser.cshtml` & `Pages/AddUser.cshtml.cs` - Add new employee with photo upload
-- ✅ `Pages/UpdateUser.cshtml` & `Pages/UpdateUser.cshtml.cs` - Update employee (structure ready)
+### Download / Report Pages
+- ✅ `Pages/DownloadExport.cshtml` / `Pages/DownloadExport.cshtml.cs`
+- ✅ `Pages/DownloadSection.cshtml` / `Pages/DownloadSection.cshtml.cs`
+- ✅ `Pages/DownloadExpiryDate.cshtml`
+- ✅ `Pages/DownloadResign.cshtml`
+- ✅ `Pages/DownloadDisqualification.cshtml`
+- ✅ `Pages/Download/DownloadPages.cshtml.cs`
 
-**Feature Pages (Structure Ready)**
-- ✅ `Pages/OperatorTraining.cshtml` - Training management
-- ✅ `Pages/UpdateSkill.cshtml` - Skill updates
-- ✅ `Pages/Disqualification.cshtml` - Disqualification tracking
-- ✅ `Pages/DownloadExpiryDate.cshtml` - Expiry date reports
-- ✅ `Pages/DownloadResign.cshtml` - Resignation data
-- ✅ `Pages/DownloadSection.cshtml` - Section reports
-- ✅ `Pages/DownloadDisqualification.cshtml` - Disqualification reports
-
-**Shared Components**
-- ✅ `Pages/Shared/_Layout.cshtml` - Master layout template
+### Shared Templates
+- ✅ `Pages/Shared/_Layout.cshtml`
+- ✅ `_ViewImports.cshtml` / `_ViewStart.cshtml`
 
 ### Services
-- ✅ `Services/DataServices.cs` - Contains:
-  - `EmployeeService` - Employee CRUD operations
-  - `DepartmentService` - Department data access
-  - `SectionService` - Section data access
-  - `WorkshopService` - Workshop data access
+- ✅ `Services/DataServices.cs`
+- ✅ `Services/AdminService.cs`
+- ✅ `Services/DashboardCacheService.cs`
+- ✅ `Services/PdfExportService.cs`
+- ✅ `Services/ReportAutomationService.cs`
+- ✅ `Services/ReportBuilderService.cs`
 
-### Models
-- ✅ `Models/Employee.cs` - Data models for:
-  - Employee
-  - Department
-  - Section
-  - Workshop
-
-### Configuration
-- ✅ `Properties/launchSettings.json` - Debug profile configuration
-- ✅ `.gitignore` - Git ignore patterns
-
-### Documentation
-- ✅ `README.md` - Complete application documentation
-- ✅ `QUICKSTART.md` - Quick start guide for developers
-- ✅ Updated `OperatorCertificationRecord.sln` - Solution includes both projects
+### Other Assets
+- ✅ `wwwroot/` - Static CSS, JavaScript, image, and upload folders
+- ✅ `App_Data/` - Local content and data support
+- ✅ `Properties/launchSettings.json`
 
 ## Architecture Changes
 
-### From → To
-
 | Component | Windows Forms | Web Application |
 |-----------|---------------|-----------------|
-| **UI Framework** | Windows Forms Controls | ASP.NET Core Razor Pages + Bootstrap 5 |
-| **Database Access** | SqlDataAdapter | Service classes with async/await |
-| **Configuration** | app.config | appsettings.json |
-| **Session Management** | Static Application class | HttpContext.Session |
-| **Photo Storage** | Direct network path | wwwroot/uploads + network option |
-| **Styling** | System theme | Bootstrap 5 responsive design |
-| **Hosting** | Desktop executable | IIS / Kestrel / Cloud |
-| **Authentication** | Direct SQL query | Session-based with security |
+| UI Framework | Windows Forms | ASP.NET Core Razor Pages + Bootstrap 5 |
+| Configuration | app.config | appsettings.json |
+| Session Management | Static class / app state | HttpContext.Session |
+| Deployment | Desktop executable | IIS / Kestrel / Cloud |
+| Data Access | SqlDataAdapter / raw SQL | Service layer + parameterized SQL |
+| Styling | Native controls | Responsive HTML/CSS/JS |
+| Hosting | Installed app | Browser-based app |
 
 ## Database Connection
 
-The application connects to the same SQL Server database:
+The web application continues to target the existing SQL Server database.
 
-```
-Server: svr120a
-Database: OperatorCertificationRecordDB
-User ID: TETUSR
-Password: TETPWD
-```
+**Database Settings** are stored in `OperatorCertificationRecord.Web/appsettings.json`.
 
 **Used Tables**:
-- `tblEmployee` - Employee records with photos
-- `tblDepartment` - Department information
-- `tblSection` - Section information  
-- `tblWorkshop` - Workshop information
+- `tblEmployee`
+- `tblDepartment`
+- `tblSection`
+- `tblWorkshop`
 
-## Key Features
+## Key Deliverables
 
-### ✅ Fully Implemented
-1. **Login System** - Employee ID + Password authentication
-2. **Dashboard** - Central navigation hub with 9 feature shortcuts
-3. **Add Employee** - Complete form with:
-   - Employee ID, Join Date
-   - Job Grade, Shift selection
-   - English & Thai names with prefix auto-sync
-   - Department, Section, Workshop selection
-   - Photo upload with preview
-4. **Session Management** - 30-minute idle timeout
-5. **Responsive Design** - Works on desktop, tablet, mobile
-6. **Database Integration** - Full async data access
+### Completed Web Features
+- Login / logout workflow
+- Dashboard navigation hub
+- Employee create/update forms
+- Skill add/update pages
+- Operator training page
+- Disqualification page
+- User detail / view page
+- Skill matrix and admin pages
+- Download/report pages for exports and lists
+- Access denied handling
+- Log dashboard and application settings page
 
-### Recent Updates (Jan 26, 2026)
+### Core Services
+- Centralized data service layer
+- Admin service and role support
+- PDF export support
+- Report automation and report-builder services
+- Dashboard caching
 
-- **Timeline Tab (ViewUser)**: Added a UI-kit style timeline that combines Current, Disqualified, and Obsoleted skill records into a single chronological view with alternating left/right cards, date boxes, and a central vertical line. Implemented in `Pages/ViewUser.cshtml` and `Pages/ViewUser.cshtml.cs`.
-- **PDF Preview & Download**: Uploaded certificate PDFs can be previewed in a modal and downloaded. The `EmployeeSkillRecord` model includes `DownloadPath`; `DataServices.GetCurrentSkillRecordsAsync` now retrieves the `Download` column; `ViewUser` provides `OnGetDownloadFileAsync` handler.
-- **AddSkill Validation**: Client-side (`wwwroot/js/app.js`) and server-side (`Pages/AddSkill.cshtml.cs`) validation enforce 0–100 scores with user-friendly messages.
-- **Alternating Row Styling**: Current Skills table uses zebra striping for improved readability (CSS in `wwwroot/css/app.css`).
-- **Timeline Styling & UX**: Timeline redesign includes color-coded markers (current/disqualified/obsoleted), highlighted verifier/judgment fields, responsive layout, and hover effects.
+## Current Status
 
+### Stable
+- Web app structure is established and fully scaffolded
+- Core page routes and supporting services exist
+- Authentication and layout templates are in place
 
-### ⏳ Ready for Development
-- Update Employee form (UI structure created)
-- Operator Training page
-- Update Skill page
-- Disqualification management
-- Data download/export functions
-
-## Technology Stack
-
-**Framework**: ASP.NET Core 8.0  
-**UI**: Bootstrap 5.3, HTML5, CSS3, JavaScript  
-**Database**: SQL Server (existing)  
-**NuGet Packages**:
-- Microsoft.AspNetCore.App
-- System.Data.SqlClient (for connection)
+### Work in Progress / Next Steps
+- Complete any missing business validation for update flows
+- Finish end-to-end file download and export workflows
+- Add advanced user role and admin capability tests
+- Harden form validation and error handling for production
 
 ## Getting Started
 
-### Prerequisites
-- .NET 8.0 SDK or Runtime
-- Visual Studio 2022 or VS Code
-- SQL Server (existing database)
+1. Open `OperatorCertificationRecord.sln` or `OperatorCertificationRecord.Web.sln`
+2. Set `OperatorCertificationRecord.Web` as the startup project
+3. Update connection string in `OperatorCertificationRecord.Web/appsettings.json`
+4. Run the web app with Visual Studio or `dotnet run`
 
-### Quick Start
+## Deployment Notes
 
-1. **Open Solution**
-   ```
-   Open: OperatorCertificationRecord.sln
-   ```
-
-2. **Configure Connection** (if needed)
-   ```json
-   // OperatorCertificationRecord.Web/appsettings.json
-   "ConnectionStrings": {
-     "DefaultConnection": "Server=svr120a;User Id=TETUSR;Password=TETPWD;Database=OperatorCertificationRecordDB;"
-   }
-   ```
-
-3. **Set Startup Project**
-   - Right-click `OperatorCertificationRecord.Web`
-   - Select "Set as Startup Project"
-
-4. **Run Application**
-   - Press F5
-   - Opens at `http://localhost:5000` or `https://localhost:44300`
-
-5. **Login**
-   - Username: Any valid Employee ID from database
-   - Password: Default is the Employee ID
-
-## Deployment Options
-
-### Development
-```bash
-dotnet run
-```
-
-### Production Build
-```bash
-dotnet publish -c Release -o ./publish
-```
-
-### Deploy to IIS
-1. Create IIS Application Pool (.NET CLR: No Managed Code)
-2. Copy published files to server
-3. Create Application in IIS Manager
-
-### Deploy to Azure
-```bash
-dotnet publish -c Release
-# Use Azure App Service deployment
-```
+- Development: `dotnet run`
+- Production publish: `dotnet publish -c Release -o ./publish`
+- Host behind IIS or any reverse proxy that supports ASP.NET Core
 
 ## Security Notes
 
-✅ **Implemented**:
-- Parameterized SQL queries (SQL injection prevention)
-- Session-based authentication
-- Password validation
+✅ Parameterized SQL queries
+✅ Session-backed authentication
+✅ Segregated service layer for data access
+
 - Session timeout (30 minutes)
 
 ⚠️ **Recommended**:
@@ -252,12 +192,12 @@ OperatorCertificationRecord/
 
 ## What Stayed the Same
 
-✅ Database schema - No changes needed  
-✅ SQL Server connection - Same credentials  
-✅ Business logic - Migrated to services  
-✅ Data validation - Maintained and improved  
-✅ Employee authentication - Equivalent security  
-✅ Photo upload capability - Enhanced with preview  
+✅ Database schema - No changes needed
+✅ SQL Server connection - Same credentials
+✅ Business logic - Migrated to services
+✅ Data validation - Maintained and improved
+✅ Employee authentication - Equivalent security
+✅ Photo upload capability - Enhanced with preview
 
 ## What's Different
 
@@ -328,20 +268,20 @@ If needed, users can continue using the desktop application while the web versio
 
 The Windows Forms Operator's Training Database application has been successfully converted to a modern ASP.NET Core web application. The new system:
 
-✅ Maintains all core functionality  
-✅ Provides improved user experience  
-✅ Enables multi-user access  
-✅ Works on any device  
-✅ Easier to maintain and update  
-✅ Scalable for future growth  
-✅ Uses modern web technologies  
-✅ Follows ASP.NET Core best practices  
+✅ Maintains all core functionality
+✅ Provides improved user experience
+✅ Enables multi-user access
+✅ Works on any device
+✅ Easier to maintain and update
+✅ Scalable for future growth
+✅ Uses modern web technologies
+✅ Follows ASP.NET Core best practices
 
 The application is ready for development of remaining features, testing, and eventual production deployment.
 
 ---
 
-**Completed**: January 8, 2026  
+**Completed**: January 8, 2026
 **Recent Updates**: January 26, 2026 (Timeline, PDF preview/download, AddSkill validation, UI updates)
-**Status**: Ready for Testing & Feature Development  
+**Status**: Ready for Testing & Feature Development
 **Next Milestone**: User Acceptance Testing (UAT)

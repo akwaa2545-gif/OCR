@@ -1,8 +1,12 @@
 
 <style>
-/* Taller fancy-select list inside this modal only */
-#skillInventoryModal .fancy-select-list {
-    max-height: 600px;
+/* Keep the section menu visible beyond the card, with room for more choices. */
+#skillInventoryModal .modal-content {
+    overflow: visible !important;
+}
+#skillInventoryModal #skInvSectionModal + .fancy-select-wrapper .fancy-select-list {
+    max-height: clamp(96px, calc(100dvh - 340px), 520px);
+    overscroll-behavior: contain;
 }
 #skillInventoryModal .fancy-select-item {
     padding: 0.72rem 0.9rem;
@@ -72,8 +76,10 @@
 
   if (!previewBtn) return;
 
-  let previewDone = false, timer = null;
-  function scheduleAutoPreview(){ if(timer) clearTimeout(timer); timer = setTimeout(() => preview(), 600); }
+  let previewDone = false;
+  function scheduleAutoPreview(){ previewState.schedule(preview); }
+
+  const previewState = DownloadPreview.create({ modal: document.getElementById('skillInventoryModal'), badge: badge, loading: loading, preview: previewBtn, download: downloadBtn, filters: [sectionEl,allDeptEl], onInvalidate: function(){ previewDone = false; } });
 
   function setBadge(count){
     badge.style.removeProperty('background'); badge.style.removeProperty('color');
@@ -87,6 +93,7 @@
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
 
   async function preview(){
+    const ticket = previewState.begin();
     const section = sectionEl.value;
     const allDept = allDeptEl.checked;
     if (!section && !allDept){
@@ -102,24 +109,24 @@
       if (!res.ok) throw new Error('Server ' + res.status);
       const ct = (res.headers.get('content-type') || '').toLowerCase();
       if (!ct.includes('application/json')) throw new Error('Invalid server response (not JSON)');
-      const j = await res.json();
+      const j = await res.json(); if (!previewState.current(ticket)) return false;
       const cnt = j.count ?? 0;
       setBadge(cnt);
       previewDone = true;
-      downloadBtn.classList.remove('dl-pending');
-      if(window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' records');
+      previewState.complete(ticket);
+
       return true;
-    }catch(err){
+    }catch(err){ if (!previewState.current(ticket)) return false;
       console.error('[SkillInventory] Preview error', err);
       setBadge(null);
       previewDone = false;
       downloadBtn.classList.add('dl-pending');
       if(window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
       return false;
-    }finally{
+    }finally { if (previewState.current(ticket)) {
       loading.style.display = 'none';
       previewBtn.disabled = false;
-    }
+    } }
   }
 
   async function download(){
@@ -137,31 +144,21 @@
   previewBtn.addEventListener('click',  function(e){ e.preventDefault(); preview(); });
   downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
 
-  if (allDeptEl) allDeptEl.addEventListener('change', function(){
-    if (this.checked){ sectionEl.value = ''; sectionEl.disabled = true; preview(); }
-    else { sectionEl.disabled = false; setBadge('—'); downloadBtn.classList.add('dl-pending'); previewDone = false; }
+  allDeptEl.addEventListener('change', function(){
+    sectionEl.disabled = this.checked;
+    if (this.checked) sectionEl.value = '';
+    if (this.checked || sectionEl.value) scheduleAutoPreview();
+    else previewState.invalidate();
   });
+  sectionEl.addEventListener('change', scheduleAutoPreview);
 
   // Load sections via AJAX when modal opens
   document.getElementById('skillInventoryModal').addEventListener('shown.bs.modal', async function(){
-    badge.textContent = '—'; downloadBtn.classList.add('dl-pending'); previewDone = false;
-    allDeptEl.checked = false; sectionEl.disabled = false;
-    try{
-      const res = await fetch('/api/download/meta/disqualified');
-      if (!res.ok) { if(window.Toast) window.Toast.warning('Data unavailable','Unable to load section list'); return; }
-      const ct = (res.headers.get('content-type') || '').toLowerCase();
-      if (!ct.includes('application/json')) return;
-      const j = await res.json();
-      if (Array.isArray(j.sections)){
-        sectionEl.innerHTML = '<option value="">— Select section —</option>' +
-          j.sections.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-      }
-      if (allDeptEl.checked) preview();
-    }catch(err){
-      console.error('[SkillInventory] Failed to load sections', err);
-      if(window.Toast) window.Toast.error('Network error','Failed to load section list');
-    }
+    const opening = previewState.open();
+    allDeptEl.checked = true; sectionEl.value = ''; sectionEl.disabled = true;
+    await previewState.loadOptions(opening, [{ element: sectionEl, key: 'sections' }]);
+    if (previewState.isOpen(opening) && (allDeptEl.checked || sectionEl.value)) scheduleAutoPreview();
   });
- })
+
 })();
 </script>

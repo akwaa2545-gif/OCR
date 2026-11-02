@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
 using OperatorCertificationRecord.Web.Services;
+using OperatorCertificationRecord.Web.Services.Authentication;
 using OperatorCertificationRecord.Web.Services.Logging;
 using QuestPDF.Infrastructure;
 using Serilog;
@@ -39,7 +40,17 @@ try
 {
     Log.Information("Starting OperatorCertificationRecord Web Application...");
 
-    var builder = WebApplication.CreateBuilder(args);
+    var migrateAccessRoles = args.Contains("--migrate-access-roles", StringComparer.Ordinal);
+    var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--migrate-access-roles").ToArray());
+    if (migrateAccessRoles)
+    {
+        var imported = RoleActivitySqlMigration.Apply(builder.Configuration,
+            builder.Configuration["DeveloperRoles:StorePath"] ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "developers.json"),
+            builder.Configuration["AdminRoles:StorePath"] ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "admins.json"));
+        Log.Information("SQL access roles {Status}. Developers: {Developers}; administrators: {Administrators}",
+            imported.Imported ? "imported" : "already initialized", imported.DeveloperCount, imported.AdminCount);
+        return;
+    }
     
     // Use Serilog as the logging provider
     builder.Host.UseSerilog();
@@ -51,20 +62,46 @@ try
 
     // Add services to the container
     builder.Services.AddRazorPages();
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddSingleton<WebActivityContextFactory>();
+    builder.Services.AddSingleton<WebActivityCommands>();
+    builder.Services.AddScoped<WebActivityWriter>();
+    builder.Services.AddScoped<IWebActivityReader, WebActivityReader>();
+    builder.Services.AddScoped<WebActivityAccessRecorder>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.WebActivityPageFilter>();
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(options =>
+        options.Filters.AddService<OperatorCertificationRecord.Web.Filters.WebActivityPageFilter>(-2000));
+    builder.Services.AddSingleton<RoleActivityJournal>();
+    builder.Services.AddSingleton<IRoleActivitySink, RoleActivitySqlSink>();
+    builder.Services.AddHostedService<RoleActivityDispatcher>();
+    builder.Services.AddScoped<RecoveryActivityImporter>();
     builder.Services.AddControllers();
+    builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 70L * 1024 * 1024);
+    builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 70L * 1024 * 1024);
     builder.Services.AddSession(options =>
     {
         options.IdleTimeout = TimeSpan.FromMinutes(30);
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     });
+    builder.Services.AddScoped<ILoginAccountStore, SqlLoginAccountStore>();
+    builder.Services.AddScoped<IRememberedLoginStore, SqlRememberedLoginStore>();
+    builder.Services.AddSingleton<LoginSessionWriter>();
+    builder.Services.AddScoped<RememberedLoginService>();
 
     // Add Logging Service (singleton for in-memory log storage)
     builder.Services.AddSingleton<LoggingService>();
 
-    // Admin service to track administrators (from appsettings or App_Data/admins.json)
+    // Role membership and its audit outbox share the configured SQL authority.
     builder.Services.AddSingleton<AdminService>();
+    builder.Services.AddSingleton<DeveloperRoleService>();
     builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.AdminOnlyFilter>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.DeveloperOnlyFilter>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.AdminOrDeveloperFilter>();
+    builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.UpdateUserAccessFilter>();
 
     // Add database services
     builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
@@ -72,9 +109,38 @@ try
     builder.Services.AddScoped<IReadinessProbe, SqlReadinessProbe>();
     builder.Services.AddScoped<EmployeeService>();
     builder.Services.AddScoped<EmployeePhotoStorageService>();
+    builder.Services.AddSingleton(new OperatorCertificationRecord.FileStorage.FileStorageOptions(
+        builder.Configuration.GetValue<bool>("FileStorage:ReadSqlEnabled"),
+        builder.Configuration.GetValue<bool>("FileStorage:WriteSqlEnabled"),
+        builder.Configuration.GetSection("FileStorage:PilotEmployeeCodes").Get<string[]>(),
+        builder.Configuration.GetValue<long?>("FileStorage:MaxPhotoBytes") ?? 5242880,
+        builder.Configuration.GetValue<long?>("FileStorage:MaxCertificateBytes") ?? 67108864));
+    builder.Services.AddScoped(sp => new OperatorCertificationRecord.FileStorage.SqlEmployeeFileRepository(
+        () => new System.Data.SqlClient.SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+    builder.Services.AddScoped<OperatorCertificationRecord.FileStorage.IEmployeeFileRepository>(
+        sp => sp.GetRequiredService<OperatorCertificationRecord.FileStorage.SqlEmployeeFileRepository>());
+    builder.Services.AddScoped(sp => new OperatorCertificationRecord.FileStorage.EmployeeFileService(
+        sp.GetRequiredService<OperatorCertificationRecord.FileStorage.SqlEmployeeFileRepository>(),
+        () => new System.Data.SqlClient.SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")),
+        sp.GetRequiredService<OperatorCertificationRecord.FileStorage.FileStorageOptions>()));
+    builder.Services.AddScoped<WebEmployeeFileStorage>();
+    builder.Services.AddScoped<EmployeeCertificateStorageService>();
     builder.Services.AddScoped<DepartmentService>();
     builder.Services.AddScoped<SectionService>();
     builder.Services.AddScoped<WorkshopService>();
+    builder.Services.AddScoped<IAdminCatalogStore, SqlAdminCatalogStore>();
+    builder.Services.AddScoped<IAdminCatalogService, AdminCatalogService>();
+    builder.Services.AddScoped<IBulkEmployeeStore, BulkEmployeeSqlStore>();
+    builder.Services.AddScoped<BulkEmployeeService>();
+    builder.Services.AddScoped<IMissingFileStore, MissingFileSqlStore>();
+    builder.Services.AddScoped<IMissingFileAccess, MissingFileAccess>();
+    builder.Services.AddScoped<IMissingFileProbe, MissingFileProbe>();
+    builder.Services.AddScoped<IMissingFileService, MissingFileService>();
+    builder.Services.AddScoped<ISkillRecoveryFileSource, SkillRecoveryFileSource>();
+    builder.Services.AddScoped<SkillRecoveryFiles>();
+    builder.Services.AddSingleton<SkillRecoveryPdfUploads>();
+    builder.Services.AddScoped<ISkillRecoveryStore, SkillRecoverySqlStore>();
+    builder.Services.AddScoped<SkillRecoveryService>();
     builder.Services.AddScoped<JobGradeService>();
     builder.Services.AddScoped<OperatorTrainingService>();
     builder.Services.AddScoped<PdfExportService>();
@@ -125,8 +191,11 @@ try
     // Employee photos are served through the session-protected photo controller.
     app.UseMiddleware<PrivateUploadAccessMiddleware>();
 
+    var staticContentTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+    staticContentTypes.Mappings[".avif"] = "image/avif";
     app.UseStaticFiles(new StaticFileOptions
     {
+        ContentTypeProvider = staticContentTypes,
         OnPrepareResponse = ctx =>
         {
             ctx.Context.Response.Headers.Append(
@@ -136,6 +205,8 @@ try
 
     app.UseRouting();
     app.UseSession();
+    app.UseMiddleware<RememberedLoginMiddleware>();
+    app.UseMiddleware<WebActivityFileAccessMiddleware>();
     
     // Add custom request logging middleware (after session, so we can access user info)
     app.UseRequestLogging();
@@ -178,6 +249,7 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly!");
+    Environment.ExitCode = 1;
 }
 finally
 {

@@ -5,7 +5,8 @@
     ViewData["ActivePage"] = "AddSkill";
 }
 
-<div class="ask-layout">
+
+<div class="ask-layout employee-form-page">
 
     <!-- =====================================================
          LEFT SIDEBAR
@@ -25,7 +26,6 @@
                     <span class="ask-status-badge ask-promoted"><i class="bi bi-award-fill"></i> Promoted</span>
                 }
             </div>
-            <div class="ask-avatar-hint"><i class="bi bi-award"></i> Add Skill Certification</div>
         </div>
 
         <div class="ask-card ask-info-card">
@@ -67,24 +67,12 @@
 
     @if (!string.IsNullOrEmpty(Model.Message))
     {
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                if (window.Toast) {
-                    @if (Model.MessageType == "success")
-                    {
-                        <text>window.Toast.success('Success', '@Html.Raw(Model.Message.Replace("'", "\\'"))'); </text>
-                    }
-                    else
-                    {
-                        <text>window.Toast.error('Error', '@Html.Raw(Model.Message.Replace("'", "\\'"))'); </text>
-                    }
-                }
-            });
-        </script>
+        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger")" role="@(Model.MessageType == "success" ? "status" : "alert")">@Model.Message</div>
     }
 
     <div class="ask-form-card">
-        <form method="post" enctype="multipart/form-data" id="skillForm" data-validate>
+        <form method="post" enctype="multipart/form-data" id="skillForm" data-employee-form data-validate>
+            <div asp-validation-summary="All" class="employee-validation-summary" role="alert"></div>
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmpCode" value="@Model.EmpCode" />
             <input type="hidden" name="Skill_TestResult" id="Skill_TestResult" value="" />
@@ -94,23 +82,25 @@
             <div class="ask-fields-grid cols-2 mb-4">
                 <div class="ask-field">
                     <label class="ask-field-label">Workshop</label>
-                    <select class="ask-input" id="Skill_WorkshopID" name="Skill_WorkshopID" onchange="loadProcessesForSkill();" aria-label="Workshop" data-current="@Model.WorkshopID" required>
+                    <select class="ask-input" id="Skill_WorkshopID" name="Skill_WorkshopID" onchange="loadProcessesForSkill();" aria-label="Workshop" data-current="@(Model.Skill_WorkshopID ?? Model.WorkshopID)" required>
                         <option value="">Select Workshop</option>
                         @foreach(var w in Model.Workshops)
                         {
                             <option value="@w.WorkshopID">@w.WorkshopName</option>
                         }
                     </select>
+                    <span asp-validation-for="Skill_WorkshopID" class="employee-field-error"></span>
                 </div>
                 <div class="ask-field">
                     <label class="ask-field-label">Process <span class="ask-required">*</span></label>
-                    <select class="ask-input" name="Skill_ProcessName" id="Skill_ProcessName" data-current="@Model.ProcessName" required>
+                    <select class="ask-input" name="Skill_ProcessName" id="Skill_ProcessName" data-current="@(Model.Skill_ProcessName ?? Model.ProcessName)" required>
                         <option value="">Select Process</option>
                         @foreach(var p in Model.Processes)
                         {
                             <option value="@p.ProcessName">@p.ProcessName</option>
                         }
                     </select>
+                    <span asp-validation-for="Skill_ProcessName" class="employee-field-error"></span>
                 </div>
             </div>
 
@@ -119,13 +109,14 @@
             <div class="ask-fields-grid cols-2 mb-4">
                 <div class="ask-field">
                     <label class="ask-field-label">Certification Type</label>
-                    <select class="ask-input" name="Skill_OperatorTraining" id="Skill_OperatorTraining" data-current="@Model.OperatorTraining" required>
+                    <select class="ask-input" name="Skill_OperatorTraining" id="Skill_OperatorTraining" data-current="@(Model.Skill_OperatorTraining ?? Model.OperatorTraining)" required>
                         <option value="">Select</option>
                         @foreach(var ot in Model.OperatorTrainings)
                         {
                             <option value="@ot.OperatorTrainingName">@ot.OperatorTrainingName</option>
                         }
                     </select>
+                    <span asp-validation-for="Skill_OperatorTraining" class="employee-field-error"></span>
                 </div>
                 <div class="ask-field">
                     <label class="ask-field-label">Verifier</label>
@@ -138,11 +129,13 @@
             <div class="ask-fields-grid cols-2 mb-4">
                 <div class="ask-field">
                     <label class="ask-field-label">Theory Training</label>
-                    <input type="date" class="ask-input" name="Skill_TheoryTraining" value="@Model.TheoryTraining?.ToString("yyyy-MM-dd")">
+                    <input type="date" class="ask-input" name="Skill_TheoryTraining" value="@((Model.Skill_TheoryTraining ?? Model.TheoryTraining)?.ToString("yyyy-MM-dd"))">
+                    <span asp-validation-for="Skill_TheoryTraining" class="employee-field-error"></span>
                 </div>
                 <div class="ask-field">
                     <label class="ask-field-label">OJT Training</label>
-                    <input type="date" class="ask-input" name="Skill_OJTTraining" value="@Model.OJTTraining?.ToString("yyyy-MM-dd")">
+                    <input type="date" class="ask-input" name="Skill_OJTTraining" value="@((Model.Skill_OJTTraining ?? Model.OJTTraining)?.ToString("yyyy-MM-dd"))">
+                    <span asp-validation-for="Skill_OJTTraining" class="employee-field-error"></span>
                 </div>
             </div>
 
@@ -153,7 +146,8 @@
                 <div class="ask-field">
                     <label class="ask-field-label">Full Score</label>
                     <div class="input-with-icon">
-                        <input type="number" id="Skill_FullScore" class="ask-input input-medium" name="Skill_FullScore" placeholder="125" value="@Model.FullScore" min="0" max="125" step="1" required />
+                        <input type="number" id="Skill_FullScore" class="ask-input input-medium" name="Skill_FullScore" placeholder="125" value="@(Model.Skill_FullScore ?? Model.FullScore)" min="0" max="125" step="1" required />
+                    <span asp-validation-for="Skill_FullScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="fullScoreIcon">—</span>
                     </div>
                     <div class="form-text text-danger small d-none" id="fullScoreError">Full Score must be a number between 0 and 125.</div>
@@ -161,7 +155,8 @@
                 <div class="ask-field">
                     <label class="ask-field-label">Actual Score</label>
                     <div class="input-with-icon">
-                        <input type="number" id="Skill_ActualScore" class="ask-input input-medium" name="Skill_ActualScore" placeholder="125" value="@Model.ActualScore" min="0" max="125" step="1" required />
+                        <input type="number" id="Skill_ActualScore" class="ask-input input-medium" name="Skill_ActualScore" placeholder="125" value="@(Model.Skill_ActualScore ?? Model.ActualScore)" min="0" max="125" step="1" required />
+                    <span asp-validation-for="Skill_ActualScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="actualScoreIcon">—</span>
                     </div>
                     <div class="form-text text-danger small d-none" id="actualScoreError">Actual Score must be a number between 0 and 125.</div>
@@ -180,7 +175,8 @@
                 <div class="ask-field">
                     <label class="ask-field-label">Knowledge Score</label>
                     <div class="input-with-icon">
-                        <input type="number" id="Skill_KnowledgeScore" class="ask-input input-narrow" name="Skill_KnowledgeScore" placeholder="80" value="@Model.KnowledgeScore" min="0" max="125" step="1" required />
+                        <input type="number" id="Skill_KnowledgeScore" class="ask-input input-narrow" name="Skill_KnowledgeScore" placeholder="80" value="@(Model.Skill_KnowledgeScore ?? Model.KnowledgeScore)" min="0" max="125" step="1" required />
+                    <span asp-validation-for="Skill_KnowledgeScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="knowledgeValidIcon">—</span>
                         <span id="Skill_KnowledgeLevel_display" class="badge badge-secondary" style="margin-left:8px;">—</span>
                     </div>
@@ -188,7 +184,8 @@
                 <div class="ask-field">
                     <label class="ask-field-label">Skill Score</label>
                     <div class="input-with-icon">
-                        <input type="number" id="Skill_SkillScore" class="ask-input input-narrow" name="Skill_SkillScore" placeholder="90" value="@Model.SkillScore" min="0" max="125" step="1" required />
+                        <input type="number" id="Skill_SkillScore" class="ask-input input-narrow" name="Skill_SkillScore" placeholder="90" value="@(Model.Skill_SkillScore ?? Model.SkillScore)" min="0" max="125" step="1" required />
+                    <span asp-validation-for="Skill_SkillScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="skillValidIcon">—</span>
                         <span id="Skill_SkillLevel_display" class="badge badge-secondary" style="margin-left:8px;">—</span>
                     </div>
@@ -208,15 +205,18 @@
             <div class="ask-fields-grid mb-4">
                 <div class="ask-field">
                     <label class="ask-field-label">Certified Date</label>
-                    <input type="date" id="Skill_CertifiedDate" class="ask-input" name="Skill_CertifiedDate" onchange="autoCalculateExpiryDate()" value="@Model.CertifiedDate?.ToString("yyyy-MM-dd")" required>
+                    <input type="date" id="Skill_CertifiedDate" class="ask-input" name="Skill_CertifiedDate" onchange="autoCalculateExpiryDate()" value="@((Model.Skill_CertifiedDate ?? Model.CertifiedDate)?.ToString("yyyy-MM-dd"))" required>
+                    <span asp-validation-for="Skill_CertifiedDate" class="employee-field-error"></span>
                 </div>
                 <div class="ask-field">
                     <label class="ask-field-label">Expiry Date</label>
-                    <input type="date" id="Skill_ExpiryDate" class="ask-input" name="Skill_ExpiryDate" value="@Model.ExpiryDate?.ToString("yyyy-MM-dd")" required>
+                    <input type="date" id="Skill_ExpiryDate" class="ask-input" name="Skill_ExpiryDate" value="@((Model.Skill_ExpiryDate ?? Model.ExpiryDate)?.ToString("yyyy-MM-dd"))" required>
+                    <span asp-validation-for="Skill_ExpiryDate" class="employee-field-error"></span>
                 </div>
                 <div class="ask-field">
                     <label class="ask-field-label">Remarks</label>
-                    <input type="text" class="ask-input" name="Skill_Remark" placeholder="Optional notes..." value="@Model.Remark" />
+                    <input type="text" class="ask-input" name="Skill_Remark" placeholder="Optional notes..." value="@(Model.Skill_Remark ?? Model.Remark)" />
+                    <span asp-validation-for="Skill_Remark" class="employee-field-error"></span>
                 </div>
             </div>
 
@@ -231,13 +231,14 @@
                 </div>
                 <div class="form-text text-danger d-none" id="skillFileError" style="margin-top:0.4rem;">Please upload a PDF certificate.</div>
                 <input type="file" name="SkillFile" accept="application/pdf" id="skillFileInput" style="display:none;" required>
+                    <span asp-validation-for="SkillFile" class="employee-field-error"></span>
             </div>
 
             <!-- Action Buttons -->
             <div class="ask-actions">
-                @if (Model.IsPromoted)
+                @if (Model.IsResigned || (Model.IsPromoted && !Model.CanOverridePromotion))
                 {
-                    <button type="button" class="ask-btn ask-btn-success disabled" aria-disabled="true" title="Employee promoted — cannot add skills">
+                    <button type="button" class="ask-btn ask-btn-success disabled" aria-disabled="true" title="@(Model.IsResigned ? "Employee resigned — cannot add skills" : "Employee promoted — cannot add skills")">
                         <i class="bi bi-check-lg"></i> Confirm &amp; Save
                     </button>
                 }
@@ -551,9 +552,11 @@
     .ask-btn-ghost { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
     .ask-btn-ghost:hover:not(.disabled) { background: #e2e8f0; }
 </style>
+<link rel="stylesheet" href="~/css/employee-forms.css" asp-append-version="true" />
 }
 
 @section Scripts {
+<script src="~/js/employee-forms.js" asp-append-version="true"></script>
 <script>
     function autoCalculateExpiryDate() {
         try {
@@ -853,6 +856,7 @@
                 const files = e.dataTransfer.files;
                 if (files && files[0]) {
                     const dt = new DataTransfer(); dt.items.add(files[0]); _fileInput.files = dt.files;
+                    _fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                     applyFile(files[0]);
                 }
             });

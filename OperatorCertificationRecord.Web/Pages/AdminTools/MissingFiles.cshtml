@@ -1,0 +1,82 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AdminTools.MissingFilesModel
+@using OperatorCertificationRecord.Web.Services
+@{
+    ViewData["Title"] = "Missing Files Center";
+    ViewData["ActivePage"] = "AdminTools";
+    var visibleRows = Model.VisibleRows.ToList();
+    string Badge(MissingFileHealth health) => health switch { MissingFileHealth.Available => "available", MissingFileHealth.Missing => "missing", MissingFileHealth.NotLinked => "unlinked", _ => "unavailable" };
+    string Label(MissingFileHealth health) => health == MissingFileHealth.NotLinked ? "Not linked" : health.ToString();
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-operations.css" asp-append-version="true" />
+}
+<div class="admin-tools-shell">
+    <partial name="_AdminToolsNavigation" model='@("files")' />
+    <div class="admin-tools-content admin-ops-page">
+        <header class="admin-ops-header page-intro">
+            <div><p>Find photo and certificate problems, then open the existing form to replace a file.</p></div>
+            <span class="admin-ops-badge">Read-only checks</span>
+        </header>
+
+        <section class="admin-ops-panel" aria-labelledby="file-filters-heading">
+            <h2 id="file-filters-heading">Check attachments</h2>
+            <form method="get" class="admin-ops-toolbar">
+                <div class="admin-ops-field"><label for="file-search">Employee or process</label><input asp-for="Query" id="file-search" type="search" maxlength="100" placeholder="Employee ID, name or process" /></div>
+                <div class="admin-ops-field"><label for="file-type">File type</label><select asp-for="Type" id="file-type" data-no-fancy><option value="all">Photos &amp; PDFs</option><option value="photo">Photos</option><option value="certificate">Certificate PDFs</option></select></div>
+                <div class="admin-ops-field"><label for="file-status">Show on this page</label><select asp-for="Status" id="file-status" data-no-fancy><option value="issues">All issues</option><option value="missing">Missing files</option><option value="unlinked">Not linked</option><option value="unavailable">Storage unavailable</option><option value="all">All checked files</option></select></div>
+                <button type="submit" class="admin-ops-button"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Check files</button>
+            </form>
+            <p class="admin-ops-muted">Current employees and their current skill records, including disqualified skills. Each page checks up to 25 records. Status filters apply to the checked page.</p>
+        </section>
+
+        @if (Model.ErrorMessage != null)
+        {
+            <div class="admin-ops-notice is-error" role="alert">@Model.ErrorMessage</div>
+        }
+        else
+        {
+            <section class="admin-ops-summary" aria-label="Results on this checked page">
+                <span><strong>@Model.Results.Rows.Count</strong> checked on this page</span>
+                <span class="admin-ops-badge missing">@Model.Results.Rows.Count(row => row.Health == MissingFileHealth.Missing) Missing</span>
+                <span class="admin-ops-badge unlinked">@Model.Results.Rows.Count(row => row.Health == MissingFileHealth.NotLinked) Not linked</span>
+                <span class="admin-ops-badge unavailable">@Model.Results.Rows.Count(row => row.Health == MissingFileHealth.Unavailable) Unavailable</span>
+                <span class="admin-ops-badge available">@Model.Results.Rows.Count(row => row.Health == MissingFileHealth.Available) Available</span>
+            </section>
+
+            <section class="admin-ops-panel" aria-labelledby="file-results-heading">
+                <h2 id="file-results-heading">Checked attachments <span class="admin-ops-muted">· Page @Model.PageNumber</span></h2>
+                @if (visibleRows.Count == 0)
+                {
+                    <div class="admin-ops-empty"><i class="bi bi-folder-check" aria-hidden="true"></i><p>@(Model.Results.Rows.Count == 0 ? "No records match this employee or file-type search." : "No files match this status on the checked page.")</p>@if (Model.Results.HasMore) { <p>Use Next page to check more records.</p> }</div>
+                }
+                else
+                {
+                    <div class="admin-ops-table-wrap" tabindex="0" role="region" aria-label="File check results">
+                        <table class="admin-ops-table">
+                            <thead><tr><th scope="col">Employee</th><th scope="col">Attachment</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+                            <tbody>
+                                @foreach (var row in visibleRows)
+                                {
+                                    <tr>
+                                        <td><a asp-page="/ViewUser" asp-route-empCode="@row.File.EmployeeCode">@row.File.EmployeeCode</a><div>@row.File.EmployeeName</div></td>
+                                        <td><strong>@(row.File.Kind == "Photo" ? "Employee photo" : "Certificate PDF")</strong>@if (!string.IsNullOrWhiteSpace(row.File.ProcessName)) { <div>@row.File.ProcessName</div> }<small class="admin-ops-muted">@(row.File.FileId.HasValue ? "SQL storage" : "Legacy storage")</small></td>
+                                        <td><span class="admin-ops-badge @Badge(row.Health)">@Label(row.Health)</span><div class="admin-ops-muted">@row.Detail</div></td>
+                                        <td>@if (row.PreviewUrl != null) { <a class="admin-ops-button secondary" href="@row.PreviewUrl" target="_blank" rel="noopener">Open file<span class="admin-ops-sr-only"> for @row.File.EmployeeCode</span></a> } <a class="admin-ops-button secondary" href="@row.RepairUrl">@row.RepairLabel<span class="admin-ops-sr-only"> for @row.File.EmployeeCode @row.File.ProcessName</span></a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                <nav class="admin-ops-pagination" aria-label="File check pages">
+                    @if (Model.PageNumber > 1) { <a class="admin-ops-button secondary" asp-page="./MissingFiles" asp-route-Query="@Model.Query" asp-route-Type="@Model.Type" asp-route-Status="@Model.Status" asp-route-PageNumber="@(Model.PageNumber - 1)"><i class="bi bi-arrow-left" aria-hidden="true"></i> Previous page</a> }
+                    <span>Page @Model.PageNumber</span>
+                    @if (Model.Results.HasMore) { <a class="admin-ops-button secondary" asp-page="./MissingFiles" asp-route-Query="@Model.Query" asp-route-Type="@Model.Type" asp-route-Status="@Model.Status" asp-route-PageNumber="@(Model.PageNumber + 1)">Next page <i class="bi bi-arrow-right" aria-hidden="true"></i></a> }
+                </nav>
+            </section>
+            <p class="admin-ops-muted">Unavailable means access or integrity could not be verified; it does not mean the file is missing. SQL checks validate ownership and stored length without downloading file contents. Duplicate or disqualified skill records open the employee profile for review.</p>
+        }
+    </div>
+</div>

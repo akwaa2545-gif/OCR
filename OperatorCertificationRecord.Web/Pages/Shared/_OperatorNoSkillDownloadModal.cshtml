@@ -36,7 +36,8 @@
           <button type="button" class="dm-pill" data-days="7" onclick="setOnsPreset(7)">7 days</button>
           <button type="button" class="dm-pill" data-days="30" onclick="setOnsPreset(30)">30 days</button>
           <button type="button" class="dm-pill" data-days="365" onclick="setOnsPreset(365)">1 year</button>
-          <button type="button" class="dm-pill active" data-days="0" onclick="setOnsPreset(0)">All time</button>
+          <button type="button" class="dm-pill active" data-days="year" onclick="setOnsPreset('year')">This year</button>
+          <button type="button" class="dm-pill" data-days="0" onclick="setOnsPreset(0)">All time</button>
         </div>
         <div class="dm-summary">
           <div class="dm-field dm-format-field">
@@ -77,26 +78,30 @@
 
   const today = new Date();
   const prior = new Date(); prior.setDate(today.getDate() - 30);
-  function toInputDate(d){ return d.toISOString().slice(0,10); }
-  
+  function toInputDate(d){ return ReportDateRanges.formatLocal(d); }
+
   function initializeDates() {
-    if (startEl && !startEl.value) startEl.value = '2000-01-01';
-    if (endEl && !endEl.value) endEl.value = '2099-12-31';
+    ReportDateRanges.initialize(startEl, endEl, document.getElementById('operatorNoSkillModal'));
   }
-  
+
   // Initialize dates immediately
   initializeDates();
 
-  function setActive(days){ document.querySelectorAll('.dq-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days))); }
-  window.setOnsPreset = function(days){ const e = new Date(); if(days===0){ startEl.value = '2000-01-01'; endEl.value = '2099-12-31'; } else { const s = new Date(); s.setDate(e.getDate() - (days-1)); startEl.value = toInputDate(s); endEl.value = toInputDate(e); } setActive(days); scheduleAutoPreview(); };
-  setActive(0);
+  function setActive(days){ document.getElementById('operatorNoSkillModal').querySelectorAll('.dq-preset-btns button').forEach(b => b.classList.toggle('active', b.getAttribute('data-days') == String(days))); }
+  window.setOnsPreset = function(days){ ReportDateRanges.apply(startEl, endEl, days); setActive(days); scheduleAutoPreview(); };
+  setActive('year');
 
-  let previewDone=false, timer=null;
-  function scheduleAutoPreview(){ if(timer) clearTimeout(timer); timer = setTimeout(()=> preview(), 600); }
+  let previewDone=false;
+  function scheduleAutoPreview(){ previewState.schedule(preview); }
+
+  const previewState = DownloadPreview.create({ modal: document.getElementById('operatorNoSkillModal'), badge: badge, loading: loading, preview: previewBtn, download: downloadBtn, filters: [startEl,endEl,document.getElementById('onsDeptModal'),document.getElementById('onsSectModal')], onInvalidate: function(){ previewDone = false; } });
+
+  [document.getElementById('onsDeptModal'),document.getElementById('onsSectModal')].filter(Boolean).forEach(field => field.addEventListener('change', scheduleAutoPreview));
 
   function setBadge(count){ badge.style.removeProperty('background'); badge.style.removeProperty('color'); if (count === null) { badge.style.background='#ef4444'; badge.style.color='#fff'; badge.textContent='Err'; return; } if(count<=0){badge.style.background='#ef4444'; badge.style.color='#fff'; badge.textContent='0';} else if(count<=10){badge.style.background='#f59e0b'; badge.style.color='#111827'; badge.textContent=String(count);} else {badge.style.background='#10b981'; badge.style.color='#fff'; badge.textContent=String(count);} }
 
-  async function preview(){ if(!startEl.value || !endEl.value){ if(window.Toast) window.Toast.warning('Missing dates','Please select start and end dates'); return; } badge.textContent='…'; loading.style.display='inline'; previewBtn.disabled=true; try{ const dept = encodeURIComponent((document.getElementById('onsDeptModal')?.value)||''); const sect = encodeURIComponent((document.getElementById('onsSectModal')?.value)||''); const s = encodeURIComponent(startEl.value), e = encodeURIComponent(endEl.value); const extras = `&start=${s}&end=${e}` + (dept?('&dept='+dept):'') + (sect?('&sect='+sect):''); const res = await fetch('/api/download/operator-noskill/count?' + extras);
+  async function preview(){
+    const ticket = previewState.begin(); if(startEl.value && endEl.value && startEl.value > endEl.value) return false; if(!startEl.value || !endEl.value){ if(window.Toast) window.Toast.warning('Missing dates','Please select start and end dates'); return; } badge.textContent='…'; loading.style.display='inline'; previewBtn.disabled=true; try{ const dept = encodeURIComponent((document.getElementById('onsDeptModal')?.value)||''); const sect = encodeURIComponent((document.getElementById('onsSectModal')?.value)||''); const s = encodeURIComponent(startEl.value), e = encodeURIComponent(endEl.value); const extras = `&start=${s}&end=${e}` + (dept?('&dept='+dept):'') + (sect?('&sect='+sect):''); const res = await fetch('/api/download/operator-noskill/count?' + extras);
             if(!res.ok) throw new Error('Server '+res.status);
             const ct = (res.headers.get('content-type') || '').toLowerCase();
             if (!ct.includes('application/json')) {
@@ -104,8 +109,8 @@
                 console.error('[OperatorNoSkill.preview] expected JSON but got', ct, txt.slice(0,200));
                 throw new Error('Invalid server response (not JSON)');
             }
-            const j = await res.json();
-            setBadge(j.count ?? 0); previewDone=true; downloadBtn.classList.remove('dl-pending'); if(window.Toast) window.Toast.info('Preview','Found '+(j.count??0)+' records'); return true; }catch(err){ console.error(err); setBadge(null); previewDone=false; downloadBtn.classList.add('dl-pending'); if(window.Toast) window.Toast.error('Preview failed', err.message||''); return false; } finally{ loading.style.display='none'; previewBtn.disabled=false; } }
+            const j = await res.json(); if (!previewState.current(ticket)) return false;
+            setBadge(j.count ?? 0); previewDone=true; previewState.complete(ticket);  return true; }catch(err){ if (!previewState.current(ticket)) return false; console.error(err); setBadge(null); previewDone=false; downloadBtn.classList.add('dl-pending'); if(window.Toast) window.Toast.error('Preview failed', err.message||''); return false; } finally { if (previewState.current(ticket)) { loading.style.display='none'; previewBtn.disabled=false; } } }
 
   async function download(){ if (downloadBtn.classList.contains('dl-pending')) { const ok = await preview(); if (!ok || downloadBtn.classList.contains('dl-pending')) return; } if(!startEl.value || !endEl.value){ if(window.Toast) window.Toast.warning('Missing dates','Please select start and end dates'); return; } const fmt = encodeURIComponent((document.getElementById('onsFormatModal')?.value)||'xlsx'); const dept = encodeURIComponent((document.getElementById('onsDeptModal')?.value)||''); const sect = encodeURIComponent((document.getElementById('onsSectModal')?.value)||''); const s = encodeURIComponent(startEl.value), e = encodeURIComponent(endEl.value); const extras = `&start=${s}&end=${e}` + (dept?('&dept='+dept):'') + (sect?('&sect='+sect):''); window.location.href = `/api/download/operator-noskill?format=${fmt}${extras}`; }
 
@@ -115,37 +120,11 @@
   startEl.addEventListener('input', scheduleAutoPreview);
   endEl.addEventListener('input', scheduleAutoPreview);
 
-  (function(){ const onsModalEl = document.getElementById('operatorNoSkillModal'); if(!onsModalEl) return; onsModalEl.addEventListener('shown.bs.modal', async function(){ console.debug('[OperatorNoSkill] shown.bs.modal'); 
-                initializeDates(); 
-                badge.textContent='—'; downloadBtn.classList.add('dl-pending'); previewDone=false; try{
-                const res = await fetch('/api/download/meta/disqualified');
-                if (!res.ok) {
-                    console.warn('/api/download/meta/disqualified returned', res.status);
-                    if (window.Toast) window.Toast.warning('Data unavailable', 'Unable to load department/section list');
-                } else {
-                    const ct = (res.headers.get('content-type') || '').toLowerCase();
-                    if (ct.includes('application/json')) {
-                        let j;
-                        try { j = await res.json(); } catch(parseErr) {
-                            console.error('Failed to parse JSON from /api/download/meta/disqualified', parseErr);
-                            if (window.Toast) window.Toast.error('Data error', 'Invalid response from server');
-                            return;
-                        }
-                        const deptEl = document.getElementById('onsDeptModal');
-                        const sectEl = document.getElementById('onsSectModal');
-                        if (Array.isArray(j.departments) && deptEl) deptEl.innerHTML = '<option value="">-- Any --</option>' + j.departments.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
-                        if (Array.isArray(j.sections) && sectEl) sectEl.innerHTML = '<option value="">-- Any --</option>' + j.sections.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-                        if (deptEl) deptEl.addEventListener('change', scheduleAutoPreview);
-                        if (sectEl) sectEl.addEventListener('change', scheduleAutoPreview);
-                        // Auto-trigger preview after loading
-                        scheduleAutoPreview();
-                    } else {
-                        const txt = await res.text();
-                        console.error('Unexpected /api/download/meta/disqualified response (not JSON)', ct, txt.slice(0,200));
-                        if (window.Toast) window.Toast.error('Server error', 'Unable to load department list');
-                    }
-                }
-            }catch(err){ console.error('Failed to load departments', err); if(window.Toast) window.Toast.error('Network error','Failed to load department/section list'); } }); })();
+  document.getElementById('operatorNoSkillModal').addEventListener('shown.bs.modal', async function(){
+    const opening = previewState.open();
+    await previewState.loadOptions(opening, [{ element: document.getElementById('onsDeptModal'), key: 'departments' }, { element: document.getElementById('onsSectModal'), key: 'sections' }]);
+    if (previewState.isOpen(opening) && (true)) scheduleAutoPreview();
+  });
 
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
 })();

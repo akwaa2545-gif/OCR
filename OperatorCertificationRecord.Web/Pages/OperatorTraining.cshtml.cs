@@ -49,6 +49,7 @@ public class OperatorTrainingModel : PageModel
     {
         _logger?.LogInformation("OperatorTraining ResolvePublicPhotoUrl called with storedPath={StoredPath}", storedPath);
         if (string.IsNullOrWhiteSpace(storedPath)) return null;
+        if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
         if (storedPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || storedPath.StartsWith("/photos/", StringComparison.OrdinalIgnoreCase))
         {
             var knownFileName = Path.GetFileName(storedPath);

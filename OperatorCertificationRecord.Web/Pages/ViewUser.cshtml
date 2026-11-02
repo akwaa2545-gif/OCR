@@ -2,10 +2,12 @@
 @using OperatorCertificationRecord.Web.Models
 @model OperatorCertificationRecord.Web.Pages.ViewUserModel
 @inject OperatorCertificationRecord.Web.Services.AdminService AdminService
+@inject OperatorCertificationRecord.Web.Services.DeveloperRoleService DeveloperRoles
 @{
     ViewData["Title"] = "View Employee";
     ViewData["ActivePage"] = "ViewUser";
     bool isAdmin = AdminService.IsAdmin(HttpContext.Session.GetString("UserCode"));
+    bool isDeveloper = DeveloperRoles.IsDeveloper(HttpContext.Session.GetString("UserCode"));
 }
 
 <style>
@@ -19,6 +21,7 @@
         display: flex;
         flex-direction: column;
         gap: 1rem;
+        min-width: 0;
     }
 
     /* ── Profile header card ── */
@@ -26,21 +29,17 @@
         background: #fff;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
+        border-top: 4px solid #f97316;
         box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         overflow: hidden;
     }
-    .vu-profile-banner {
-        height: 72px;
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fed7aa 100%);
-    }
     .vu-profile-body {
         display: flex;
-        align-items: flex-start;
-        gap: 1.25rem;
-        padding: 0 1.5rem 0.75rem;
-        margin-top: -36px;
-        position: relative;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 22px 12px;
         flex-wrap: wrap;
+        background: linear-gradient(110deg, #fffaf5, #fff 58%);
     }
     .vu-avatar-wrap { flex-shrink: 0; }
     .vu-avatar-ring {
@@ -68,29 +67,32 @@
     /* Info block */
     .vu-info-block {
         flex: 1;
-        min-width: 160px;
-        padding-top: 40px;
+        min-width: 180px;
     }
     .vu-emp-name {
-        font-size: 1.05rem;
+        font-size: clamp(18px, 1.65vw, 23px);
         font-weight: 700;
         color: #0f172a;
         margin: 0 0 0.1rem;
         line-height: 1.25;
+        overflow-wrap: anywhere;
     }
     .vu-emp-code {
-        font-size: 0.75rem;
-        color: #64748b;
-        font-weight: 500;
-        margin: 0 0 0.35rem;
+        font-size: 13px;
+        color: #475569;
+        font-weight: 600;
+        margin: 0;
+        font-variant-numeric: tabular-nums;
     }
+    .vu-emp-thai { margin: 3px 0 7px; color: #475569; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+    .vu-identity-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .vu-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
         padding: 0.15rem 0.55rem;
         border-radius: 20px;
-        font-size: 0.68rem;
+        font-size: 12px;
         font-weight: 600;
         border: 1.5px solid;
     }
@@ -101,59 +103,34 @@
     /* Stats row */
     .vu-stats-row {
         display: flex;
-        gap: 0.5rem;
+        gap: 8px;
         flex-wrap: wrap;
-        padding-top: 40px;
-        align-items: flex-start;
+        align-items: stretch;
     }
     .vu-stat-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.38rem;
-        padding: 0.38rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.73rem;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: baseline;
+        column-gap: 7px;
+        padding: 10px 12px;
+        border-radius: 9px;
+        font-size: 12px;
         font-weight: 600;
         white-space: nowrap;
-        border: none;
+        border: 1px solid;
         letter-spacing: 0.01em;
     }
-    .vu-stat-pill i { font-size: 0.8rem; }
-    .vu-stat-pill .vu-stat-num { font-weight: 800; font-size: 0.85rem; }
-    /* Stat count pills — solid gradients */
+    .vu-stat-pill i { grid-row: span 2; align-self: center; font-size: 18px; }
+    .vu-stat-pill .vu-stat-num { font-weight: 800; font-size: 21px; line-height: 1.1; }
+    .vu-stat-label { grid-column: 2; line-height: 1.4; }
     .vu-stat-pill.orange {
-        background: linear-gradient(135deg, #f97316, #ea580c);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(234,88,12,0.30);
+        background: #fff7ed; color: #9a3412; border-color: #fed7aa;
     }
-    .vu-stat-pill.orange .vu-stat-num { color: #fff; }
     .vu-stat-pill.red {
-        background: linear-gradient(135deg, #f43f5e, #be123c);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(190,18,60,0.28);
+        background: #fff1f2; color: #9f1239; border-color: #fecdd3;
     }
-    .vu-stat-pill.red .vu-stat-num { color: #fff; }
     .vu-stat-pill.amber {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(217,119,6,0.28);
-    }
-    .vu-stat-pill.amber .vu-stat-num { color: #fff; }
-    /* Info pills — colored variants */
-    .vu-stat-pill.blue {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(37,99,235,0.30);
-    }
-    .vu-stat-pill.purple {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(124,58,237,0.28);
-    }
-    .vu-stat-pill.slate {
-        background: linear-gradient(135deg, #ea580c, #f97316);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(234,88,12,0.28);
+        background: #f8fafc; color: #475569; border-color: #e2e8f0;
     }
 
     /* Nav row */
@@ -161,7 +138,7 @@
         display: flex;
         gap: 0.5rem;
         flex-wrap: wrap;
-        padding: 0.75rem 1.5rem 0.85rem;
+        padding: 8px 22px;
         border-top: 1px solid #f1f5f9;
     }
     .vu-nav-btn {
@@ -247,73 +224,42 @@
     .vu-toggle-btn:hover { background: #ffedd5; }
     .vu-section-body { padding: 1.1rem 1.25rem; background: linear-gradient(180deg, #fafafa 0%, #fff 80%); }
 
-    /* ── Info fields ── */
-    .vu-subsection-label {
-        font-size: 0.65rem;
-        font-weight: 800;
-        color: #c2410c;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 0.32rem 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        background: linear-gradient(90deg, #fff7ed 0%, #fffbf5 55%, transparent 100%);
-        border-left: 3px solid #f97316;
-        border-radius: 0 6px 6px 0;
-        margin-bottom: 0.65rem;
-    }
-    .vu-subsection-label.mt-2 { margin-top: 1rem; }
-    .vu-subsection-label i { color: #f97316; font-size: 0.78rem; }
-    .vu-grid-3 {
+    /* Employee details share the profile card instead of consuming table width. */
+    .vu-employee-details {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.7rem;
+        grid-template-columns: 1.2fr 1.2fr 1.6fr 0.6fr 0.7fr 1fr;
+        gap: 8px 20px;
+        margin: 0;
+        padding: 10px 22px 12px;
+        border-top: 1px solid #f1f5f9;
     }
-    .vu-field {
-        background: #fff;
-        border: 1px solid #e9eff5;
-        border-left: 3px solid #f97316;
-        border-radius: 9px;
-        padding: 0.5rem 0.75rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.1rem;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-        transition: box-shadow 0.16s ease, transform 0.13s ease, border-left-color 0.16s ease;
+    .vu-detail { min-width: 0; }
+    .vu-detail dt { margin: 0 0 3px; color: #475569; font-size: 12px; font-weight: 600; line-height: 1.4; }
+    .vu-detail dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+    .vu-detail-resigned dd { color: #9f1239; }
+    .vu-page :is(.vu-nav-btn, .btn-sk, .tab-btn, .vu-avatar-img, .vu-skill-scroll):focus-visible {
+        outline: 3px solid #c2410c;
+        outline-offset: 3px;
     }
-    .vu-field:hover {
-        box-shadow: 0 4px 14px rgba(249,115,22,0.13);
-        transform: translateY(-1px);
-        border-left-color: #ea580c;
+    .vu-page .vu-skill-scroll {
+        min-width: 0;
+        max-width: 100%;
+        max-height: var(--vu-skill-height, min(560px, 60vh));
+        overflow-x: scroll !important;
+        overflow-y: auto !important;
+        padding: 0 !important;
+        scrollbar-gutter: stable;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
-    .vu-label {
-        font-size: 0.6rem;
-        color: #a0aec0;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+    .vu-page .vu-skill-scroll thead th {
+        position: sticky !important;
+        top: 0;
+        z-index: 3;
+        background: #fff7ed;
+        box-shadow: 0 1px 0 #e2e8f0;
     }
-    .vu-value {
-        font-size: 0.87rem;
-        color: #1e293b;
-        font-weight: 500;
-        line-height: 1.3;
-    }
-    .vu-value.accent { color: #ea580c; font-weight: 700; }
-    .vu-value.muted  { color: #64748b; }
-    .vu-grade-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.15rem 0.55rem;
-        border-radius: 20px;
-        background: linear-gradient(135deg, #fff7ed, #ffedd5);
-        color: #c2410c;
-        font-size: 0.75rem;
-        font-weight: 700;
-        border: 1px solid #fed7aa;
-        box-shadow: 0 1px 3px rgba(249,115,22,0.14);
-    }
+    .vu-page .vu-skill-scroll.skill-table-fit { overflow-x: hidden !important; }
 
     /* ── Skills action buttons ── */
     .btn-sk {
@@ -379,38 +325,26 @@
     .empty-state-title { font-size: 1rem; font-weight: 700; color: #475569; margin-bottom: 0.25rem; }
     .empty-state-text  { font-size: 0.82rem; color: #94a3b8; }
 
-    /* ── Responsive ── */
+    /* ── Full-width skills workspace and laptop reflow ── */
+    .vu-main-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .vu-right-col { min-width: 0; display: grid; gap: 1rem; }
+    @@media (max-width: 1200px) {
+        .vu-employee-details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .vu-stat-pill { padding: 9px 10px; }
+    }
     @@media (max-width: 768px) {
-        .vu-profile-body { flex-direction: column; align-items: center; text-align: center; padding: 0 1rem 0.75rem; }
-        .vu-info-block { padding-top: 0.5rem; text-align: center; }
-        .vu-stats-row { padding-top: 0; justify-content: center; }
-        .vu-grid-3 { grid-template-columns: repeat(2, 1fr); }
-        .vu-nav-row { justify-content: center; }
+        .vu-profile-body { padding: 16px; gap: 12px; }
+        .vu-employee-details { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 13px 16px; gap: 12px; }
+        .vu-stats-row { flex-basis: 100%; }
+        .vu-stat-pill { flex: 1; }
+        .vu-nav-row { padding: 10px 16px; }
     }
-    @@media (max-width: 480px) {
-        .vu-grid-3 { grid-template-columns: 1fr; }
-    }
-
-    /* ── Two-column main layout ── */
-    .vu-main-grid {
-        display: grid;
-        grid-template-columns: 1fr 3fr;
-        gap: 1rem;
-        align-items: start;
-    }
-    .vu-left-col { position: sticky; top: 1rem; }
-    .vu-right-col { min-width: 0; }
-    /* In the left panel, use single-column info fields so they don't get crushed */
-    .vu-left-col .vu-grid-3 {
-        grid-template-columns: 1fr;
-    }
-    @@media (max-width: 992px) {
-        .vu-main-grid { grid-template-columns: 1fr; }
-        .vu-left-col { position: static; }
-        .vu-left-col .vu-grid-3 { grid-template-columns: repeat(2, 1fr); }
-    }
-    @@media (max-width: 480px) {
-        .vu-left-col .vu-grid-3 { grid-template-columns: 1fr; }
+    @@media (max-width: 420px) {
+        .vu-employee-details { grid-template-columns: minmax(0, 1fr); }
+        .vu-stats-row { gap: 5px; }
+        .vu-stat-pill { padding: 8px; font-size: 11px; }
+        .vu-stat-pill i { display: none; }
+        .vu-stat-pill, .vu-stat-label { grid-template-columns: 1fr; grid-column: 1; }
     }
 </style>
 @if (Model.Employee != null)
@@ -418,11 +352,17 @@
     var photoUrl = Model.PhotoUrl ?? "/images/placeholder-employee.svg";
     var ringClass = Model.IsResigned ? "ring-resigned" : ((Model.PromotedSkills != null && Model.PromotedSkills.Count > 0) ? "ring-promoted" : "ring-default");
 
-    <div class="vu-page">
+    <div class="vu-page" data-table-density="compact">
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="vu-save-notice @(Model.MessageType == "success" ? "is-success" : "is-error")" role="@(Model.MessageType == "success" ? "status" : "alert")">
+            <i class="bi @(Model.MessageType == "success" ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+            <span>@Model.Message</span>
+        </div>
+    }
 
     <!-- ── Profile Header ── -->
-    <div class="vu-profile">
-        <div class="vu-profile-banner"></div>
+    <section class="vu-profile" aria-labelledby="employeeProfileName">
         <div class="vu-profile-body">
             <div class="vu-avatar-wrap">
                 <div class="vu-avatar-ring @ringClass">
@@ -431,9 +371,10 @@
                 </div>
             </div>
             <div class="vu-info-block">
-                <h2 class="vu-emp-name">@Model.Employee.PrefixEng @Model.Employee.FirstNameEng @Model.Employee.LastNameEng</h2>
-                <p class="vu-emp-code">@Model.Employee.EmpCode</p>
-                <div>
+                <h2 class="vu-emp-name" id="employeeProfileName">@Model.Employee.PrefixEng @Model.Employee.FirstNameEng @Model.Employee.LastNameEng</h2>
+                <p class="vu-emp-thai" lang="th">@Model.Employee.PrefixThai @Model.Employee.FirstNameThai @Model.Employee.LastNameThai</p>
+                <div class="vu-identity-meta">
+                    <p class="vu-emp-code">Employee @Model.Employee.EmpCode</p>
                     @if (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0)
                     {
                         <span class="vu-badge promoted"><i class="bi bi-arrow-up-circle-fill"></i> Promoted</span>
@@ -449,17 +390,27 @@
                 </div>
             </div>
             <div class="vu-stats-row">
-                <div class="vu-stat-pill orange"><i class="bi bi-award-fill"></i> <span class="vu-stat-num">@(Model.CurrentSkills?.Count ?? 0)</span> Qualified</div>
-                <div class="vu-stat-pill red"><i class="bi bi-x-circle-fill"></i> <span class="vu-stat-num">@(Model.DisqualifiedSkills?.Count ?? 0)</span> Disqualified</div>
-                <div class="vu-stat-pill amber"><i class="bi bi-arrow-repeat"></i> <span class="vu-stat-num">@(Model.ObsoletedSkills?.Count ?? 0)</span> Obsoleted</div>
-                <div class="vu-stat-pill blue"><i class="bi bi-briefcase-fill"></i> @(Model.Employee.JobGrade ?? "-")</div>
-                <div class="vu-stat-pill purple"><i class="bi bi-clock"></i> Shift @(Model.Employee.Shift ?? "-")</div>
-                <div class="vu-stat-pill slate"><i class="bi bi-calendar-check"></i> @Model.Employee.JoinDate.ToString("dd MMM yyyy")</div>
+                <div class="vu-stat-pill orange"><i class="bi bi-award-fill" aria-hidden="true"></i><span class="vu-stat-num">@(Model.CurrentSkills?.Count ?? 0)</span><span class="vu-stat-label">Qualified</span></div>
+                <div class="vu-stat-pill red"><i class="bi bi-x-circle-fill" aria-hidden="true"></i><span class="vu-stat-num">@(Model.DisqualifiedSkills?.Count ?? 0)</span><span class="vu-stat-label">Disqualified</span></div>
+                <div class="vu-stat-pill amber"><i class="bi bi-arrow-repeat" aria-hidden="true"></i><span class="vu-stat-num">@(Model.ObsoletedSkills?.Count ?? 0)</span><span class="vu-stat-label">Obsoleted</span></div>
             </div>
         </div>
+        <dl class="vu-employee-details" aria-label="Employee information">
+            <div class="vu-detail"><dt>Department</dt><dd>@(Model.DepartmentName ?? "-")</dd></div>
+            <div class="vu-detail"><dt>Section</dt><dd>@(Model.SectionName ?? "-")</dd></div>
+            <div class="vu-detail"><dt>Workshop</dt><dd>@(Model.WorkshopName ?? "-")</dd></div>
+            <div class="vu-detail"><dt>Shift</dt><dd>@(Model.Employee.Shift ?? "-")</dd></div>
+            <div class="vu-detail"><dt>Job grade</dt><dd>@(Model.Employee.JobGrade ?? "-")</dd></div>
+            <div class="vu-detail"><dt>Employment date</dt><dd>@Model.Employee.JoinDate.ToString("dd MMM yyyy")</dd></div>
+            @if (Model.IsResigned || Model.Employee?.ResignDate != null || !string.IsNullOrWhiteSpace(Model.Employee?.ResignBy))
+            {
+                <div class="vu-detail vu-detail-resigned"><dt>Resigned on</dt><dd>@(Model.Employee?.ResignDate?.ToString("dd MMM yyyy") ?? "-")</dd></div>
+                <div class="vu-detail vu-detail-resigned"><dt>Resigned by</dt><dd>@(Model.Employee?.ResignBy ?? "-")</dd></div>
+            }
+        </dl>
         <div class="vu-nav-row">
             <a href="/Dashboard" class="vu-nav-btn vu-nav-btn-back"><i class="bi bi-arrow-left-circle"></i> Back to Dashboard</a>
-            @if (isAdmin)
+            @if (isAdmin || isDeveloper)
             {
                 <a href="/UpdateUser?empCode=@Model.Employee.EmpCode" class="vu-nav-btn vu-nav-btn-update"><i class="bi bi-person-gear"></i> Update Employee</a>
             }
@@ -471,95 +422,12 @@
                 <i class="bi bi-info-circle"></i> Level Criteria
             </button>
         </div>
-    </div>
+    </section>
 
-    <!-- ── Two-column main grid ── -->
+    <!-- ── Full-width certification workspace ── -->
     <div class="vu-main-grid">
 
-    <!-- ── Left column: Employee Information (always visible) ── -->
-    <div class="vu-left-col">
-    <div class="vu-section">
-        <div class="vu-section-hdr" style="cursor:default;">
-            <span class="vu-section-icon"><i class="bi bi-person-vcard"></i></span>
-            <span class="vu-section-title">Employee Information</span>
-        </div>
-        <div class="vu-section-body">
-                <div class="vu-subsection-label"><i class="bi bi-translate"></i> English Name</div>
-                <div class="vu-grid-3">
-                    <div class="vu-field">
-                        <span class="vu-label">Prefix</span>
-                        <span class="vu-value accent">@(Model.Employee.PrefixEng ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">First Name</span>
-                        <span class="vu-value">@(Model.Employee.FirstNameEng ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">Last Name</span>
-                        <span class="vu-value">@(Model.Employee.LastNameEng ?? "-")</span>
-                    </div>
-                </div>
-                <div class="vu-subsection-label mt-2"><i class="bi bi-globe-asia-australia"></i> Thai Name</div>
-                <div class="vu-grid-3">
-                    <div class="vu-field">
-                        <span class="vu-label">คำนำหน้า</span>
-                        <span class="vu-value accent">@(Model.Employee.PrefixThai ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">ชื่อ</span>
-                        <span class="vu-value">@(Model.Employee.FirstNameThai ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">นามสกุล</span>
-                        <span class="vu-value">@(Model.Employee.LastNameThai ?? "-")</span>
-                    </div>
-                </div>
-                <div class="vu-subsection-label mt-2"><i class="bi bi-diagram-3"></i> Organisation</div>
-                <div class="vu-grid-3">
-                    <div class="vu-field">
-                        <span class="vu-label">Emp. No.</span>
-                        <span class="vu-value accent">@Model.Employee.EmpCode</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">Department</span>
-                        <span class="vu-value">@(Model.DepartmentName ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">Section</span>
-                        <span class="vu-value">@(Model.SectionName ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">Workshop</span>
-                        <span class="vu-value">@(Model.WorkshopName ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">Shift</span>
-                        <span class="vu-value muted">@(Model.Employee.Shift ?? "-")</span>
-                    </div>
-                    <div class="vu-field">
-                        <span class="vu-label">Job Grade</span>
-                        <span class="vu-value"><span class="vu-grade-pill">@(Model.Employee.JobGrade ?? "-")</span></span>
-                    </div>
-                </div>
-                @if (Model.IsResigned || Model.Employee?.ResignDate != null || !string.IsNullOrWhiteSpace(Model.Employee?.ResignBy))
-                {
-                    <div class="vu-subsection-label mt-2"><i class="bi bi-person-x"></i> Resignation</div>
-                    <div class="vu-grid-3">
-                        <div class="vu-field">
-                            <span class="vu-label">Resigned On</span>
-                            <span class="vu-value">@(Model.Employee?.ResignDate?.ToString("dd MMM yyyy") ?? "-")</span>
-                        </div>
-                        <div class="vu-field">
-                            <span class="vu-label">Resigned By</span>
-                            <span class="vu-value">@(Model.Employee?.ResignBy ?? "-")</span>
-                        </div>
-                    </div>
-                }
-            </div>
-    </div>
-    </div><!-- /vu-left-col -->
-
-    <!-- ── Right column: Certification & Skills ── -->
+    <!-- ── Certification & Skills ── -->
     <div class="vu-right-col">
 
     <!-- ── Certification & Skills ── -->
@@ -571,16 +439,16 @@
         <div class="vu-section-body">
             <!-- Action controls row -->
             <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; margin-bottom:0.75rem;">
-                @{ bool blocked = (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0) || Model.IsResigned; }
+                @{ bool blocked = (!isDeveloper && Model.PromotedSkills != null && Model.PromotedSkills.Count > 0) || Model.IsResigned; }
 
                 @* ── Update Skill ── *@
-                @if (isAdmin && !blocked)
+                @if ((isAdmin || isDeveloper) && !blocked)
                 {
                     <button type="button" id="updateSkillBtn" class="btn-sk btn-sk-update" disabled title="Update Skill">
                         <i class="bi bi-pencil"></i> Update Skill
                     </button>
                 }
-                else if (isAdmin)
+                else if (isAdmin || isDeveloper)
                 {
                     <button type="button" class="btn-sk btn-sk-update btn-sk-disabled" aria-disabled="true"
                             title="@(Model.IsResigned ? "Employee resigned — action disabled" : "Employee promoted — action disabled")">
@@ -589,19 +457,19 @@
                 }
                 else
                 {
-                    <button type="button" class="btn-sk btn-sk-update btn-sk-disabled" aria-disabled="true" title="Admin only">
+                    <button type="button" class="btn-sk btn-sk-update btn-sk-disabled" aria-disabled="true" title="Admin or Developer only">
                         <i class="bi bi-pencil"></i> Update Skill
                     </button>
                 }
 
                 @* ── Disqualify Selected ── *@
-                @if (isAdmin && !blocked)
+                @if ((isAdmin || isDeveloper) && !blocked)
                 {
                     <button type="button" id="disqualifySelectedBtn" class="btn-sk btn-sk-disqualify" disabled title="Disqualify Selected">
                         <i class="bi bi-x-circle"></i> Disqualify Selected
                     </button>
                 }
-                else if (isAdmin)
+                else if (isAdmin || isDeveloper)
                 {
                     <button type="button" class="btn-sk btn-sk-disqualify btn-sk-disabled" aria-disabled="true"
                             title="@(Model.IsResigned ? "Employee resigned — action disabled" : "Employee promoted — action disabled")">
@@ -610,19 +478,19 @@
                 }
                 else
                 {
-                    <button type="button" class="btn-sk btn-sk-disqualify btn-sk-disabled" aria-disabled="true" title="Admin only">
+                    <button type="button" class="btn-sk btn-sk-disqualify btn-sk-disabled" aria-disabled="true" title="Admin or Developer only">
                         <i class="bi bi-x-circle"></i> Disqualify Selected
                     </button>
                 }
 
                 @* ── Add Skill ── *@
-                @if (isAdmin && !blocked)
+                @if ((isAdmin || isDeveloper) && !blocked)
                 {
                     <a href="/AddSkill?empCode=@Model.Employee.EmpCode" class="btn-sk btn-sk-add" title="Add Skill">
                         <i class="bi bi-plus-lg"></i> Add Skill
                     </a>
                 }
-                else if (isAdmin)
+                else if (isAdmin || isDeveloper)
                 {
                     <span class="btn-sk btn-sk-add btn-sk-disabled"
                           title="@(Model.IsResigned ? "Employee resigned — cannot add skills" : "Employee promoted — cannot add skills")">
@@ -631,7 +499,7 @@
                 }
                 else
                 {
-                    <span class="btn-sk btn-sk-add btn-sk-disabled" title="Admin only">
+                    <span class="btn-sk btn-sk-add btn-sk-disabled" title="Admin or Developer only">
                         <i class="bi bi-plus-lg"></i> Add Skill
                     </span>
                 }
@@ -646,10 +514,15 @@
                 </a>
 
                 @* ── Fit ── *@
-                <button type="button" id="skillFitBtn" class="btn-sk btn-sk-fit" title="Fit all columns to screen without scrolling">
-                    <i class="bi bi-arrows-angle-contract"></i> Fit
+                <button type="button" id="skillFitBtn" class="btn-sk btn-sk-fit fit-active" aria-pressed="true" title="Expand columns for larger text and resizing">
+                    <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i> <span>Expand</span>
                 </button>
+                <div class="vu-table-density" role="group" aria-label="Table row spacing">
+                    <button type="button" data-table-density="comfortable" aria-pressed="false">Comfortable</button>
+                    <button type="button" data-table-density="compact" aria-pressed="true">Compact</button>
+                </div>
             </div>
+            <p class="vu-table-hint">All columns fit on screen. Choose Expand for larger text and adjustable columns.</p>
 
             <style>
                 /* Fit mode: compress all skill tab tables to viewport width */
@@ -658,17 +531,22 @@
                 }
                 .skill-table-fit .table {
                     width: 100% !important;
+                    min-width: 0 !important;
                     table-layout: fixed !important;
                     font-size: 0.72rem !important;
                     word-break: break-word;
                 }
                 .skill-table-fit .table th,
                 .skill-table-fit .table td {
+                    min-width: 0 !important;
+                    width: auto !important;
                     padding: 0.2rem 0.3rem !important;
-                    white-space: nowrap !important;
-                    overflow: hidden !important;
-                    text-overflow: ellipsis !important;
+                    white-space: normal !important;
+                    overflow-wrap: anywhere;
+                    text-overflow: clip !important;
                 }
+                .skill-table-fit col { width: var(--vu-fit-width, auto) !important; }
+                .skill-table-fit .col-resizer { display: none; }
                 #skillFitBtn.fit-active {
                     background: #0f172a !important;
                     color: #fff !important;
@@ -750,12 +628,13 @@
                 {
                     <form method="post" asp-page-handler="BulkDisqualify" asp-antiforgery="true" id="bulkDisqualifyForm">
                         <input type="hidden" name="empCode" value="@Model.Employee?.EmpCode" />
-                        <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                        <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Current skills and certificate downloads" tabindex="0">
                             <table class="table" id="currentSkillTable">
+                                <caption class="vu-table-caption">Current skills and certificates</caption>
                                 <thead>
                                     <tr>
-                                        <th style="width: 40px;"><input type="checkbox" id="selectAllSkills" class="form-checkbox" /></th>
-                                        <th>Process</th>
+                                        <th style="width: 40px;" data-column-key="selection"><input type="checkbox" id="selectAllSkills" class="form-checkbox" aria-label="Select all current skills" /></th>
+                                        <th data-column-key="process">Process</th>
                                         <th>Classification</th>
                                         <th>Theory</th>
                                         <th>OJT</th>
@@ -777,7 +656,7 @@
                                         var highlight10 = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry >= 0 && daysUntilExpiry <= 10;
                                         var highlight30 = !double.IsNaN(daysUntilExpiry) && daysUntilExpiry > 10 && daysUntilExpiry <= 30;
                                         <tr class="@(highlight10 ? "table-expiry-10" : (highlight30 ? "table-expiry-30" : ""))">
-                                            <td><input type="checkbox" name="SelectedProcesses" value="@skill.Process" class="skillCheckbox form-checkbox" /></td>
+                                            <td><input type="checkbox" name="SelectedProcesses" value="@skill.Process" class="skillCheckbox form-checkbox" aria-label="Select @skill.Process" /></td>
                                             <td><strong>@skill.Process</strong></td>
                                             <td title="@skill.CertifyClassification"><div class="col-cls">@skill.CertifyClassification</div></td>
                                             <td>@(skill.Theory?.ToString("dd MMM yyyy") ?? "-")</td>
@@ -804,9 +683,9 @@
                                             <td>@(skill.VerifierName ?? skill.Verifier)</td>
                                             <td>@skill.Remark</td>
                                             <td>
-                                                @if (!string.IsNullOrEmpty(skill.DownloadPath))
+                                                @if (skill.CertificateFileId.HasValue || !string.IsNullOrEmpty(skill.DownloadPath))
                                                 {
-                                                    var previewUrl = Model.ResolvePublicDownloadUrl(skill.DownloadPath, Model.Employee?.EmpCode ?? "");
+                                                    var previewUrl = Model.ResolvePublicDownloadUrl(skill, Model.Employee?.EmpCode ?? "");
                                                     <div class="download-actions" style="display:flex; gap:0.5rem; align-items:center;">
                                                         @if (AdminService.IsAdmin(HttpContext.Session.GetString("UserCode")))
                                                         {
@@ -852,8 +731,9 @@
             <div class="tab-content" id="disqualified">
                 @if (Model.DisqualifiedSkills != null && Model.DisqualifiedSkills.Count > 0)
                 {
-                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Disqualified skills" tabindex="0">
                         <table class="table" id="disqualifiedTable" style="table-layout:fixed; width:100%; min-width:820px;">
+                            <caption class="vu-table-caption">Disqualified skills</caption>
                             <colgroup>
                                 <col style="width:170px"><!-- Process -->
                                 <col style="width:90px"> <!-- Certified Date -->
@@ -867,7 +747,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Certified Date</th>
                                     <th>K</th>
                                     <th>S</th>
@@ -911,8 +791,9 @@
             <div class="tab-content" id="obsoleted">
                 @if (Model.ObsoletedSkills != null && Model.ObsoletedSkills.Count > 0)
                 {
-                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Obsoleted skills and certificate downloads" tabindex="0">
                         <table class="table" id="obsoletedTable" style="table-layout:fixed; width:100%; min-width:920px;">
+                            <caption class="vu-table-caption">Obsoleted skills</caption>
                             <colgroup>
                                 <col style="width:160px"><!-- Process -->
                                 <col style="width:140px"><!-- Classification -->
@@ -929,7 +810,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Classification</th>
                                     <th>Theory</th>
                                     <th>OJT</th>
@@ -1213,13 +1094,15 @@
             <div class="tab-content" id="promoted">
                 @if (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0)
                 {
-                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Promoted skills and certificate downloads" tabindex="0">
                         <table class="table" id="promotedTable" style="table-layout:fixed; width:100%; min-width:880px;">
+                            <caption class="vu-table-caption">Promoted skills</caption>
                             <colgroup>
                                 <col style="width:160px"><!-- Process -->
                                 <col style="width:140px"><!-- Classification -->
                                 <col style="width:88px"> <!-- Theory -->
                                 <col style="width:88px"> <!-- OJT -->
+                                <col style="width:52px"> <!-- Result -->
                                 <col style="width:36px"> <!-- K -->
                                 <col style="width:36px"> <!-- S -->
                                 <col style="width:72px"> <!-- Judgment -->
@@ -1230,7 +1113,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Classification</th>
                                     <th>Theory</th>
                                     <th>OJT</th>
@@ -1280,13 +1163,15 @@
             <div class="tab-content" id="resigned">
                 @if (Model.ResignedSkills != null && Model.ResignedSkills.Count > 0)
                 {
-                    <div class="table-container" style="overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:8px;">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Resigned employee skills and certificate downloads" tabindex="0">
                         <table class="table" id="resignedTable" style="table-layout:fixed; width:100%; min-width:880px;">
+                            <caption class="vu-table-caption">Resigned skills</caption>
                             <colgroup>
                                 <col style="width:160px"><!-- Process -->
                                 <col style="width:140px"><!-- Classification -->
                                 <col style="width:88px"> <!-- Theory -->
                                 <col style="width:88px"> <!-- OJT -->
+                                <col style="width:52px"> <!-- Result -->
                                 <col style="width:36px"> <!-- K -->
                                 <col style="width:36px"> <!-- S -->
                                 <col style="width:72px"> <!-- Judgment -->
@@ -1297,7 +1182,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Classification</th>
                                     <th>Theory</th>
                                     <th>OJT</th>
@@ -1724,15 +1609,16 @@ else
         word-break: break-word;
         min-width: 0;
     }
-    /* Date columns (Theory, OJT, Certified Date, Expiry Date): fixed width so dates never compress */
-    .table td:nth-child(4), .table th:nth-child(4),
-    .table td:nth-child(5), .table th:nth-child(5),
-    .table td:nth-child(9), .table th:nth-child(9),
-    .table td:nth-child(10), .table th:nth-child(10) {
+    /* Each table has a different date-column order; never widen K/S or remarks as dates. */
+    #currentSkillTable :is(th, td):is(:nth-child(4), :nth-child(5), :nth-child(10), :nth-child(11)),
+    #disqualifiedTable :is(th, td):is(:nth-child(2), :nth-child(6)),
+    #obsoletedTable :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(6), :nth-child(10)),
+    #promotedTable :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(9), :nth-child(10)),
+    #resignedTable :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(9), :nth-child(10)) {
         min-width: 90px;
-        white-space: nowrap !important;
+        white-space: nowrap;
     }
-    .table-container {
+    .table-container:not(.vu-skill-scroll) {
         padding: 0 !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
@@ -2238,9 +2124,11 @@ else
     }
     #disqualified .table tr { color: var(--danger) !important; }
 </style>
+<link rel="stylesheet" href="~/css/employee-tables.css" asp-append-version="true" />
 }
 
 @section Scripts {
+<script src="~/js/viewuser-skill-scroll.js" asp-append-version="true"></script>
 <script>
     // ── Dynamic download button ──────────────────────────────────────
     const _empCode = '@Model.Employee?.EmpCode';
@@ -2330,36 +2218,12 @@ else
             });
         });
 
-        // Fit-mode toggle: compress skill tab tables to fit viewport without scrolling
-        (function(){
-            const fitBtn = document.getElementById('skillFitBtn');
-            if (!fitBtn) return;
-            let fitOn = false;
-            fitBtn.addEventListener('click', function(){
-                fitOn = !fitOn;
-                document.querySelectorAll('#current-skill .table-container, #disqualified .table-container, #obsoleted .table-container')
-                    .forEach(function(tc){ tc.classList.toggle('skill-table-fit', fitOn); });
-                fitBtn.classList.toggle('fit-active', fitOn);
-                const icon = fitBtn.querySelector('i');
-                const label = fitBtn.querySelector('span');
-                if (fitOn) {
-                    if (icon) { icon.className = 'bi bi-arrows-angle-expand'; icon.style.fontSize = '1rem'; }
-                    if (label) label.textContent = 'Unfit';
-                    fitBtn.title = 'Restore scrollable table view';
-                } else {
-                    if (icon) { icon.className = 'bi bi-arrows-angle-contract'; icon.style.fontSize = '1rem'; }
-                    if (label) label.textContent = 'Fit';
-                    fitBtn.title = 'Fit all columns to screen without scrolling';
-                }
-            });
-        })();
-
         // Checkbox handling
         const selectAll = document.getElementById('selectAllSkills');
         const checkboxes = document.querySelectorAll('.skillCheckbox');
         const disBtn = document.getElementById('disqualifySelectedBtn');
         const updateBtn = document.getElementById('updateSkillBtn');
-        const isAdmin = @((isAdmin) ? "true" : "false");
+        const canManageSkills = @((isAdmin || isDeveloper) ? "true" : "false");
 
         function updateDownloadForSelection() {
             const btn = document.getElementById('btnDownloadTab');
@@ -2380,8 +2244,8 @@ else
             const checked = Array.from(checkboxes).filter(cb => cb.checked);
             const anyChecked = checked.length > 0;
             const exactlyOne = checked.length === 1;
-            if (disBtn) disBtn.disabled = !(anyChecked && isAdmin);
-            if (updateBtn) updateBtn.disabled = !(exactlyOne && isAdmin);
+            if (disBtn) disBtn.disabled = !(anyChecked && canManageSkills);
+            if (updateBtn) updateBtn.disabled = !(exactlyOne && canManageSkills);
             updateDownloadForSelection();
         }
 
@@ -2716,8 +2580,8 @@ else
         {
             <text>
         (function () {
-            var msg = '@Html.Raw(Model.Message.Replace("'", "\\'"))';
-            var type = '@Model.MessageType';
+            var msg = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Message));
+            var type = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MessageType));
             if (msg && window.Toast) {
                 if (type === 'success') window.Toast.success('Success', msg);
                 else window.Toast.error('Error', msg);
@@ -2725,94 +2589,6 @@ else
         })();
             </text>
         }
-
-        // ── Resizable column headers for all skill-tab tables ──
-        (function () {
-            // Selector: all tables inside the 5 skill tab containers
-            const SKILL_TABS = ['#current-skill', '#disqualified', '#obsoleted', '#promoted', '#resigned'];
-            const tables = document.querySelectorAll(
-                SKILL_TABS.map(s => s + ' table.table').join(', ')
-            );
-
-            tables.forEach(function (table) {
-                // Switch to fixed layout so explicit widths are honoured
-                table.style.tableLayout = 'fixed';
-
-                const ths = table.querySelectorAll('thead tr:first-child th');
-                ths.forEach(function (th) {
-                    // Freeze current rendered width as inline style
-                    th.style.width = th.offsetWidth + 'px';
-                    th.style.overflow = 'hidden';
-                    th.style.textOverflow = 'ellipsis';
-
-                    // Native tooltip so full text is always accessible on hover
-                    if (!th.title) th.title = th.textContent.trim();
-
-                    // Append drag handle
-                    const resizer = document.createElement('span');
-                    resizer.className = 'col-resizer';
-                    th.appendChild(resizer);
-
-                    // ── drag state ──
-                    let startX = 0;
-                    let startW = 0;
-
-                    resizer.addEventListener('mousedown', function (e) {
-                        e.preventDefault();
-                        startX = e.clientX;
-                        startW = th.offsetWidth;
-                        resizer.classList.add('resizing');
-                        document.body.classList.add('col-resizing');
-
-                        function onMove(ev) {
-                            const newW = Math.max(40, startW + (ev.clientX - startX));
-                            th.style.width = newW + 'px';
-                        }
-
-                        function onUp() {
-                            resizer.classList.remove('resizing');
-                            document.body.classList.remove('col-resizing');
-                            document.removeEventListener('mousemove', onMove);
-                            document.removeEventListener('mouseup', onUp);
-                        }
-
-                        document.addEventListener('mousemove', onMove);
-                        document.addEventListener('mouseup', onUp);
-                    });
-
-                    // Double-click: auto-fit column to widest cell content
-                    resizer.addEventListener('dblclick', function (e) {
-                        e.stopPropagation();
-                        const colIndex = Array.from(th.parentElement.children).indexOf(th);
-                        let maxW = 0;
-                        // measure header text
-                        const tmpCanvas = document.createElement('canvas');
-                        const ctx = tmpCanvas.getContext('2d');
-                        if (ctx) {
-                            const cs = window.getComputedStyle(th);
-                            ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-                            // header (minus resizer span text)
-                            const headerText = Array.from(th.childNodes)
-                                .filter(n => n.nodeType === Node.TEXT_NODE)
-                                .map(n => n.textContent).join('').trim() ||
-                                th.textContent.replace(th.querySelector('.col-resizer')?.textContent || '', '').trim();
-                            maxW = Math.max(maxW, ctx.measureText(headerText).width + 24);
-                            // all body cells in this column
-                            const rows = table.querySelectorAll('tbody tr');
-                            rows.forEach(function (row) {
-                                const cell = row.cells[colIndex];
-                                if (cell) {
-                                    const text = cell.textContent.trim();
-                                    const w = ctx.measureText(text).width + 20;
-                                    if (w > maxW) maxW = w;
-                                }
-                            });
-                        }
-                        if (maxW > 0) th.style.width = Math.min(maxW, 400) + 'px';
-                    });
-                });
-            });
-        })();
 
     });
 </script>

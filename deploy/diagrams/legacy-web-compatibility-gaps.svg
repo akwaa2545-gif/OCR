@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="750" viewBox="0 0 1360 750" role="img" aria-labelledby="title description">
+  <title id="title">Features that still need compatibility work</title>
+  <desc id="description">A separate diagram retains the old program and web app as two main lines. Three broken red connections show gaps in concurrent profile editing, role-controlled edits and an alternate Section report. An amber panel lists pending verification, and a blue panel distinguishes intentional web-only features.</desc>
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .heading { font-size: 28px; font-weight: 700; fill: #17243b; }
+      .subtitle { font-size: 18px; fill: #57677e; }
+      .app { font-size: 23px; font-weight: 700; }
+      .feature { font-size: 20px; font-weight: 700; fill: #9a302a; text-anchor: middle; }
+      .detail { font-size: 17px; fill: #78524e; text-anchor: middle; }
+      .broken { fill: none; stroke: #cb5147; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 7 7; }
+    </style>
+    <marker id="old-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10" fill="#c77a16"/></marker>
+    <marker id="web-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10" fill="#2867ba"/></marker>
+  </defs>
+  <rect width="1360" height="750" rx="18" fill="#ffffff"/>
+  <text x="40" y="46" class="heading">Features that still need compatibility work</text>
+  <text x="40" y="76" class="subtitle">Broken connections show known differences between the two apps.</text>
+
+  <path d="M264 130H1306" fill="none" stroke="#c77a16" stroke-width="7" stroke-linecap="round" marker-end="url(#old-arrow)"/>
+  <path d="M264 420H1306" fill="none" stroke="#2867ba" stroke-width="7" stroke-linecap="round" marker-end="url(#web-arrow)"/>
+  <rect x="40" y="103" width="204" height="54" rx="12" fill="#fff0d4" stroke="#e3bd7f"/>
+  <text x="142" y="139" text-anchor="middle" class="app" fill="#79420a">Old program</text>
+  <rect x="40" y="393" width="204" height="54" rx="12" fill="#2867ba"/>
+  <text x="142" y="429" text-anchor="middle" class="app" fill="#ffffff">Web app</text>
+
+  <g>
+    <path class="broken" d="M436 130C436 169 458 169 458 188M458 218V238M458 354C458 390 480 390 480 420"/>
+    <path d="M450 196L466 210M466 196L450 210" fill="none" stroke="#cb5147" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="436" cy="130" r="9" fill="#ffffff" stroke="#cb5147" stroke-width="4"/>
+    <circle cx="480" cy="420" r="9" fill="#ffffff" stroke="#cb5147" stroke-width="4"/>
+    <rect x="318" y="238" width="280" height="116" rx="14" fill="#fff3f2" stroke="#e6aaa3" stroke-width="1.5"/>
+    <text class="feature" x="458" y="271">Concurrent profile edits</text>
+    <text class="detail" x="458" y="303"><tspan x="458">Stale saves are not blocked</tspan><tspan x="458" dy="25">in both apps yet</tspan></text>
+  </g>
+  <g>
+    <path class="broken" d="M766 130C766 169 788 169 788 188M788 218V238M788 354C788 390 810 390 810 420"/>
+    <path d="M780 196L796 210M796 196L780 210" fill="none" stroke="#cb5147" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="766" cy="130" r="9" fill="#ffffff" stroke="#cb5147" stroke-width="4"/>
+    <circle cx="810" cy="420" r="9" fill="#ffffff" stroke="#cb5147" stroke-width="4"/>
+    <rect x="648" y="238" width="280" height="116" rx="14" fill="#fff3f2" stroke="#e6aaa3" stroke-width="1.5"/>
+    <text class="feature" x="788" y="271">Role-controlled edits</text>
+    <text class="detail" x="788" y="303"><tspan x="788">Windows does not yet enforce</tspan><tspan x="788" dy="25">the same role checks</tspan></text>
+  </g>
+  <g>
+    <path class="broken" d="M1096 130C1096 169 1118 169 1118 188M1118 218V238M1118 354C1118 390 1140 390 1140 420"/>
+    <path d="M1110 196L1126 210M1126 196L1110 210" fill="none" stroke="#cb5147" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="1096" cy="130" r="9" fill="#ffffff" stroke="#cb5147" stroke-width="4"/>
+    <circle cx="1140" cy="420" r="9" fill="#ffffff" stroke="#cb5147" stroke-width="4"/>
+    <rect x="978" y="238" width="280" height="116" rx="14" fill="#fff3f2" stroke="#e6aaa3" stroke-width="1.5"/>
+    <text class="feature" x="1118" y="271">Alternate Section report</text>
+    <text class="detail" x="1118" y="303"><tspan x="1118">One web download path uses</tspan><tspan x="1118" dy="25">different filters</tspan></text>
+  </g>
+
+  <rect x="40" y="475" width="1280" height="100" rx="14" fill="#fff8e9" stroke="#e4ca90"/>
+  <text x="62" y="506" font-size="19" font-weight="700" fill="#805a15">Still needs verification</text>
+  <text x="62" y="535" font-size="17" fill="#766444">Installed releases, workshop changes and recovered skill states must be checked in both apps.</text>
+  <text x="62" y="559" font-size="17" fill="#766444">A pending check does not mean that the feature is confirmed incompatible.</text>
+
+  <rect x="40" y="596" width="1280" height="92" rx="14" fill="#edf4fd" stroke="#c4d8f2"/>
+  <text x="62" y="627" font-size="19" font-weight="700" fill="#244c7e">Web-only features</text>
+  <text x="62" y="655" font-size="17" fill="#244c7e">Admin tools · Skill recovery · Activity log · Browser sign-in</text>
+  <text x="62" y="678" font-size="16" fill="#57677e">These do not have matching Windows screens by design; this is not a compatibility defect.</text>
+
+  <circle cx="48" cy="726" r="6" fill="#cb5147"/>
+  <text x="64" y="732" font-size="17" fill="#57677e">Separate from the original shared-feature graph. No deployment or application change is implied.</text>
+</svg>

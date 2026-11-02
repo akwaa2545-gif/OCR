@@ -237,25 +237,27 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
     .crop-btn-x   { background:rgba(255,255,255,0.08); color:#cbd5e1; }
     .crop-btn:hover { opacity:0.82; }
 </style>
+<link rel="stylesheet" href="~/css/employee-forms.css" asp-append-version="true" />
 }
 
 @if (TempData["Message"] != null)
 {
     var t = TempData["MessageType"]?.ToString() ?? "success";
-    <div class="alert alert-@((t=="success")?"success":"danger")" data-auto-dismiss>
+    <div class="alert alert-@((t=="success")?"success":"danger")" role="@(t == "success" ? "status" : "alert")">
         <i class="bi bi-@((t=="success")?"check-circle-fill":"exclamation-circle-fill")"></i>
         @TempData["Message"]
     </div>
 }
 @if (!string.IsNullOrEmpty(Model.Message))
 {
-    <div class="alert alert-@((Model.MessageType=="success")?"success":"danger")">
+    <div class="alert alert-@((Model.MessageType=="success")?"success":"danger")" role="@(Model.MessageType == "success" ? "status" : "alert")">
         <i class="bi bi-@((Model.MessageType=="success")?"check-circle-fill":"exclamation-circle-fill")"></i>
         @Model.Message
     </div>
 }
 
-<div class="au-layout">
+
+<div class="au-layout employee-form-page">
 
     <!-- =====================================================
          LEFT SIDEBAR
@@ -319,7 +321,8 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
          MAIN CONTENT
     ===================================================== -->
     <main class="au-main">
-        <form method="post" enctype="multipart/form-data" id="addUserForm">
+        <form method="post" enctype="multipart/form-data" id="addUserForm" data-employee-form>
+            <div asp-validation-summary="All" class="employee-validation-summary" role="alert"></div>
 
             <!-- Identity -->
             <div class="au-section-card">
@@ -333,11 +336,17 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                 <div class="au-grid-3">
                     <div class="au-field">
                         <label class="au-label" for="EmpCode">Emp. No. <span class="req">*</span></label>
-                        <input type="number" id="EmpCode" asp-for="EmpCode" class="au-input" placeholder="e.g. 1101234" required oninput="syncPreview()" />
+                        <input type="text" id="EmpCode" asp-for="EmpCode" class="au-input" placeholder="e.g. 0402567"
+                               inputmode="numeric" pattern="[0-9]{7}" minlength="7" maxlength="7" autocomplete="off"
+                               title="Enter exactly 7 digits" aria-describedby="employee-number-hint" required
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,7); syncPreview()" />
+                        <span id="employee-number-hint" class="au-section-sub">7 digits, including any leading zeros.</span>
+                        <span asp-validation-for="EmpCode" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="JoinDate">Join Date <span class="req">*</span></label>
                         <input type="date" id="JoinDate" asp-for="JoinDate" class="au-input" required oninput="syncPreview()" />
+                        <span asp-validation-for="JoinDate" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="JobGrade">Job Grade</label>
@@ -348,6 +357,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                                 <option value="@jg.JobGradeID">@jg.JobGradeID</option>
                             }
                         </select>
+                        <span asp-validation-for="JobGrade" class="employee-field-error"></span>
                     </div>
                 </div>
             </div>
@@ -370,15 +380,18 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                             <option value="Ms.">Ms.</option>
                             <option value="Mrs.">Mrs.</option>
                         </select>
+                        <span asp-validation-for="PrefixEng" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="FirstNameEng">First Name</label>
                         <input type="text" id="FirstNameEng" asp-for="FirstNameEng" class="au-input" placeholder="First name" oninput="validateEngInput(this); syncPreview()" />
+                        <span asp-validation-for="FirstNameEng" class="employee-field-error"></span>
                         <span class="au-field-err" id="FirstNameEng-err"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="LastNameEng">Last Name</label>
                         <input type="text" id="LastNameEng" asp-for="LastNameEng" class="au-input" placeholder="Last name" oninput="validateEngInput(this); syncPreview()" />
+                        <span asp-validation-for="LastNameEng" class="employee-field-error"></span>
                         <span class="au-field-err" id="LastNameEng-err"></span>
                     </div>
                 </div>
@@ -402,15 +415,18 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                             <option value="นาง">นาง</option>
                             <option value="นางสาว">นางสาว</option>
                         </select>
+                        <span asp-validation-for="PrefixThai" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="FirstNameThai">First Name (Thai)</label>
                         <input type="text" id="FirstNameThai" asp-for="FirstNameThai" class="au-input" placeholder="ชื่อ" oninput="validateThaiInput(this)" />
+                        <span asp-validation-for="FirstNameThai" class="employee-field-error"></span>
                         <span class="au-field-err" id="FirstNameThai-err"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="LastNameThai">Last Name (Thai)</label>
                         <input type="text" id="LastNameThai" asp-for="LastNameThai" class="au-input" placeholder="นามสกุล" oninput="validateThaiInput(this)" />
+                        <span asp-validation-for="LastNameThai" class="employee-field-error"></span>
                         <span class="au-field-err" id="LastNameThai-err"></span>
                     </div>
                 </div>
@@ -435,6 +451,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                                 <option value="@dept.DeptID">@dept.DeptName</option>
                             }
                         </select>
+                        <span asp-validation-for="DeptID" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="SectID">Section <span class="req">*</span></label>
@@ -445,6 +462,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                                 <option value="@sect.SectID">@sect.SectName</option>
                             }
                         </select>
+                        <span asp-validation-for="SectID" class="employee-field-error"></span>
                     </div>
                 </div>
             </div>
@@ -468,6 +486,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                                 <option value="@ws.WorkshopID">@ws.WorkshopName</option>
                             }
                         </select>
+                        <span asp-validation-for="WorkshopID" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label" for="Shift">Shift <span class="req">*</span></label>
@@ -478,6 +497,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                             <option value="C">C</option>
                             <option value="DAY">DAY</option>
                         </select>
+                        <span asp-validation-for="Shift" class="employee-field-error"></span>
                     </div>
                     <div class="au-field">
                         <label class="au-label">Photo</label>
@@ -493,6 +513,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                         </label>
                         <input type="file" id="PhotoFile" asp-for="PhotoFile" style="display:none;"
                                accept=".jpg,.jpeg,.png,.gif,.bmp,.webp" onchange="previewPhoto(event)" />
+                        <span asp-validation-for="PhotoFile" class="employee-field-error"></span>
                     </div>
                 </div>
             </div>
@@ -533,6 +554,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
 </div>
 
 @section Scripts {
+<script src="~/js/employee-forms.js" asp-append-version="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
 <script>
@@ -601,6 +623,7 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
                 const input = document.getElementById('PhotoFile');
                 closeCropModal();
                 input.files = dt.files;
+                input.dispatchEvent?.(new Event('employee:filechange', { bubbles: true }));
                 const url = URL.createObjectURL(blob);
                 document.getElementById('photoPreview').src = url;
                 const sub = document.getElementById('fileLabelText');
@@ -705,9 +728,8 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
         const nameEl = document.getElementById('previewName');
         if (nameEl) {
             const full = [p, fn, ln].filter(Boolean).join(' ');
-            nameEl.innerHTML = full
-                ? `<span style="font-weight:700">${full}</span>`
-                : '<span style="font-weight:400;font-size:0.85rem;color:#94a3b8;">New Employee</span>';
+            nameEl.textContent = full || 'New Employee';
+            nameEl.classList.toggle('employee-preview-empty', !full);
         }
 
         const ec = document.getElementById('EmpCode')?.value;
@@ -743,13 +765,12 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
             const res = await fetch('/api/sections?deptId=' + encodeURIComponent(dept));
             if (!res.ok) throw new Error();
             const list = await res.json();
-            let html = '<option value=""> Select Section </option>';
+            sectEl.replaceChildren(new Option('Select section', ''));
             list.forEach(s => {
                 const id   = s.SectID || s.sectID || s.sectId || s.id || '';
                 const name = s.SectName || s.sectName || s.name || s.Name || '';
-                html += `<option value="${id}">${name}</option>`;
+                sectEl.add(new Option(name, id));
             });
-            sectEl.innerHTML = html;
             const current = sectEl.getAttribute('data-current');
             if (current) sectEl.value = current;
         } catch {
@@ -792,8 +813,8 @@ select.au-input:focus { background-color: #fff; border-left-color: #ea580c; }
 
     document.addEventListener('DOMContentLoaded', () => {
         try {
-            const msg  = '@(TempData["Message"] ?? "")'.trim();
-            const type = '@(TempData["MessageType"] ?? "")'.trim();
+            const msg = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["Message"]?.ToString() ?? ""));
+            const type = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["MessageType"]?.ToString() ?? ""));
             if (msg) { type === 'success' ? Toast.success('Success', msg) : Toast.error('Error', msg); }
         } catch(e) {}
         

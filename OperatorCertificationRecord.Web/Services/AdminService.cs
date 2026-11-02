@@ -1,110 +1,139 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Text;
 using System.Text.Json;
 
 namespace OperatorCertificationRecord.Web.Services;
 
 public class AdminService
 {
-    private readonly HashSet<string> _admins;
     private readonly string _storePath;
-    private readonly object _lock = new object();
-    private DateTime _lastLoadedUtc = DateTime.UnixEpoch;
+    private readonly object _lock;
+    private readonly ILogger<AdminService> _logger;
+    private readonly DeveloperRoleService? _developers;
+    private readonly RoleActivityJournal? _activity;
+    private readonly RoleActivityStorage _storage;
 
-    public AdminService(IConfiguration configuration)
+    public AdminService(IConfiguration configuration, ILogger<AdminService>? logger = null, DeveloperRoleService? developers = null,
+        RoleActivityJournal? activity = null)
     {
-        // prefer persisted store in App_Data/admins.json when present
-        var appData = Path.Combine(Directory.GetCurrentDirectory(), "App_Data");
-        Directory.CreateDirectory(appData);
-        _storePath = Path.Combine(appData, "admins.json");
-
-        if (File.Exists(_storePath))
-        {
-            try
-            {
-                ReloadFromFile();
-                return;
-            }
-            catch { /* fall back to configuration */ }
-        }
-
-        var cfgList = configuration.GetSection("Admins")?.Get<string[]>() ?? Array.Empty<string>();
-        _admins = new HashSet<string>(cfgList.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()), StringComparer.OrdinalIgnoreCase);
+        _logger = logger ?? NullLogger<AdminService>.Instance;
+        _developers = developers;
+        _activity = activity;
+        _storage = new RoleActivityStorage(configuration);
+        _storePath = _storage.Resolve("Admin");
+        _lock = _storage.SyncRoot(_storePath);
+        lock (_lock) TryReadAdmins(out _);
     }
 
     public IEnumerable<string> GetAllAdmins()
     {
-        lock (_lock) { return _admins.ToList(); }
+        lock (_lock)
+            return TryReadAdmins(out var admins) ? admins.OrderBy(code => code, StringComparer.Ordinal).ToArray() : Array.Empty<string>();
     }
 
     public bool IsAdmin(string? empCode)
     {
-        if (string.IsNullOrWhiteSpace(empCode)) return false;
-        // If the persisted store was updated externally, reload before checking.
-        try
+        if (!IsValidCode(empCode)) return false;
+        lock (_lock) return TryReadAdmins(out var admins) && admins.Contains(empCode!.Trim());
+    }
+
+    public RoleChangeResult SetAdmin(string actor, string target, bool enabled)
+    {
+        if (!IsValidCode(actor) || _developers == null) return RoleChangeResult.Forbidden;
+        return _developers.ExecuteWithDeveloperSnapshot(developers =>
         {
-            if (File.Exists(_storePath))
+            lock (_lock)
             {
-                var last = File.GetLastWriteTimeUtc(_storePath);
-                if (last > _lastLoadedUtc)
-                {
-                    ReloadFromFile();
-                }
+                using var fileGate = _activity == null ? null : _storage.Enter(_storePath);
+                if (!TryReadAdmins(out var admins)) return RoleChangeResult.Forbidden;
+                var actorCode = actor.Trim();
+                var actorIsDeveloper = developers.Contains(actorCode);
+                if (!IsValidCode(target)) throw new ArgumentException("Invalid employee code.", nameof(target));
+                var targetCode = target.Trim();
+                var replay = _activity?.FindReplay(actorCode, targetCode, "Admin", enabled, admins.Contains(actorCode), actorIsDeveloper);
+                if (replay.HasValue) return replay.Value;
+                if (!actorIsDeveloper && !admins.Contains(actorCode)) return RoleChangeResult.Forbidden;
+                if (!actorIsDeveloper && developers.Contains(targetCode)) return RoleChangeResult.Forbidden;
+                return ChangeMembership(admins, targetCode, enabled, actorCode, actorIsDeveloper);
             }
-        }
-        catch { /* ignore reload errors */ }
-
-        lock (_lock) { return _admins.Contains(empCode.Trim()); }
+        });
     }
 
-    public bool AddAdmin(string empCode)
+    private RoleChangeResult ChangeMembership(HashSet<string> admins, string target, bool enabled, string actor, bool actorIsDeveloper)
     {
-        if (string.IsNullOrWhiteSpace(empCode)) return false;
-        empCode = empCode.Trim();
-        lock (_lock)
+        if (admins.Contains(target) == enabled)
         {
-            if (_admins.Contains(empCode)) return false;
-            _admins.Add(empCode);
-            Save();
-            return true;
+            _activity?.RecordUnchanged(_storePath, "Admin", actor, target, enabled, admins.Contains(actor), actorIsDeveloper, RoleChangeResult.Unchanged);
+            return RoleChangeResult.Unchanged;
         }
-    }
-
-    public bool RemoveAdmin(string empCode)
-    {
-        if (string.IsNullOrWhiteSpace(empCode)) return false;
-        empCode = empCode.Trim();
-        lock (_lock)
+        if (!enabled && admins.Count == 1)
         {
-            if (!_admins.Remove(empCode)) return false;
-            Save();
-            return true;
+            _activity?.RecordUnchanged(_storePath, "Admin", actor, target, enabled, admins.Contains(actor), actorIsDeveloper, RoleChangeResult.LastMember);
+            return RoleChangeResult.LastMember;
         }
+        var updated = new HashSet<string>(enabled ? admins.Append(target) : admins.Where(code => code != target), StringComparer.Ordinal);
+        if (_activity == null) Persist(updated);
+        else _activity.PublishMembership(_storePath, "Admin", admins, updated, actor, target, enabled, admins.Contains(actor), actorIsDeveloper);
+        _logger.LogInformation("Admin access changed. Actor={Actor}, Employee={Employee}, Enabled={Enabled}", actor, target, enabled);
+        return RoleChangeResult.Updated;
     }
 
-    private void Save()
+    private bool TryReadAdmins(out HashSet<string> admins)
     {
+        admins = new HashSet<string>(StringComparer.Ordinal);
         try
         {
-            var list = _admins.ToList();
-            var raw = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_storePath, raw);
-            _lastLoadedUtc = File.GetLastWriteTimeUtc(_storePath);
+            var entries = _storage.Read(_storePath).Members;
+            admins = new HashSet<string>(entries, StringComparer.Ordinal);
+            return true;
         }
-        catch { /* ignore write errors for now */ }
-    }
-
-
-    private void ReloadFromFile()
-    {
-        lock (_lock)
+        catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException)
         {
-            var raw = File.ReadAllText(_storePath);
-            var list = JsonSerializer.Deserialize<List<string>>(raw) ?? new List<string>();
-            _admins.Clear();
-            foreach (var s in list.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim())) _admins.Add(s);
-            _lastLoadedUtc = File.GetLastWriteTimeUtc(_storePath);
+            _logger.LogWarning("Admin role store is missing; access denied.");
+            return false;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        {
+            _logger.LogError(error, "Admin role store could not be read; access denied.");
+            return false;
         }
     }
-    
-}
 
+    protected virtual void Persist(HashSet<string> admins)
+    {
+        if (_storage.Read(_storePath).SchemaVersion != 0)
+            throw new IOException("Audited access changes require the activity journal.");
+        var directory = Path.GetDirectoryName(_storePath)!;
+        var temporaryPath = Path.Combine(directory, ".admins-" + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            Directory.CreateDirectory(directory);
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                var raw = JsonSerializer.Serialize(admins.OrderBy(code => code, StringComparer.Ordinal), new JsonSerializerOptions { WriteIndented = true });
+                var bytes = Encoding.UTF8.GetBytes(raw);
+                stream.Write(bytes);
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(temporaryPath, _storePath, overwrite: true);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(error, "Admin role change could not be persisted.");
+            throw;
+        }
+        finally
+        {
+            try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { _logger.LogWarning(error, "Admin role temporary file could not be removed."); }
+        }
+    }
+
+    private static bool IsValidCode(string? code)
+    {
+        var trimmed = code?.Trim();
+        return trimmed is { Length: >= 1 and <= 20 } && trimmed.All(character => character is >= '0' and <= '9');
+    }
+}

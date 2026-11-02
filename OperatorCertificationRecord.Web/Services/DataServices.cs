@@ -3,13 +3,15 @@ using System.Data.SqlClient;
 
 namespace OperatorCertificationRecord.Web.Services;
 
-public class EmployeeService
+public partial class EmployeeService
 {
     private readonly string _connectionString;
+    private readonly WebActivityWriter? _activity;
 
-    public EmployeeService(IConfiguration configuration)
+    public EmployeeService(IConfiguration configuration, WebActivityWriter? activity = null)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
+        _activity = activity;
     }
 
     // Fetch expiring skills across all employees
@@ -158,15 +160,15 @@ public class EmployeeService
         await connection.OpenAsync();
         var sql = @"
             SELECT
-              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate BETWEEN @cs AND @ce) AS Cur,
-              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate BETWEEN @ps AND @pe) AS Prev
+              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate >= @cs AND ResignDate < @ce) AS Cur,
+              (SELECT COUNT(1) FROM tblEmployee WHERE ResignDate >= @ps AND ResignDate < @pe) AS Prev
         ";
         using var cmd = new SqlCommand(sql, connection);
         cmd.CommandTimeout = 300;
-        cmd.Parameters.AddWithValue("@cs", curStart.Date);
-        cmd.Parameters.AddWithValue("@ce", curEnd.Date.AddDays(1).AddTicks(-1));
-        cmd.Parameters.AddWithValue("@ps", prevStart.Date);
-        cmd.Parameters.AddWithValue("@pe", prevEnd.Date.AddDays(1).AddTicks(-1));
+        cmd.Parameters.Add("@cs", SqlDbType.DateTime).Value = curStart.Date;
+        cmd.Parameters.Add("@ce", SqlDbType.DateTime).Value = curEnd.Date.AddDays(1);
+        cmd.Parameters.Add("@ps", SqlDbType.DateTime).Value = prevStart.Date;
+        cmd.Parameters.Add("@pe", SqlDbType.DateTime).Value = prevEnd.Date.AddDays(1);
         using var reader = await cmd.ExecuteReaderAsync();
         if (await reader.ReadAsync())
             return (reader.GetInt32(0), reader.GetInt32(1));
@@ -184,7 +186,7 @@ public class EmployeeService
                 SELECT EmpCode, PersonFNameEng, PersonLNameEng, ProcessName, ExpiryDate,
                        ISNULL(DeptName,'') as DeptName, ISNULL(SectName,'') as SectName
                 FROM ViewEmpQualified_All
-                WHERE ExpiryDate BETWEEN @start AND @end
+                WHERE ExpiryDate >= @start AND ExpiryDate < @end
                   AND (ISNULL(DisQualifiedBy,'') = '')
                   AND ResignDate IS NULL
                   AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%' AND Remark NOT LIKE '%PROMOTE%' AND Remark NOT LIKE '%RESIGN%'))
@@ -198,7 +200,7 @@ public class EmployeeService
             {
                 cmd.CommandTimeout = 300;
                 cmd.Parameters.AddWithValue("@start", startDate.Date);
-                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1));
                 cmd.Parameters.AddWithValue("@dept", (object)dept ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sect", (object)sect ?? DBNull.Value);
 
@@ -236,7 +238,7 @@ public class EmployeeService
                        ISNULL(ProcessName,'') AS ProcessName, ResignDate,
                        ISNULL(ResignBy,'') AS ResignBy, ISNULL(Remark,'') AS Remark
                 FROM ViewEmpQualified_All
-                WHERE ResignDate BETWEEN @start AND @end
+                WHERE ResignDate >= @start AND ResignDate < @end
                   AND ResignDate IS NOT NULL
                   AND ProcessName IS NOT NULL
                   AND (@dept IS NULL OR DeptName = @dept)
@@ -247,7 +249,7 @@ public class EmployeeService
             {
                 cmd.CommandTimeout = 300;
                 cmd.Parameters.AddWithValue("@start", startDate.Date);
-                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1));
                 cmd.Parameters.AddWithValue("@dept", (object)dept ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sect", (object)sect ?? DBNull.Value);
                 using (var reader = await cmd.ExecuteReaderAsync())
@@ -298,6 +300,7 @@ public class EmployeeService
                                     AND (q.Remark IS NULL OR (q.Remark NOT LIKE '%PROMOTED%' AND q.Remark NOT LIKE '%RESIGNED%'))
                                 ORDER BY q.CertifiedDate DESC
                         ";
+            query = await WithFileProjectionAsync(connection, query, "dbo.tblQualified", "q.", false);
             using (var command = new SqlCommand(query, connection))
             {
                 command.CommandTimeout = 300;
@@ -343,7 +346,11 @@ public class EmployeeService
                             OJT = reader["OJTTraining"] as DateTime?,
                             Theory = reader["TheoryTraining"] as DateTime?,
                             Judgment = reader["JudgmentPractice"]?.ToString(),
-                            DownloadPath = reader["Download"]?.ToString()
+                            DownloadPath = reader["Download"]?.ToString(),
+                            IsObsolete = (bool)reader["IsObsolete"],
+                            OcrSkillRowId = reader["OcrSkillRowId"] as Guid?,
+                            CertificateFileId = reader["CertificateFileId"] as Guid?,
+                            FileStorageVersion = reader["FileStorageVersion"] as byte[]
                         });
                     }
                 }
@@ -385,6 +392,7 @@ public class EmployeeService
                     AND (q.Remark IS NOT NULL AND q.Remark LIKE '%RESIGNED%')
                 ORDER BY CertifiedDate DESC";
             
+            query = await WithFileProjectionAsync(connection, query, "dbo.tblQualified", "q.", false);
             using (var command = new SqlCommand(query, connection))
             {
                 command.CommandTimeout = 300;
@@ -421,7 +429,11 @@ public class EmployeeService
                             OJT = reader["OJTTraining"] as DateTime?,
                             Theory = reader["TheoryTraining"] as DateTime?,
                             Judgment = reader["JudgmentPractice"]?.ToString(),
-                            DownloadPath = reader["Download"]?.ToString()
+                            DownloadPath = reader["Download"]?.ToString(),
+                            IsObsolete = (bool)reader["IsObsolete"],
+                            OcrSkillRowId = reader["OcrSkillRowId"] as Guid?,
+                            CertificateFileId = reader["CertificateFileId"] as Guid?,
+                            FileStorageVersion = reader["FileStorageVersion"] as byte[]
                         });
                     }
                 }
@@ -464,6 +476,7 @@ public class EmployeeService
                     AND (CHARINDEX('[PROMOTED]', ISNULL(q.Remark, '')) > 0 OR q.PromotionId IS NOT NULL)
                 ORDER BY CertifiedDate DESC";
             
+            query = await WithFileProjectionAsync(connection, query, "dbo.tblQualified_Obsoleted", "q.", false);
             using (var command = new SqlCommand(query, connection))
             {
                 command.Parameters.AddWithValue("@EmpCode", empCode);
@@ -498,7 +511,11 @@ public class EmployeeService
                             OJT = reader["OJTTraining"] as DateTime?,
                             Theory = reader["TheoryTraining"] as DateTime?,
                             Judgment = reader["JudgmentPractice"]?.ToString(),
-                            DownloadPath = reader["Download"]?.ToString()
+                            DownloadPath = reader["Download"]?.ToString(),
+                            IsObsolete = (bool)reader["IsObsolete"],
+                            OcrSkillRowId = reader["OcrSkillRowId"] as Guid?,
+                            CertificateFileId = reader["CertificateFileId"] as Guid?,
+                            FileStorageVersion = reader["FileStorageVersion"] as byte[]
                         });
                     }
                 }
@@ -702,6 +719,7 @@ public class EmployeeService
             await connection.OpenAsync();
             var query = "SELECT EmpCode, EmpPassword, JoinDate, JobGrade, HEng, PersonFnameEng, PersonLnameEng, HThai, PersonFnameThai, PersonLnameThai, DeptID, SectID, WorkshopID, Shift, Photo, Notice, ResignBy, ResignDate, StatusWork, TransferBy, TransferDate FROM tblEmployee WHERE EmpCode = @EmpCode";
 
+            query = await WithFileProjectionAsync(connection, query, "dbo.tblEmployee", "", true);
             using (var command = new SqlCommand(query, connection))
             {
                 command.Parameters.AddWithValue("@EmpCode", empCode);
@@ -725,7 +743,10 @@ public class EmployeeService
                             SectID = reader["SectID"]?.ToString(),
                             WorkshopID = reader["WorkshopID"]?.ToString(),
                             Shift = reader["Shift"]?.ToString(),
-                            PhotoPath = ResolvePhotoPath(reader["Photo"], reader["EmpCode"]?.ToString()),
+                            PhotoPath = ResolvePhotoPath(reader["Photo"], reader["EmpCode"]?.ToString(), reader["PhotoFileId"] as Guid?),
+                            PhotoFileId = reader["PhotoFileId"] as Guid?,
+                            FileStorageVersion = reader["FileStorageVersion"] as byte[],
+                            LegacyPhotoPath = reader["Photo"]?.ToString(),
                             Notice = reader["Notice"]?.ToString(),
                             ResignBy = reader["ResignBy"]?.ToString(),
                             ResignDate = reader["ResignDate"] as DateTime?,
@@ -745,8 +766,9 @@ public class EmployeeService
     /// The old WinForms app stored photos as binary blobs — ToString() would return "System.Byte[]".
     /// Photos on the mounted F:\ drive are named {EmpCode}.jpg, so fall back to that.
     /// </summary>
-    private static string ResolvePhotoPath(object? photoRaw, string? empCode)
+    private static string ResolvePhotoPath(object? photoRaw, string? empCode, Guid? photoFileId = null)
     {
+        if (photoFileId.HasValue) return $"/api/photo/employee/{Uri.EscapeDataString(empCode ?? "")}/{photoFileId.Value:D}";
         if (photoRaw != null && photoRaw != DBNull.Value && !(photoRaw is byte[]))
         {
             var val = photoRaw.ToString();
@@ -767,6 +789,8 @@ public class EmployeeService
             {
                 try
                 {
+                    var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-add", employee.EmpCode ?? "");
+                    if (activity?.Replayed == true) return true;
                     // Check if EmpCode already exists
                     using (var checkCmd = new SqlCommand("SELECT COUNT(1) FROM tblEmployee WHERE EmpCode = @EmpCode", connection, transaction))
                     {
@@ -803,7 +827,9 @@ public class EmployeeService
                         await insertCmd.ExecuteNonQueryAsync();
                     }
 
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity);
                     transaction.Commit();
+                    _activity?.MarkCommitted();
                     return true;
                 }
                 catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
@@ -829,6 +855,7 @@ public class EmployeeService
             await connection.OpenAsync();
             var query = "SELECT EmpCode, EmpPassword, JoinDate, JobGrade, HEng, PersonFnameEng, PersonLnameEng, HThai, PersonFnameThai, PersonLnameThai, DeptID, SectID, WorkshopID, Shift, Photo, Notice FROM tblEmployee";
 
+            query = await WithFileProjectionAsync(connection, query, "dbo.tblEmployee", "", true);
             using (var command = new SqlCommand(query, connection))
             {
                 using (var reader = await command.ExecuteReaderAsync())
@@ -851,7 +878,10 @@ public class EmployeeService
                             SectID = reader["SectID"]?.ToString(),
                             WorkshopID = reader["WorkshopID"]?.ToString(),
                             Shift = reader["Shift"]?.ToString(),
-                            PhotoPath = ResolvePhotoPath(reader["Photo"], reader["EmpCode"]?.ToString())
+                            PhotoPath = ResolvePhotoPath(reader["Photo"], reader["EmpCode"]?.ToString(), reader["PhotoFileId"] as Guid?),
+                            PhotoFileId = reader["PhotoFileId"] as Guid?,
+                            FileStorageVersion = reader["FileStorageVersion"] as byte[],
+                            LegacyPhotoPath = reader["Photo"]?.ToString()
                             ,
                             Notice = reader["Notice"]?.ToString()
                         });
@@ -874,6 +904,7 @@ public class EmployeeService
                         LEFT JOIN tblDepartment d ON e.DeptID = d.DeptID 
                         ORDER BY e.EmpCode";
 
+            query = await WithFileProjectionAsync(connection, query, "dbo.tblEmployee", "e.", true);
             using (var command = new SqlCommand(query, connection))
             {
                 using (var reader = await command.ExecuteReaderAsync())
@@ -889,7 +920,10 @@ public class EmployeeService
                             DepartmentName = reader["DeptName"]?.ToString() ?? "",
                             JobGrade = reader["JobGrade"]?.ToString() ?? "",
                             Shift = reader["Shift"]?.ToString() ?? "",
-                            PhotoPath = ResolvePhotoPath(reader["Photo"], reader["EmpCode"]?.ToString()),
+                            PhotoPath = ResolvePhotoPath(reader["Photo"], reader["EmpCode"]?.ToString(), reader["PhotoFileId"] as Guid?),
+                            PhotoFileId = reader["PhotoFileId"] as Guid?,
+                            FileStorageVersion = reader["FileStorageVersion"] as byte[],
+                            LegacyPhotoPath = reader["Photo"]?.ToString(),
                             IsResigned = reader["ResignDate"] != DBNull.Value && reader["ResignDate"] != null
                         };
                         employees.Add(emp);
@@ -910,11 +944,11 @@ public class EmployeeService
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
-            var sql = @"SELECT COUNT(1) FROM tblEmployee WHERE ResignDate BETWEEN @start AND @end";
+            var sql = @"SELECT COUNT(1) FROM tblEmployee WHERE ResignDate >= @start AND ResignDate < @end";
             using (var cmd = new SqlCommand(sql, connection))
             {
                 cmd.Parameters.AddWithValue("@start", start.Date);
-                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1));
                 count = (int)await cmd.ExecuteScalarAsync();
             }
         }
@@ -934,13 +968,13 @@ public class EmployeeService
             var sql = @"
                 SELECT YEAR(ResignDate) AS Yr, MONTH(ResignDate) AS Mo, COUNT(1) AS C
                 FROM tblEmployee
-                WHERE ResignDate >= @start AND ResignDate <= @end
+                WHERE ResignDate >= @start AND ResignDate < @end
                 GROUP BY YEAR(ResignDate), MONTH(ResignDate)
             ";
             using (var cmd = new SqlCommand(sql, connection))
             {
                 cmd.Parameters.AddWithValue("@start", start.Date);
-                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1));
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     var map = new Dictionary<(int Year,int Month), int>();
@@ -1006,6 +1040,9 @@ public class EmployeeService
         {
             await connection.OpenAsync(cancellationToken);
             transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-promote",
+                normalizedEmpCode, includeSkills: true, ct: cancellationToken);
+            if (activity?.Replayed == true) return true;
 
             const string updateEmployeeSql = @"
 UPDATE tblEmployee
@@ -1027,23 +1064,8 @@ WHERE EmpCode = @EmpCode
                 }
             }
 
-            const string archiveSql = @"
-DELETE FROM dbo.tblQualified
-OUTPUT
-    DELETED.EmpCode, DELETED.ProcessName, DELETED.OperatorTraining, DELETED.TheoryTraining,
-    DELETED.OJTTraining, DELETED.CertifiedDate, DELETED.FullScore, DELETED.ActualScore,
-    DELETED.TestResult, DELETED.JudgmentTheory, DELETED.KnowledgeScore, DELETED.KnowledgeLevel,
-    DELETED.SkillScore, DELETED.SkillLevel, DELETED.JudgmentPractice, DELETED.ExpiryDate,
-    DELETED.Verifier, DELETED.VerifierDate, DELETED.DisQualifiedDate, DELETED.DisQualifiedBy,
-    DELETED.TheReason, DELETED.Remark, DELETED.Download,
-    @PromotionId, @PromotedAt, @PromotedBy
-INTO dbo.tblQualified_Obsoleted
-    (EmpCode, ProcessName, OperatorTraining, TheoryTraining, OJTTraining, CertifiedDate,
-     FullScore, ActualScore, TestResult, JudgmentTheory, KnowledgeScore, KnowledgeLevel,
-     SkillScore, SkillLevel, JudgmentPractice, ExpiryDate, Verifier, VerifierDate,
-     DisQualifiedDate, DisQualifiedBy, TheReason, Remark, Download,
-     PromotionId, PromotedAt, PromotedBy)
-WHERE EmpCode = @EmpCode";
+            var archiveSchema = await QualificationArchiveSql.ProbeAsync(connection, transaction, cancellationToken);
+            var archiveSql = QualificationArchiveSql.BuildPromotion(archiveSchema);
 
             using (var archive = new SqlCommand(archiveSql, connection, transaction))
             {
@@ -1060,7 +1082,9 @@ WHERE EmpCode = @EmpCode";
                 throw new InvalidOperationException("Promotion requires at least one current skill to archive.");
             }
 
+            await CompleteEmployeeActivityAsync(connection, transaction, activity, cancellationToken);
             transaction.Commit();
+            _activity?.MarkCommitted();
         }
         catch (OperationCanceledException)
         {
@@ -1104,6 +1128,10 @@ WHERE EmpCode = @EmpCode";
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-update", employee.EmpCode ?? "");
+            if (activity?.Replayed == true) return true;
+            var passwordChanged = await PasswordWillChangeAsync(connection, transaction, employee.EmpCode ?? "", employee.EmpPassword ?? "");
             var query = @"UPDATE tblEmployee SET 
                          EmpPassword = @EmpPassword, 
                          JoinDate = @JoinDate, 
@@ -1122,7 +1150,7 @@ WHERE EmpCode = @EmpCode";
                          Notice = @Notice 
                          WHERE EmpCode = @EmpCode";
 
-            using (var command = new SqlCommand(query, connection))
+            using (var command = new SqlCommand(query, connection, transaction))
             {
                 command.Parameters.AddWithValue("@EmpCode", employee.EmpCode);
                 command.Parameters.AddWithValue("@EmpPassword", employee.EmpPassword ?? "");
@@ -1138,12 +1166,15 @@ WHERE EmpCode = @EmpCode";
                 command.Parameters.AddWithValue("@SectID", employee.SectID ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@WorkshopID", employee.WorkshopID ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@Shift", employee.Shift ?? "");
-                command.Parameters.AddWithValue("@Photo", employee.PhotoPath ?? "");
+                command.Parameters.AddWithValue("@Photo", employee.LegacyPhotoPath ?? employee.PhotoPath ?? "");
                 command.Parameters.AddWithValue("@Notice", employee.Notice ?? "");
 
                 try
                 {
-                    await command.ExecuteNonQueryAsync();
+                    if (await command.ExecuteNonQueryAsync() != 1) return false;
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity, passwordChanged: passwordChanged);
+                    transaction.Commit();
+                    _activity?.MarkCommitted();
                     return true;
                 }
                 catch
@@ -1160,23 +1191,30 @@ WHERE EmpCode = @EmpCode";
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "security", "password-change", empCode);
+            if (activity?.Replayed == true) return true;
             // Verify current password first
             const string verify = "SELECT COUNT(1) FROM tblEmployee WHERE EmpCode = @EmpCode AND EmpPassword = @Current";
-            using (var cmd = new SqlCommand(verify, connection))
+            using (var cmd = new SqlCommand(verify, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
                 cmd.Parameters.AddWithValue("@Current", currentPassword);
                 var count = (int)await cmd.ExecuteScalarAsync();
                 if (count == 0) return false;
             }
+            var passwordChanged = await PasswordWillChangeAsync(connection, transaction, empCode, newPassword);
             // Update password
             const string update = "UPDATE tblEmployee SET EmpPassword = @New WHERE EmpCode = @EmpCode";
-            using (var cmd = new SqlCommand(update, connection))
+            using (var cmd = new SqlCommand(update, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
                 cmd.Parameters.AddWithValue("@New", newPassword);
-                await cmd.ExecuteNonQueryAsync();
+                if (await cmd.ExecuteNonQueryAsync() != 1) return false;
             }
+            await CompleteEmployeeActivityAsync(connection, transaction, activity, passwordChanged: passwordChanged);
+            transaction.Commit();
+            _activity?.MarkCommitted();
             return true;
         }
     }
@@ -1191,6 +1229,8 @@ WHERE EmpCode = @EmpCode";
             {
                 try
                 {
+                    var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-resign", empCode, includeSkills: true);
+                    if (activity?.Replayed == true) return true;
                     // Mark employee as resigned
                     var sql = @"UPDATE tblEmployee SET StatusWork = '0', ResignBy = @ResignBy, ResignDate = GETDATE() WHERE EmpCode = @EmpCode AND (ResignBy IS NULL OR LTRIM(RTRIM(ResignBy)) = '')";
                     using (var cmd = new SqlCommand(sql, connection, transaction))
@@ -1233,7 +1273,9 @@ WHERE EmpCode = @EmpCode";
                         await markObCmd.ExecuteNonQueryAsync();
                     }
 
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity);
                     transaction.Commit();
+                    _activity?.MarkCommitted();
                     return true;
                 }
                 catch
@@ -1252,13 +1294,16 @@ WHERE EmpCode = @EmpCode";
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "employee", "employee-transfer", empCode);
+            if (activity?.Replayed == true) return true;
             var sql = @"UPDATE tblEmployee
                         SET DeptID = @DeptID, SectID = @SectID, WorkshopID = @WorkshopID,
                             Shift = @Shift, Notice = 'Transfer',
                             TransferBy = @TransferBy, TransferDate = GETDATE()
                         WHERE EmpCode = @EmpCode
                           AND (ResignDate IS NULL AND (StatusWork IS NULL OR StatusWork <> '0'))";
-            using (var cmd = new SqlCommand(sql, connection))
+            using (var cmd = new SqlCommand(sql, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
                 cmd.Parameters.AddWithValue("@DeptID", deptId);
@@ -1267,7 +1312,11 @@ WHERE EmpCode = @EmpCode";
                 cmd.Parameters.AddWithValue("@Shift", shift);
                 cmd.Parameters.AddWithValue("@TransferBy", transferredBy);
                 var rows = await cmd.ExecuteNonQueryAsync();
-                return rows > 0;
+                if (rows == 0) return false;
+                await CompleteEmployeeActivityAsync(connection, transaction, activity);
+                transaction.Commit();
+                _activity?.MarkCommitted();
+                return true;
             }
         }
     }
@@ -1275,126 +1324,130 @@ WHERE EmpCode = @EmpCode";
     // Archive existing qualified row (if any) and insert/update the tblQualified row.
     public async Task<bool> AddOrUpdateQualifiedAsync(Models.EmployeeQualifiedInput input)
     {
-        using (var connection = new SqlConnection(_connectionString))
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+        using var transaction = connection.BeginTransaction();
+        try
         {
-            await connection.OpenAsync();
-            using (var transaction = connection.BeginTransaction())
+            var action = input.OcrSkillRowId.HasValue ? "skill-update" : "skill-add";
+            var activity = await BeginEmployeeActivityAsync(connection, transaction, "skill", action, input.EmpCode ?? "", skillsOnly: true, processName: input.ProcessName);
+            if (activity?.Replayed == true) return true;
+            var result = await AddOrUpdateQualifiedInTransactionAsync(input, connection, transaction, CancellationToken.None);
+            await CompleteEmployeeActivityAsync(connection, transaction, activity);
+            transaction.Commit();
+            _activity?.MarkCommitted();
+            return result;
+        }
+        catch { transaction.Rollback(); throw; }
+    }
+
+    internal async Task<bool> AddOrUpdateQualifiedInTransactionAsync(Models.EmployeeQualifiedInput input, SqlConnection connection, SqlTransaction transaction, CancellationToken ct)
+    {
+        // Archive existing qualified into obsoleted (if any)
+        var archiveSchema = await QualificationArchiveSql.ProbeAsync(connection, transaction);
+        if (archiveSchema.HasCertificateFileId && input.IsLegacyFileUpload)
+            await EnsureLegacyCertificateAuthorityAsync(connection, transaction, input, ct);
+        if (archiveSchema.HasSkillRowId)
+            await ValidateSkillConcurrencyAsync(connection, transaction, input, ct);
+        var archiveSql = QualificationArchiveSql.BuildReplacement(archiveSchema);
+        using (var archiveCmd = new SqlCommand(archiveSql, connection, transaction))
+        {
+            archiveCmd.Parameters.Add("@EmpCode", SqlDbType.NVarChar, 10).Value = input.EmpCode ?? "";
+            archiveCmd.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
+            await archiveCmd.ExecuteNonQueryAsync();
+        }
+
+        // Check if an active qualified row exists
+        var existsSql = @"SELECT COUNT(1) FROM tblQualified WHERE EmpCode = @EmpCode AND ProcessName = @ProcessName AND (DisQualifiedBy= '' or DisQualifiedBy is Null)";
+        int exists = 0;
+        using (var existsCmd = new SqlCommand(existsSql, connection, transaction))
+        {
+            existsCmd.Parameters.Add("@EmpCode", SqlDbType.NVarChar, 10).Value = input.EmpCode ?? "";
+            existsCmd.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
+            exists = (int)await existsCmd.ExecuteScalarAsync();
+        }
+
+        if (exists > 0)
+        {
+            // Update existing
+            var updateSql = $@"
+                UPDATE tblQualified SET
+                    OperatorTraining = @OperatorTraining,
+                    TheoryTraining = @TheoryTraining,
+                    OJTTraining = @OJTTraining,
+                    CertifiedDate = @CertifiedDate,
+                    FullScore = @FullScore,
+                    ActualScore = @ActualScore,
+                    TestResult = @TestResult,
+                    JudgmentTheory = @JudgmentTheory,
+                    KnowledgeScore = @KnowledgeScore,
+                    KnowledgeLevel = @KnowledgeLevel,
+                    SkillScore = @SkillScore,
+                    SkillLevel = @SkillLevel,
+                    JudgmentPractice = @JudgmentPractice,
+                    ExpiryDate = @ExpiryDate,
+                    Verifier = @Verifier,
+                    VerifierDate = GETDATE(),
+                    Remark = @Remark,
+                    Download = COALESCE(@Download, Download){QualificationArchiveSql.BuildReplacementIdentityAssignment(archiveSchema)}
+                WHERE EmpCode = @EmpCode AND ProcessName = @ProcessName AND (DisQualifiedBy= '' or DisQualifiedBy is Null)
+            ";
+            using (var upd = new SqlCommand(updateSql, connection, transaction))
             {
-                try
-                {
-                    // Archive existing qualified into obsoleted (if any)
-                    var archiveSql = @"INSERT INTO tblQualified_Obsoleted
-                                      SELECT * FROM tblQualified
-                                      WHERE EmpCode = @EmpCode AND ProcessName = @ProcessName
-                                      AND (DisQualifiedBy= '' or DisQualifiedBy is Null)";
-                    using (var archiveCmd = new SqlCommand(archiveSql, connection, transaction))
-                    {
-                        archiveCmd.Parameters.AddWithValue("@EmpCode", input.EmpCode ?? "");
-                        archiveCmd.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
-                        await archiveCmd.ExecuteNonQueryAsync();
-                    }
-
-                    // Check if an active qualified row exists
-                    var existsSql = @"SELECT COUNT(1) FROM tblQualified WHERE EmpCode = @EmpCode AND ProcessName = @ProcessName AND (DisQualifiedBy= '' or DisQualifiedBy is Null)";
-                    int exists = 0;
-                    using (var existsCmd = new SqlCommand(existsSql, connection, transaction))
-                    {
-                        existsCmd.Parameters.AddWithValue("@EmpCode", input.EmpCode ?? "");
-                        existsCmd.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
-                        exists = (int)await existsCmd.ExecuteScalarAsync();
-                    }
-
-                    if (exists > 0)
-                    {
-                        // Update existing
-                        var updateSql = @"
-                            UPDATE tblQualified SET
-                                OperatorTraining = @OperatorTraining,
-                                TheoryTraining = @TheoryTraining,
-                                OJTTraining = @OJTTraining,
-                                CertifiedDate = @CertifiedDate,
-                                FullScore = @FullScore,
-                                ActualScore = @ActualScore,
-                                TestResult = @TestResult,
-                                JudgmentTheory = @JudgmentTheory,
-                                KnowledgeScore = @KnowledgeScore,
-                                KnowledgeLevel = @KnowledgeLevel,
-                                SkillScore = @SkillScore,
-                                SkillLevel = @SkillLevel,
-                                JudgmentPractice = @JudgmentPractice,
-                                ExpiryDate = @ExpiryDate,
-                                Verifier = @Verifier,
-                                VerifierDate = GETDATE(),
-                                Remark = @Remark,
-                                Download = @Download
-                            WHERE EmpCode = @EmpCode AND ProcessName = @ProcessName AND (DisQualifiedBy= '' or DisQualifiedBy is Null)
-                        ";
-                        using (var upd = new SqlCommand(updateSql, connection, transaction))
-                        {
-                            upd.Parameters.AddWithValue("@OperatorTraining", input.OperatorTraining ?? "");
-                            upd.Parameters.AddWithValue("@TheoryTraining", input.TheoryTraining ?? (object)DBNull.Value);
-                            upd.Parameters.AddWithValue("@OJTTraining", input.OJTTraining ?? (object)DBNull.Value);
-                            upd.Parameters.AddWithValue("@CertifiedDate", input.CertifiedDate ?? (object)DBNull.Value);
-                            upd.Parameters.AddWithValue("@FullScore", input.FullScore ?? "");
-                            upd.Parameters.AddWithValue("@ActualScore", input.ActualScore ?? "");
-                            upd.Parameters.AddWithValue("@TestResult", input.TestResult ?? "");
-                            upd.Parameters.AddWithValue("@JudgmentTheory", input.JudgmentTheory ?? "");
-                            upd.Parameters.AddWithValue("@KnowledgeScore", input.KnowledgeScore ?? "");
-                            upd.Parameters.AddWithValue("@KnowledgeLevel", input.KnowledgeLevel ?? "");
-                            upd.Parameters.AddWithValue("@SkillScore", input.SkillScore ?? "");
-                            upd.Parameters.AddWithValue("@SkillLevel", input.SkillLevel ?? "");
-                            upd.Parameters.AddWithValue("@JudgmentPractice", input.JudgmentPractice ?? "");
-                            upd.Parameters.AddWithValue("@ExpiryDate", input.ExpiryDate ?? (object)DBNull.Value);
-                            upd.Parameters.AddWithValue("@Verifier", input.Verifier ?? "");
-                            upd.Parameters.AddWithValue("@Remark", input.Remark ?? "");
-                            upd.Parameters.AddWithValue("@Download", input.DownloadPath ?? "");
-                            upd.Parameters.AddWithValue("@EmpCode", input.EmpCode ?? "");
-                            upd.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
-                            await upd.ExecuteNonQueryAsync();
-                        }
-                    }
-                    else
-                    {
-                        // Insert new
-                        var insertSql = @"
-                            INSERT INTO tblQualified (EmpCode, ProcessName, OperatorTraining, TheoryTraining, OJTTraining, CertifiedDate, FullScore, ActualScore, TestResult, JudgmentTheory, KnowledgeScore, KnowledgeLevel, SkillScore, SkillLevel, JudgmentPractice, ExpiryDate, Verifier, VerifierDate, Remark, Download)
-                            VALUES (@EmpCode, @ProcessName, @OperatorTraining, @TheoryTraining, @OJTTraining, @CertifiedDate, @FullScore, @ActualScore, @TestResult, @JudgmentTheory, @KnowledgeScore, @KnowledgeLevel, @SkillScore, @SkillLevel, @JudgmentPractice, @ExpiryDate, @Verifier, GETDATE(), @Remark, @Download)
-                        ";
-                        using (var ins = new SqlCommand(insertSql, connection, transaction))
-                        {
-                            ins.Parameters.AddWithValue("@EmpCode", input.EmpCode ?? "");
-                            ins.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
-                            ins.Parameters.AddWithValue("@OperatorTraining", input.OperatorTraining ?? "");
-                            ins.Parameters.AddWithValue("@TheoryTraining", input.TheoryTraining ?? (object)DBNull.Value);
-                            ins.Parameters.AddWithValue("@OJTTraining", input.OJTTraining ?? (object)DBNull.Value);
-                            ins.Parameters.AddWithValue("@CertifiedDate", input.CertifiedDate ?? (object)DBNull.Value);
-                            ins.Parameters.AddWithValue("@FullScore", input.FullScore ?? "");
-                            ins.Parameters.AddWithValue("@ActualScore", input.ActualScore ?? "");
-                            ins.Parameters.AddWithValue("@TestResult", input.TestResult ?? "");
-                            ins.Parameters.AddWithValue("@JudgmentTheory", input.JudgmentTheory ?? "");
-                            ins.Parameters.AddWithValue("@KnowledgeScore", input.KnowledgeScore ?? "");
-                            ins.Parameters.AddWithValue("@KnowledgeLevel", input.KnowledgeLevel ?? "");
-                            ins.Parameters.AddWithValue("@SkillScore", input.SkillScore ?? "");
-                            ins.Parameters.AddWithValue("@SkillLevel", input.SkillLevel ?? "");
-                            ins.Parameters.AddWithValue("@JudgmentPractice", input.JudgmentPractice ?? "");
-                            ins.Parameters.AddWithValue("@ExpiryDate", input.ExpiryDate ?? (object)DBNull.Value);
-                            ins.Parameters.AddWithValue("@Verifier", input.Verifier ?? "");
-                            ins.Parameters.AddWithValue("@Remark", input.Remark ?? "");
-                            ins.Parameters.AddWithValue("@Download", input.DownloadPath ?? "");
-                            await ins.ExecuteNonQueryAsync();
-                        }
-                    }
-
-                    transaction.Commit();
-                    return true;
-                }
-                catch
-                {
-                    try { transaction.Rollback(); } catch { }
-                    return false;
-                }
+                upd.Parameters.AddWithValue("@OperatorTraining", input.OperatorTraining ?? "");
+                upd.Parameters.AddWithValue("@TheoryTraining", input.TheoryTraining ?? (object)DBNull.Value);
+                upd.Parameters.AddWithValue("@OJTTraining", input.OJTTraining ?? (object)DBNull.Value);
+                upd.Parameters.AddWithValue("@CertifiedDate", input.CertifiedDate ?? (object)DBNull.Value);
+                upd.Parameters.AddWithValue("@FullScore", input.FullScore ?? "");
+                upd.Parameters.AddWithValue("@ActualScore", input.ActualScore ?? "");
+                upd.Parameters.AddWithValue("@TestResult", input.TestResult ?? "");
+                upd.Parameters.AddWithValue("@JudgmentTheory", input.JudgmentTheory ?? "");
+                upd.Parameters.AddWithValue("@KnowledgeScore", input.KnowledgeScore ?? "");
+                upd.Parameters.AddWithValue("@KnowledgeLevel", input.KnowledgeLevel ?? "");
+                upd.Parameters.AddWithValue("@SkillScore", input.SkillScore ?? "");
+                upd.Parameters.AddWithValue("@SkillLevel", input.SkillLevel ?? "");
+                upd.Parameters.AddWithValue("@JudgmentPractice", input.JudgmentPractice ?? "");
+                upd.Parameters.AddWithValue("@ExpiryDate", input.ExpiryDate ?? (object)DBNull.Value);
+                upd.Parameters.AddWithValue("@Verifier", input.Verifier ?? "");
+                upd.Parameters.AddWithValue("@Remark", input.Remark ?? "");
+                upd.Parameters.AddWithValue("@Download", input.DownloadPath ?? (object)DBNull.Value);
+                upd.Parameters.Add("@EmpCode", SqlDbType.NVarChar, 10).Value = input.EmpCode ?? "";
+                upd.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
+                await upd.ExecuteNonQueryAsync();
             }
         }
+        else
+        {
+            // Insert new
+            var insertSql = @"
+                INSERT INTO tblQualified (EmpCode, ProcessName, OperatorTraining, TheoryTraining, OJTTraining, CertifiedDate, FullScore, ActualScore, TestResult, JudgmentTheory, KnowledgeScore, KnowledgeLevel, SkillScore, SkillLevel, JudgmentPractice, ExpiryDate, Verifier, VerifierDate, Remark, Download)
+                VALUES (@EmpCode, @ProcessName, @OperatorTraining, @TheoryTraining, @OJTTraining, @CertifiedDate, @FullScore, @ActualScore, @TestResult, @JudgmentTheory, @KnowledgeScore, @KnowledgeLevel, @SkillScore, @SkillLevel, @JudgmentPractice, @ExpiryDate, @Verifier, GETDATE(), @Remark, @Download)
+            ";
+            using (var ins = new SqlCommand(insertSql, connection, transaction))
+            {
+                ins.Parameters.Add("@EmpCode", SqlDbType.NVarChar, 10).Value = input.EmpCode ?? "";
+                ins.Parameters.AddWithValue("@ProcessName", input.ProcessName ?? "");
+                ins.Parameters.AddWithValue("@OperatorTraining", input.OperatorTraining ?? "");
+                ins.Parameters.AddWithValue("@TheoryTraining", input.TheoryTraining ?? (object)DBNull.Value);
+                ins.Parameters.AddWithValue("@OJTTraining", input.OJTTraining ?? (object)DBNull.Value);
+                ins.Parameters.AddWithValue("@CertifiedDate", input.CertifiedDate ?? (object)DBNull.Value);
+                ins.Parameters.AddWithValue("@FullScore", input.FullScore ?? "");
+                ins.Parameters.AddWithValue("@ActualScore", input.ActualScore ?? "");
+                ins.Parameters.AddWithValue("@TestResult", input.TestResult ?? "");
+                ins.Parameters.AddWithValue("@JudgmentTheory", input.JudgmentTheory ?? "");
+                ins.Parameters.AddWithValue("@KnowledgeScore", input.KnowledgeScore ?? "");
+                ins.Parameters.AddWithValue("@KnowledgeLevel", input.KnowledgeLevel ?? "");
+                ins.Parameters.AddWithValue("@SkillScore", input.SkillScore ?? "");
+                ins.Parameters.AddWithValue("@SkillLevel", input.SkillLevel ?? "");
+                ins.Parameters.AddWithValue("@JudgmentPractice", input.JudgmentPractice ?? "");
+                ins.Parameters.AddWithValue("@ExpiryDate", input.ExpiryDate ?? (object)DBNull.Value);
+                ins.Parameters.AddWithValue("@Verifier", input.Verifier ?? "");
+                ins.Parameters.AddWithValue("@Remark", input.Remark ?? "");
+                ins.Parameters.AddWithValue("@Download", input.DownloadPath ?? "");
+                await ins.ExecuteNonQueryAsync();
+            }
+        }
+        return true;
     }
 
     public async Task<bool> DisqualifySkillAsync(string empCode, string processName, string reason, string disqualifiedBy)
@@ -1402,8 +1455,11 @@ WHERE EmpCode = @EmpCode";
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
             try
             {
+                var activity = await BeginEmployeeActivityAsync(connection, transaction, "skill", "skill-disqualify", empCode ?? "", skillsOnly: true, processName: processName);
+                if (activity?.Replayed == true) return true;
                 var query = @"
                     UPDATE tblQualified 
                     SET DisQualifiedBy = @DisQualifiedBy, 
@@ -1414,7 +1470,7 @@ WHERE EmpCode = @EmpCode";
                       AND (DisQualifiedBy = '' OR DisQualifiedBy IS NULL)
                 ";
 
-                using (var command = new SqlCommand(query, connection))
+                using (var command = new SqlCommand(query, connection, transaction))
                 {
                     command.Parameters.AddWithValue("@EmpCode", empCode ?? "");
                     command.Parameters.AddWithValue("@ProcessName", processName ?? "");
@@ -1422,7 +1478,11 @@ WHERE EmpCode = @EmpCode";
                     command.Parameters.AddWithValue("@DisQualifiedBy", disqualifiedBy ?? "");
 
                     int rowsAffected = await command.ExecuteNonQueryAsync();
-                    return rowsAffected > 0;
+                    if (rowsAffected == 0) return false;
+                    await CompleteEmployeeActivityAsync(connection, transaction, activity);
+                    transaction.Commit();
+                    _activity?.MarkCommitted();
+                    return true;
                 }
             }
             catch

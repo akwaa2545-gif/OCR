@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["ActivePage"] = "Dashboard";
+    ViewData["HasOperatorNoSkillModal"] = true;
 }
 
 
@@ -57,15 +58,6 @@
     .db-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .db-hero-name { font-size: 1.35rem; font-weight: 700; color: #fff; line-height: 1.2; }
     .db-hero-dept { font-size: .82rem; color: rgba(255,255,255,.72); margin-top: 2px; }
-    .db-hero-right { text-align: right; position: relative; z-index: 1; }
-    .db-hero-date-label { font-size: .72rem; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .08em; }
-    .db-hero-date { font-size: .92rem; font-weight: 700; color: #fff; }
-    .db-hero-time {
-        font-size: .78rem;
-        color: rgba(255,255,255,.65);
-        margin-top: 2px;
-        font-variant-numeric: tabular-nums;
-    }
 
     /* ── KPI Row ── */
     .db-kpi-row {
@@ -177,7 +169,6 @@
     /* ── Responsive ── */
     &#64;media (max-width:768px) {
         .db-hero { flex-direction: column; align-items: flex-start; }
-        .db-hero-right { text-align: left; margin-top: .25rem; }
         .db-kpi-row { grid-template-columns: 1fr 1fr; }
         .db-kpi-value { font-size: 1.25rem; }
     }
@@ -815,53 +806,20 @@
         box-shadow: 0 12px 32px rgba(0,0,0,.13), 0 0 0 1.5px rgba(0,0,0,.07);
     }
 
-    /* ═══ FORCE Modal Centering ═══ */
-    .modal {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 1050 !important;
-    }
-
-    .modal.show {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 1rem !important;
-        box-sizing: border-box !important;
-    }
-
-    .modal-dialog {
-        position: relative !important;
-        width: auto !important;
-        margin: 0 auto !important;
-    }
-
-    .modal-dialog-centered {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    .modal-content {
-        max-height: 90vh !important;
-        overflow-y: auto !important;
-    }
-
-    .modal-backdrop {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 1040 !important;
-    }
-</style>
+    </style>
 
 <!-- ═══════════ Hero Banner ═══════════ -->
-<div class="db-hero">
+<div class="db-hero db-hero--slideshow" data-dashboard-slideshow>
+    <div class="db-hero-slideshow" aria-hidden="true">
+        <div class="db-hero-slide-track">
+            <img class="db-hero-slide" src="~/images/dashboard-slideshow/sunrise.webp" asp-append-version="true" alt="" decoding="async" />
+            <img class="db-hero-slide" src="~/images/dashboard-slideshow/mountains.avif" asp-append-version="true" alt="" decoding="async" fetchpriority="low" />
+            <img class="db-hero-slide" src="~/images/dashboard-slideshow/waterfall.jpg" asp-append-version="true" alt="" decoding="async" fetchpriority="low" />
+            <img class="db-hero-slide" src="~/images/dashboard-slideshow/islands.jpg" asp-append-version="true" alt="" decoding="async" fetchpriority="low" />
+            <img class="db-hero-slide" src="~/images/dashboard-slideshow/beach.webp" asp-append-version="true" alt="" decoding="async" fetchpriority="low" />
+            <img class="db-hero-slide" src="~/images/dashboard-slideshow/sunrise.webp" asp-append-version="true" alt="" decoding="async" fetchpriority="low" />
+        </div>
+    </div>
     <div class="db-hero-left">
         @{
             var userInitials = !string.IsNullOrWhiteSpace(Model.UserName) ? Model.UserName.Substring(0, 1).ToUpper() : "U";
@@ -869,8 +827,8 @@
         <div class="db-hero-avatar">
             @if (!string.IsNullOrEmpty(Model.UserPhotoPath))
             {
-                <img src="/api/photo/@Uri.EscapeDataString(Model.UserPhotoPath)" alt="@Model.UserName"
-                     onerror="this.onerror=null;this.parentElement.innerHTML='<span style=&quot;display:flex;align-items:center;justify-content:center;width:100%;height:100%;&quot;>@userInitials</span>';" />
+                <img src="@OperatorCertificationRecord.Web.Services.EmployeeFileUrls.Photo(Model.UserPhotoPath)" alt="@Model.UserName"
+                     onerror="if(this.src.includes('/api/photo/employee/')){this.alt='Photo unavailable';this.title='Photo unavailable';return;}this.onerror=null;this.parentElement.innerHTML='<span style=&quot;display:flex;align-items:center;justify-content:center;width:100%;height:100%;&quot;>@userInitials</span>';" />
             }
             else
             {
@@ -879,15 +837,15 @@
         </div>
         <div>
             <div class="db-hero-name">Welcome back, @Model.UserName</div>
-            <div class="db-hero-dept">@Model.DepartmentName &bull; <span id="currentDate"></span></div>
+            <div class="db-hero-dept">@Model.DepartmentName</div>
         </div>
     </div>
-    <div class="db-hero-right">
-        <div class="db-hero-date-label">Logged In</div>
-        <div class="db-hero-date">@Model.LoginDate</div>
-        <div class="db-hero-time" id="currentTime"></div>
-    </div>
 </div>
+
+@if (!Model.DashboardDataAvailable)
+{
+    <div class="alert alert-warning" role="status">@Model.DashboardErrorMessage</div>
+}
 
 <!-- ═══════════ Operator Training Record ═══════════ -->
 @if (Model.IsCurrentUserAdmin)
@@ -895,6 +853,9 @@
 <div class="otr-section">
     <div class="otr-header">
         <i class="bi bi-clipboard2-data-fill me-2"></i>Operator Training record
+        <button type="button" class="btn btn-sm btn-light ms-auto" onclick="openExpiringModal()" aria-controls="expiringModal">
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i> Expiring soon
+        </button>
     </div>
     
     <!-- Department Filter -->
@@ -902,15 +863,16 @@
         <div class="kpi-filter-row">
             <span class="kpi-filter-label"><i class="bi bi-funnel-fill me-2"></i>Filter by Department:</span>
             <div class="kpi-dept-buttons">
-                <button type="button" class="kpi-dept-btn active all-data" onclick="filterKpiByDept('all', this)">All Data</button>
-                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('ta', this)">TA Dept</button>
-                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('qa', this)">QA Dept</button>
-                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('sc', this)">SC Dept</button>
-                <button type="button" class="kpi-dept-btn" onclick="filterKpiByDept('planning', this)">Planning</button>
+                <button type="button" class="kpi-dept-btn active all-data" data-department="all" aria-pressed="true" onclick="filterKpiByDept('all', this)">All Data</button>
+                <button type="button" class="kpi-dept-btn" data-department="ta" aria-pressed="false" onclick="filterKpiByDept('ta', this)">TA Dept</button>
+                <button type="button" class="kpi-dept-btn" data-department="qa" aria-pressed="false" onclick="filterKpiByDept('qa', this)">QA Dept</button>
+                <button type="button" class="kpi-dept-btn" data-department="sc" aria-pressed="false" onclick="filterKpiByDept('sc', this)">SC Dept</button>
+                <button type="button" class="kpi-dept-btn" data-department="planning" aria-pressed="false" onclick="filterKpiByDept('planning', this)">Planning</button>
             </div>
         </div>
     </div>
     
+    <p id="kpi-filter-status" class="text-danger small px-3" role="status"></p>
     <div class="otr-body">
         <div class="otr-grid-container">
             <!-- KPI Cards (Left) -->
@@ -918,7 +880,7 @@
                 <div class="otr-kpi-card">
                     <div class="otr-kpi-card-left">
                         <div class="otr-kpi-label">Operator</div>
-                        <div class="otr-kpi-value" id="kpiOperator" data-all="@Model.TotalEmployees">@Model.TotalEmployees</div>
+                        <div class="otr-kpi-value" id="kpiOperator" data-all="@(Model.DashboardDataAvailable ? Model.TotalEmployees.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)">@(Model.DashboardDataAvailable ? Model.TotalEmployees.ToString("N0") : "?")</div>
                         <div class="otr-kpi-unit">person</div>
                     </div>
                     <div class="otr-kpi-icon"><i class="bi bi-people-fill"></i></div>
@@ -926,7 +888,7 @@
                 <div class="otr-kpi-card">
                     <div class="otr-kpi-card-left">
                         <div class="otr-kpi-label">Total Process</div>
-                        <div class="otr-kpi-value" id="kpiProcess" data-all="@Model.TotalProcesses">@Model.TotalProcesses</div>
+                        <div class="otr-kpi-value" id="kpiProcess" data-all="@(Model.DashboardDataAvailable ? Model.TotalProcesses.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)">@(Model.DashboardDataAvailable ? Model.TotalProcesses.ToString("N0") : "?")</div>
                         <div class="otr-kpi-unit">process</div>
                     </div>
                     <div class="otr-kpi-icon"><i class="bi bi-diagram-3-fill"></i></div>
@@ -934,7 +896,7 @@
                 <div class="otr-kpi-card">
                     <div class="otr-kpi-card-left">
                         <div class="otr-kpi-label">Total Skill</div>
-                        <div class="otr-kpi-value" id="kpiSkill" data-all="@Model.TotalSkills">@Model.TotalSkills</div>
+                        <div class="otr-kpi-value" id="kpiSkill" data-all="@(Model.DashboardDataAvailable ? Model.TotalSkills.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)">@(Model.DashboardDataAvailable ? Model.TotalSkills.ToString("N0") : "?")</div>
                         <div class="otr-kpi-unit">skill</div>
                     </div>
                     <div class="otr-kpi-icon"><i class="bi bi-stars"></i></div>
@@ -942,7 +904,7 @@
                 <div class="otr-kpi-card">
                     <div class="otr-kpi-card-left">
                         <div class="otr-kpi-label">Handicap</div>
-                        <div class="otr-kpi-value" id="kpiHandicap" data-all="@Model.HandicapCount">@Model.HandicapCount</div>
+                        <div class="otr-kpi-value" id="kpiHandicap" data-all="@(Model.DashboardDataAvailable ? Model.HandicapCount.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)">@(Model.DashboardDataAvailable ? Model.HandicapCount.ToString("N0") : "?")</div>
                         <div class="otr-kpi-unit">person</div>
                     </div>
                     <div class="otr-kpi-icon"><i class="bi bi-heart-pulse-fill"></i></div>
@@ -950,7 +912,7 @@
                 <div class="otr-kpi-card">
                     <div class="otr-kpi-card-left">
                         <div class="otr-kpi-label">Operator 1 skill</div>
-                        <div class="otr-kpi-value" id="kpiOneSkill" data-all="@Model.OneSkillCount">@Model.OneSkillCount</div>
+                        <div class="otr-kpi-value" id="kpiOneSkill" data-all="@(Model.DashboardDataAvailable ? Model.OneSkillCount.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)">@(Model.DashboardDataAvailable ? Model.OneSkillCount.ToString("N0") : "?")</div>
                         <div class="otr-kpi-unit">person</div>
                     </div>
                     <div class="otr-kpi-icon"><i class="bi bi-person-check-fill"></i></div>
@@ -958,7 +920,7 @@
                 <div class="otr-kpi-card">
                     <div class="otr-kpi-card-left">
                         <div class="otr-kpi-label">Operator no skill</div>
-                        <div class="otr-kpi-value" id="kpiNoSkill" data-all="@Model.NoSkillCount">@Model.NoSkillCount</div>
+                        <div class="otr-kpi-value" id="kpiNoSkill" data-all="@(Model.DashboardDataAvailable ? Model.NoSkillCount.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)">@(Model.DashboardDataAvailable ? Model.NoSkillCount.ToString("N0") : "?")</div>
                         <div class="otr-kpi-unit">person</div>
                     </div>
                     <div class="otr-kpi-icon"><i class="bi bi-person-x-fill"></i></div>
@@ -1071,7 +1033,7 @@
         <!-- Individual Training Record Search -->
         <div class="db-col-search">
             <div class="dbc-search-header">
-                <i class="bi bi-person-lines-fill me-2"></i>Individual Training Record:
+                <i class="bi bi-person-lines-fill me-2"></i>Search Employee
             </div>
         <!-- Search card content -->
         @if (string.IsNullOrEmpty(Model.CurrentUserCode))
@@ -1367,6 +1329,10 @@
     <!-- Body -->
     <div class="qs-body">
         <!-- Input row -->
+        @if (!string.IsNullOrWhiteSpace(Model.SearchErrorMessage))
+        {
+            <p class="text-danger" role="alert">@Model.SearchErrorMessage</p>
+        }
         <div class="qs-input-wrap" id="qs-input-wrap">
             <i class="bi bi-person-search qs-input-icon"></i>
             <input type="text" id="qs-input" placeholder="Employee ID or name..." autocomplete="off" />
@@ -1376,9 +1342,6 @@
         </div>
 
         <!-- Hint pills -->
-        <div class="qs-hint">
-            <span class="qs-hint-label">Try:</span>
-        </div>
 
         <!-- Results -->
         <div id="qs-results-area"></div>
@@ -1477,81 +1440,26 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            @if (Model.ExpiringSoonList != null && Model.ExpiringSoonList.Count > 0)
-                            {
-                                    var previewLimit = 20;
-                                    var previewList = Model.ExpiringSoonList.Take(previewLimit).ToList();
-                                    var previewCount = previewList.Count;
-                                    var totalCount = Model.ExpiringSoonList.Count;
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>EmpCode</th>
-                                                    <th>Name</th>
-                                                    <th>Process</th>
-                                                    <th class="expiry-col">Expiry Date</th>
-                                                    <th style="width:120px; text-align:right">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="expiringPreviewBody">
-                                                @foreach (var it in previewList)
-                                                {
-                                                    var daysUntilExpiry = it.ExpiryDate.HasValue ? (it.ExpiryDate.Value.Date - DateTime.Now.Date).TotalDays : double.NaN;
-                                                    var badgeText = string.Empty;
-                                                    var badgeClass = string.Empty;
-                                                    if (!double.IsNaN(daysUntilExpiry))
-                                                    {
-                                                        if (daysUntilExpiry < 0) { badgeText = "Expired"; badgeClass = "expiry-expired"; }
-                                                        else if (daysUntilExpiry <= 10) { badgeText = (daysUntilExpiry == 0) ? "Today" : ($"in {(int)daysUntilExpiry}d"); badgeClass = "expiry-critical"; }
-                                                        else if (daysUntilExpiry <= 30) { badgeText = ($"in {(int)daysUntilExpiry}d"); badgeClass = "expiry-soon"; }
-                                                    }
-                                                    <tr style="cursor:pointer" data-empcode="@it.EmpCode" onclick="openEmployeeExpiries('@it.EmpCode')">
-                                                        <td>@it.EmpCode</td>
-                                                        <td>@(string.IsNullOrWhiteSpace(it.FirstNameEng) ? it.EmpCode : it.FirstNameEng + " " + it.LastNameEng)</td>
-                                                        <td>@it.Process</td>
-                                                        <td class="expiry-cell">
-                                                            <span class="expiry-date @(badgeClass)" data-expiry="@it.ExpiryDate?.ToString("yyyy-MM-dd")">@it.ExpiryDate?.ToString("dd MMM yyyy")
-                                                                @if (!string.IsNullOrEmpty(badgeText)) { <span class="expiry-badge">@badgeText</span> }
-                                                            </span>
-                                                        </td>
-                                                        <td style="text-align:right"><a class="btn btn-sm btn-expiring" onclick="event.stopPropagation()" href="/ViewUser?empCode=@it.EmpCode"><i class="bi bi-eye"></i> View</a></td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    @if (totalCount > previewCount)
-                                    {
-                                        <div id="expiringLoadMoreWrap" class="d-flex align-items-center justify-content-between mt-2">
-                                            <div id="expiringPreviewInfo" class="text-muted small">Showing first @previewCount of @totalCount results.</div>
-                                            <div>
-                                                <button id="expiringLoadMoreBtn" type="button" class="btn btn-outline-primary btn-sm" aria-controls="expiringPreviewBody" aria-label="Load more expiring items">
-                                                    <span id="expiringLoadMoreLabel">Load more</span>
-                                                    <span id="expiringLoadMoreCount" class="ms-2 text-muted small"></span>
-                                                    <span id="expiringLoadMoreSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display:none"></span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    }
-                            }
-                            else
-                            {
-                                    <p class="text-muted">No upcoming expirations in the next 30 days.</p>
-                            }
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead><tr><th>EmpCode</th><th>Name</th><th>Process</th><th class="expiry-col">Expiry Date</th><th style="width:120px; text-align:right">Actions</th></tr></thead>
+                                    <tbody id="expiringPreviewBody"></tbody>
+                                </table>
+                            </div>
+                            <div id="expiringLoadMoreWrap" class="d-flex align-items-center justify-content-between mt-2">
+                                <div id="expiringPreviewInfo" class="text-muted small"></div>
+                                <button id="expiringLoadMoreBtn" type="button" class="btn btn-outline-primary btn-sm" aria-controls="expiringPreviewBody">
+                                    <span>Load more</span><span id="expiringLoadMoreCount" class="ms-2 text-muted small"></span>
+                                    <span id="expiringLoadMoreSpinner" class="spinner-border spinner-border-sm ms-2" aria-hidden="true" style="display:none"></span>
+                                </button>
+                            </div>
+                            <p id="expiringLoadMoreError" class="text-danger small mt-2" role="status"></p>
                         </div>
                         <div class="modal-footer expiring-modal-footer">
-                            @if (Model.ExpiringSoonList != null && Model.ExpiringSoonList.Count > 0) {
-                                var previewLimit = 20;
-                                var previewCount = Math.Min(previewLimit, Model.ExpiringSoonList.Count);
-                                var totalCount = Model.ExpiringSoonList.Count;
-                                <div id="expiringPreviewFooterInfo" class="me-auto text-muted small">Showing first @previewCount of @totalCount</div>
-                            }
-                            <button id="expiringLoadMoreFooterBtn" type="button" class="btn btn-outline-secondary btn-lg me-2" aria-controls="expiringPreviewBody" aria-label="Load more expiring items">
-                                <span id="expiringLoadMoreFooterLabel">Load more</span>
-                                <span id="expiringLoadMoreFooterCount" class="ms-2 text-muted small"></span>
-                                <span id="expiringLoadMoreFooterSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display:none"></span>
+                            <div id="expiringPreviewFooterInfo" class="me-auto text-muted small"></div>
+                            <button id="expiringLoadMoreFooterBtn" type="button" class="btn btn-outline-secondary btn-lg me-2" aria-controls="expiringPreviewBody">
+                                <span>Load more</span><span id="expiringLoadMoreFooterCount" class="ms-2 text-muted small"></span>
+                                <span id="expiringLoadMoreFooterSpinner" class="spinner-border spinner-border-sm ms-2" aria-hidden="true" style="display:none"></span>
                             </button>
                             <a href="/DownloadExpiryDate" class="btn btn-outline-primary btn-lg me-2 expiring-full-list">
                                 <i class="bi bi-list-check me-1"></i> View full list
@@ -1559,15 +1467,27 @@
                             <button type="button" class="btn btn-primary btn-lg expiring-close" data-bs-dismiss="modal">
                                 <i class="bi bi-x-lg me-1"></i> Close
                             </button>
-                            <var validated="true" id="requiredLoadCount" data-count="@Model.ExpiringSoonList?.Count"></var>
-                            <a id="employeeProfileLink" href="/Employee/Profile" class="d-none"></a>
-                            <a id="employeeExpiriesLink" href="/Employee/Expiries" class="d-none"></a>
-                            <a id="employeeExpiriesApi" href="/api/employee/expiries" class="d-none"></a>
                             
                         </div>
                     </div>
                 </div>
             </div>
+
+<div class="modal fade" id="employeeExpiriesModal" tabindex="-1" aria-labelledby="employeeExpiriesTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeExpiriesTitle">Employee expiries</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close employee expiries"></button>
+            </div>
+            <div class="modal-body"></div>
+            <div class="modal-footer">
+                <a id="employeeProfileLink" class="btn btn-outline-primary" href="/ViewUser">View profile</a>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Modals {
     @await Html.PartialAsync("Shared/_SectionDownloadModal")
@@ -1580,6 +1500,7 @@
 }
 
 @section Scripts {
+    <script src="~/js/dashboard-slideshow.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
     /* ===== Skill Level Bar Chart ===== */
@@ -1649,150 +1570,7 @@
         });
     })();
     </script>
-    <script>
-    /* ===== AJAX Quick Search ===== */
-    (function(){
-        var input    = document.getElementById('qs-input');
-        var clearBtn = document.getElementById('qs-clear-btn');
-        var spinner  = document.getElementById('qs-spinner');
-        var results  = document.getElementById('qs-results-area');
-        var hint     = document.querySelector('.qs-hint');
-        var lastQ    = '';
-        var debTimer = null;
-        var controller = null;
-
-        /* hint pills – auto-populate from URL params or defaults */
-        var hints = [];
-        if (hints.length === 0) hints = ['E001', 'E002', 'John'];
-        hints.forEach(function(h){
-            var pill = document.createElement('span');
-            pill.className = 'qs-hint-pill';
-            pill.textContent = h;
-            pill.addEventListener('click', function(){ input.value = h; doSearch(h); });
-            hint.appendChild(pill);
-        });
-
-        function initials(first, last){
-            return ((first||'').charAt(0) + (last||'').charAt(0)).toUpperCase() || '?';
-        }
-
-        function esc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-
-        function renderEmpty(q){
-            results.innerHTML =
-                '<div class="qs-empty">' +
-                '<div class="qs-empty-icon"><i class="bi bi-person-x"></i></div>' +
-                '<div class="qs-empty-title">No employees found</div>' +
-                '<div class="qs-empty-sub">No match for <strong>' + esc(q) + '</strong>. Try a different ID or name.</div>' +
-                '</div>';
-        }
-
-        function renderResults(data, q){
-            if (!data || data.length === 0){ renderEmpty(q); return; }
-            var countBar =
-                '<div class="qs-count-bar">' +
-                '<div style="display:flex;align-items:center;gap:0.5rem;">' +
-                '<span class="qs-count-badge">' + data.length + '</span>' +
-                '<span class="qs-count-text">result' + (data.length!==1?'s':'') + ' for</span>' +
-                '<span class="qs-query-pill">' + esc(q) + '</span>' +
-                '</div></div>';
-            var grid = '<div class="qs-results-grid">';
-            data.forEach(function(e){
-                var exact = e.isExact;
-                var ini = initials(e.firstName, e.lastName);
-                var avatarHtml = e.photoPath
-                    ? '<img src="/api/photo/' + encodeURIComponent(e.photoPath) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.onerror=null;var p=this.parentNode;p.innerHTML=p.getAttribute(\'data-ini\');">'
-                    : esc(ini);
-                var fullName = esc((e.prefixEng||'') + ' ' + (e.firstName||'') + ' ' + (e.lastName||'')).trim();
-                grid +=
-                    '<div class="qs-emp-card ' + (exact?'qs-exact':'') + (e.isResigned?' qs-resigned':'') + '">' +
-                    '<div class="qs-emp-top">' +
-                    '<div class="qs-emp-avatar" data-ini="' + esc(ini) + '">' + avatarHtml + '</div>' +
-                    '<div style="min-width:0">' +
-                    '<div class="qs-emp-name">' + fullName + '</div>' +
-                    '<div class="qs-emp-code"><i class="bi bi-hash"></i> ' + esc(e.empCode) + '</div>' +
-                    '</div>' +
-                    (exact?'<span class="qs-exact-tag">Exact</span>':'') +
-                    (e.isResigned?'<span class="qs-resigned-tag"><i class="bi bi-person-x"></i> Resigned</span>':'') +
-                    '</div>' +
-                    '<div class="qs-emp-meta">' +
-                    (e.department?'<span class="qs-meta-chip"><i class="bi bi-building"></i> ' + esc(e.department) + '</span>':'') +
-                    (e.shift?'<span class="qs-meta-chip"><i class="bi bi-clock"></i> ' + esc(e.shift) + '</span>':'') +
-                    (e.jobGrade?'<span class="qs-grade-chip">' + esc(e.jobGrade) + '</span>':'') +
-                    '</div>' +
-                    '<div class="qs-emp-actions">' +
-                    '<a href="/ViewUser?empCode=' + encodeURIComponent(e.empCode) + '" class="qs-btn-view"><i class="bi bi-eye"></i> View</a>' +
-                    '<a href="/UpdateUser?empCode=' + encodeURIComponent(e.empCode) + '" class="qs-btn-edit"><i class="bi bi-pencil"></i> Edit</a>' +
-                    '</div>' +
-                    '</div>';
-            });
-            grid += '</div>';
-            results.innerHTML = countBar + grid;
-        }
-
-        function setLoading(on){
-            spinner.style.display = on ? 'block' : 'none';
-        }
-
-        function doSearch(q){
-            q = (q||'').trim();
-            if (q === lastQ) return;
-            lastQ = q;
-            clearTimeout(debTimer);
-
-            if (q.length < 2){
-                results.innerHTML = '';
-                setLoading(false);
-                return;
-            }
-
-            if (controller) controller.abort();
-            controller = new AbortController();
-            setLoading(true);
-
-            fetch('/Dashboard?handler=Search&q=' + encodeURIComponent(q), {
-                signal: controller.signal,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(function(r){ return r.json(); })
-            .then(function(data){
-                setLoading(false);
-                renderResults(data, q);
-            })
-            .catch(function(err){
-                if (err && err.name === 'AbortError') return;
-                setLoading(false);
-                results.innerHTML = '<div class="qs-empty"><div class="qs-empty-icon"><i class="bi bi-wifi-off"></i></div><div class="qs-empty-title">Search failed</div><div class="qs-empty-sub">Could not reach the server. Please try again.</div></div>';
-            });
-        }
-
-        input.addEventListener('input', function(){
-            var q = input.value.trim();
-            clearBtn.style.display = q ? 'inline-flex' : 'none';
-            clearTimeout(debTimer);
-            debTimer = setTimeout(function(){ doSearch(q); }, 320);
-        });
-
-        input.addEventListener('keydown', function(e){
-            if (e.key === 'Enter'){ clearTimeout(debTimer); doSearch(input.value.trim()); }
-        });
-
-        clearBtn.addEventListener('click', function(){
-            input.value = '';
-            clearBtn.style.display = 'none';
-            results.innerHTML = '';
-            lastQ = '';
-            if (controller) controller.abort();
-            setLoading(false);
-            input.focus();
-        });
-
-        document.getElementById('qs-search-btn').addEventListener('click', function(){
-            clearTimeout(debTimer);
-            doSearch(input.value.trim());
-        });
-    })();
-    </script>
+    <script src="~/js/dashboard-search.js" asp-append-version="true"></script>
     <script>
         // embed the server-side expiring list for client-side filtering (exposed on window for all scripts)
         window.expiringItems = window.expiringItems || [];
@@ -1811,20 +1589,6 @@
             console.warn('[Expiring] failed to embed expiringItems', e);
             window.expiringItems = expiringItems = [];
         }
-    </script>
-    <script>
-        function updateDateTime() {
-            const now = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const dateEl = document.getElementById('currentDate');
-            const timeEl = document.getElementById('currentTime');
-            
-            if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', dateOptions);
-            if (timeEl) timeEl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
-        }
-        
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
     </script>
     <script>
         function openExpiringModal() {
@@ -1857,353 +1621,10 @@
             m.show();
         }
     </script>
-    <script>
-        function openEmployeeExpiries(empCode){
-            if(!empCode) return;
-            // find items for this employee
-            const items = (expiringItems || []).filter(i => i.EmpCode === empCode);
-            const modal = document.getElementById('employeeExpiriesModal');
-            if(!modal) return;
+    <script src="~/js/dashboard-expiry.js" asp-append-version="true"></script>
 
-            // ensure modal is a direct child of body so it stacks above other modals
-            if(modal.parentElement !== document.body){
-                modal._originalParent = modal.parentElement;
-                document.body.appendChild(modal);
-            }
-
-            const title = modal.querySelector('.modal-title');
-            const body = modal.querySelector('.modal-body');
-            title.textContent = `Expiring items for ${empCode} (${items.length})`;
-            const profileLink = modal.querySelector('#employeeProfileLink');
-            if(profileLink) profileLink.href = '/ViewUser?empCode=' + encodeURIComponent(empCode);
-
-            if(items.length === 0){
-                body.innerHTML = '<p class="text-muted">No expiring items found for this employee.</p>';
-            } else {
-                let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Process</th><th class="expiry-col">Expiry Date</th></tr></thead><tbody>';
-                for(const it of items){
-                    const d = it.expiryDate || it.ExpiryDate || null;
-                    let dateStr = '';
-                    if(d){
-                        // Try to format ISO-like date strings
-                        const dt = new Date(d);
-                        if(!isNaN(dt)) dateStr = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-                        else dateStr = d;
-                    }
-                    html += `<tr><td>${it.Process || ''}</td><td class="expiry-cell"><span class="expiry-date" data-expiry="${(it.ExpiryDate||it.expiryDate)?(new Date(it.ExpiryDate||it.expiryDate)).toISOString().slice(0,10):''}">${dateStr}</span></td></tr>`;
-                }
-                html += '</tbody></table></div>';
-                body.innerHTML = html;
-            }
-
-            try{
-                const m = new bootstrap.Modal(modal);
-
-                modal.addEventListener('show.bs.modal', function onShow(){
-                    // add an "opening" class so CSS animation runs from the start
-                    modal.classList.add('is-opening');
-                });
-
-                modal.addEventListener('shown.bs.modal', function onShown(){
-                    // ensure this modal and its backdrop sit above any open modals
-                    modal.style.zIndex = 2150;
-                    const backdrops = document.querySelectorAll('.modal-backdrop.show');
-                    const lastBackdrop = backdrops[backdrops.length - 1];
-                    if(lastBackdrop){
-                        lastBackdrop.classList.add('employee-modal-backdrop');
-                        lastBackdrop.style.zIndex = 2140;
-                    }
-
-                    // run expiry highlighting inside this modal
-                    const today = new Date();
-                    for(const el of modal.querySelectorAll('.expiry-date')){
-                        if(el.dataset._processed === '1') continue;
-                        const raw = el.getAttribute('data-expiry');
-                        const d = raw ? new Date(raw) : null;
-                        if(!d || isNaN(d)) continue;
-                        const diff = Math.floor((d - today) / (24*60*60*1000));
-                        if(diff < 0){ el.classList.add('expiry-expired'); const badge = document.createElement('span'); badge.className='expiry-badge'; badge.textContent='Expired'; el.appendChild(badge); }
-                        else if(diff <= 10){ el.classList.add('expiry-critical'); const badge = document.createElement('span'); badge.className='expiry-badge'; badge.textContent = diff===0 ? 'Today' : `in ${diff}d`; el.appendChild(badge); }
-                        else if(diff <= 10){ el.classList.add('expiry-soon'); const badge = document.createElement('span'); badge.className='expiry-badge'; badge.textContent = `in ${diff}d`; el.appendChild(badge); }
-                        el.dataset._processed = '1';
-                    }
-
-                    // remove opening flag after animation ends
-                    modal.classList.remove('is-opening');
-                    modal.removeEventListener('shown.bs.modal', onShown);
-                });
-
-                modal.addEventListener('hidden.bs.modal', function onHidden(){
-                    // cleanup backdrop z-index & restore original parent
-                    const backdrops = document.querySelectorAll('.modal-backdrop.employee-modal-backdrop');
-                    backdrops.forEach(b=>{ b.classList.remove('employee-modal-backdrop'); b.style.zIndex = ''; });
-                    modal.style.zIndex = '';
-                    if(modal._originalParent){ modal._originalParent.appendChild(modal); delete modal._originalParent; }
-                    modal.removeEventListener('hidden.bs.modal', onHidden);
-                });
-
-                m.show();
-            }catch(e){ modal.style.display='block'; }
-        }
-
-        // client-side "Load more" for Expiring preview
-        (function(){
-            const pageSize = 20;
-            function formatDate(d){
-                if(!d) return '';
-                const dt = new Date(d);
-                if(isNaN(dt)) return d;
-                return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-            }
-            function appendRows(startIndex){
-                const tbody = document.getElementById('expiringPreviewBody');
-                const items = (window.expiringItems || typeof expiringItems !== 'undefined' && expiringItems) || [];
-                if(!tbody || !items || items.length === 0) return;
-                const end = Math.min(startIndex + pageSize, items.length);
-                const frag = document.createDocumentFragment();
-                for(let i = startIndex; i < end; i++){
-                    const it = items[i];
-                    const tr = document.createElement('tr');
-                    tr.style.cursor = 'pointer';
-                    tr.setAttribute('data-empcode', it.EmpCode);
-                    tr.onclick = function(){ openEmployeeExpiries(it.EmpCode); };
-                    const name = (it.FirstNameEng && it.LastNameEng) ? (it.FirstNameEng + ' ' + it.LastNameEng) : it.EmpCode;
-                    const expDate = formatDate(it.ExpiryDate || it.expiryDate);
-                    tr.innerHTML = `<td>${it.EmpCode}</td><td>${name}</td><td>${it.Process || ''}</td><td class="expiry-cell"><span class="expiry-date" data-expiry="${(it.ExpiryDate || it.expiryDate) ? (new Date(it.ExpiryDate || it.expiryDate)).toISOString().slice(0,10) : ''}">${expDate}</span></td><td style="text-align:right"><a class="btn btn-sm btn-expiring" onclick="event.stopPropagation()" href="/ViewUser?empCode=${encodeURIComponent(it.EmpCode)}"><i class="bi bi-eye"></i> View</a></td>`;
-                    frag.appendChild(tr);
-                }
-                tbody.appendChild(frag);
-                // after appending new rows, re-run expiry highlighting
-                highlightExpiryDatesInModal();
-            }
-            function updatePreviewInfo(){
-                const total = (window.expiringItems || []).length;
-                const current = document.getElementById('expiringPreviewBody')?.children.length || 0;
-                const info = document.getElementById('expiringPreviewInfo');
-                const footer = document.getElementById('expiringPreviewFooterInfo');
-                if(info) info.textContent = (total > current) ? `Showing first ${current} of ${total} results.` : `Showing ${current} of ${total} results.`;
-                if(footer) footer.textContent = (total > current) ? `Showing first ${current} of ${total}` : `Showing ${current} of ${total}`;
-                const wrap = document.getElementById('expiringLoadMoreWrap');
-                if(wrap) wrap.style.display = (current < total) ? 'flex' : 'none'; 
-                // update Load more button state and remaining count (body + footer)
-                const remaining = Math.max(0, total - current);
-                const btnCountEl = document.getElementById('expiringLoadMoreCount');
-                const loadBtn = document.getElementById('expiringLoadMoreBtn');
-                if(btnCountEl) btnCountEl.textContent = remaining > 0 ? `(${remaining} more)` : '';
-                if(loadBtn) loadBtn.disabled = remaining <= 0;
-                if(footer) footer.textContent = remaining > 0 ? `Showing first ${current} of ${total}` : `Showing ${current} of ${total}`;
-                const footerCountEl = document.getElementById('expiringLoadMoreFooterCount');
-                const footerBtn = document.getElementById('expiringLoadMoreFooterBtn');
-                if(footerCountEl) footerCountEl.textContent = remaining > 0 ? `(${remaining} more)` : '';
-                if(footerBtn) footerBtn.disabled = remaining <= 0;
-            }
-
-            // highlight expiry dates inside the Expiring modal (expired, critical, soon)
-            function highlightExpiryDatesInModal(){
-                const modal = document.getElementById('expiringModal');
-                if(!modal) return;
-                const today = new Date();
-                for(const el of modal.querySelectorAll('.expiry-date')){
-                    // skip already-processed
-                    if(el.dataset._processed === '1') continue;
-                    const raw = el.getAttribute('data-expiry');
-                    if(!raw) continue;
-                    const d = new Date(raw);
-                    if(isNaN(d)) continue;
-                    const diff = Math.floor((d - today) / (24*60*60*1000));
-                    if(diff < 0){
-                        el.classList.add('expiry-expired');
-                        const badge = document.createElement('span');
-                        badge.className = 'expiry-badge';
-                        badge.textContent = 'Expired';
-                        el.appendChild(badge);
-                    } else if(diff <= 10){
-                        el.classList.add('expiry-critical');
-                        const badge = document.createElement('span');
-                        badge.className = 'expiry-badge';
-                        badge.textContent = diff === 0 ? 'Today' : `in ${diff}d`;
-                        el.appendChild(badge);
-                    } else if(diff <= 20){
-                        el.classList.add('expiry-soon');
-                        const badge = document.createElement('span');
-                        badge.className = 'expiry-badge';
-                        badge.textContent = `in ${diff}d`;
-                        el.appendChild(badge);
-                    }
-                    el.dataset._processed = '1';
-                }
-            }
-
-            async function handleLoadMore(){
-                console.debug('[Expiring] handleLoadMore called');
-                const btn = document.getElementById('expiringLoadMoreBtn');
-                const footerBtn = document.getElementById('expiringLoadMoreFooterBtn');
-                const spinner = document.getElementById('expiringLoadMoreSpinner');
-                const footerSpinner = document.getElementById('expiringLoadMoreFooterSpinner');
-                try{
-                    if(btn){ btn.disabled = true; btn.setAttribute('aria-busy','true'); }
-                    if(footerBtn){ footerBtn.disabled = true; footerBtn.setAttribute('aria-busy','true'); }
-                    if(spinner) spinner.style.display = 'inline-block';
-                    if(footerSpinner) footerSpinner.style.display = 'inline-block';
-
-                    // if embedded list is empty (e.g. parsing failed), fetch preview JSON from server as a fallback
-                    if(!((window.expiringItems || []).length > 0)){
-                        console.debug('[Expiring] embedded list empty — fetching preview from server');
-                        try{
-                            const resp = await fetch('/api/download/expiry/preview?days=30&top=1000');
-                            if(!resp.ok){
-                                console.warn('[Expiring] preview fetch failed status=', resp.status);
-                            } else {
-                                const ct = (resp.headers.get('content-type') || '').toLowerCase();
-                                if(!ct.includes('application/json')){
-                                    const txt = await resp.text();
-                                    console.warn('[Expiring] preview returned non-JSON (possible login/html). snippet=', txt.slice(0,200));
-                                    // If the server returned HTML (login page), redirect so user can re-authenticate
-                                    if(txt.trim().startsWith('<')){
-                                        if(window.Toast) window.Toast.error('Session', 'Your session may have expired — please sign in again');
-                                        // stop further client parsing to avoid "Unexpected token '<'"
-                                        return;
-                                    }
-                                } else {
-                                    const json = await resp.json();
-                                    window.expiringItems = json || [];
-                                }
-                            }
-                        }catch(fetchErr){
-                            console.warn('[Expiring] preview fetch error', fetchErr);
-                        }
-                    }
-
-                    const current = document.getElementById('expiringPreviewBody')?.children.length || 0;
-                    console.debug('[Expiring] appending rows from', current);
-                    // client-side append (uses embedded expiringItems)
-                    appendRows(current);
-                    updatePreviewInfo();
-                }finally{
-                    if(spinner) spinner.style.display = 'none';
-                    if(footerSpinner) footerSpinner.style.display = 'none';
-                    if(btn){ btn.disabled = false; btn.removeAttribute('aria-busy'); }
-                    if(footerBtn){ footerBtn.disabled = false; footerBtn.removeAttribute('aria-busy'); }
-                }
-            }
-
-            // Attach handlers immediately and add a delegated fallback so buttons work even
-            // if the DOMContentLoaded event already fired or elements are replaced dynamically.
-            function delegatedExpiringClick(ev){
-                const t = ev.target && (ev.target.closest ? ev.target.closest('#expiringLoadMoreBtn, #expiringLoadMoreFooterBtn') : null);
-                if(t){
-                    ev.preventDefault();
-                    handleLoadMore();
-                }
-            }
-
-            function bindExpiringHandlers(){
-                console.debug('[Expiring] bindExpiringHandlers running; readyState=', document.readyState);
-                // immediate binding for both body and footer buttons
-                const btn = document.getElementById('expiringLoadMoreBtn');
-                const fbtn = document.getElementById('expiringLoadMoreFooterBtn');
-                if(btn){ btn.removeEventListener('click', handleLoadMore); btn.addEventListener('click', handleLoadMore); }
-                if(fbtn){ fbtn.removeEventListener('click', handleLoadMore); fbtn.addEventListener('click', handleLoadMore); }
-
-                // expose a debug helper so you can force-append rows from the console if needed
-                try{ window.expiringDebugAppendMore = async function(){ console.debug('[Expiring] debug append invoked'); await handleLoadMore(); }; }catch(e){ /* ignore */ }
-
-                // ensure initial UI counts are correct even before modal is shown
-                try{ updatePreviewInfo(); }catch(e){ /* ignore */ }
-
-                // delegated fallback so clicks are handled even if elements are swapped/re-rendered
-                document.removeEventListener('click', delegatedExpiringClick);
-                document.addEventListener('click', delegatedExpiringClick);
-
-                const modal = document.getElementById('expiringModal');
-                if(!modal) return;
-                // refresh preview state when modal opens
-                modal.addEventListener('shown.bs.modal', function(){
-                    updatePreviewInfo();
-                    highlightExpiryDatesInModal();
-                });
-            }
-
-            if(document.readyState === 'loading'){
-                document.addEventListener('DOMContentLoaded', bindExpiringHandlers);
-            } else {
-                bindExpiringHandlers();
-            }
-        })();
-
-    </script>
-
-    <script>
-        // KPI Department Filter
-        window.filterKpiByDept = function(dept, button) {
-            const allBtn = document.querySelector('.kpi-dept-btn.all-data');
-            const clickedBtn = button || event?.target;
-            const isActive = clickedBtn && clickedBtn.classList.contains('active');
-            if (dept !== 'all' && isActive) {
-                dept = 'all';
-            }
-
-            // Update button states
-            document.querySelectorAll('.kpi-dept-btn').forEach(btn => btn.classList.remove('active'));
-            if (dept === 'all') {
-                allBtn?.classList.add('active');
-            } else {
-                clickedBtn?.classList.add('active');
-            }
-
-            // Get all KPI elements
-            const operator = document.getElementById('kpiOperator');
-            const process = document.getElementById('kpiProcess');
-            const skill = document.getElementById('kpiSkill');
-            const handicap = document.getElementById('kpiHandicap');
-            const oneSkill = document.getElementById('kpiOneSkill');
-            const noSkill = document.getElementById('kpiNoSkill');
-            
-            // Simulated department data (in real app, this would come from API/backend)
-            const deptData = {
-                'all': {
-                    operator: operator?.getAttribute('data-all') || 0,
-                    process: process?.getAttribute('data-all') || 0,
-                    skill: skill?.getAttribute('data-all') || 0,
-                    handicap: handicap?.getAttribute('data-all') || 0,
-                    oneSkill: oneSkill?.getAttribute('data-all') || 0,
-                    noSkill: noSkill?.getAttribute('data-all') || 0
-                },
-                'ta': { operator: 245, process: 12, skill: 1250, handicap: 8, oneSkill: 45, noSkill: 12 },
-                'qa': { operator: 189, process: 8, skill: 956, handicap: 5, oneSkill: 32, noSkill: 8 },
-                'sc': { operator: 156, process: 10, skill: 812, handicap: 4, oneSkill: 28, noSkill: 6 },
-                'planning': { operator: 142, process: 6, skill: 723, handicap: 3, oneSkill: 22, noSkill: 4 }
-            };
-            
-            const data = deptData[dept] || deptData['all'];
-            
-            // Animate value updates
-            if (operator) animateValue(operator, parseInt(operator.textContent), parseInt(data.operator));
-            if (process) animateValue(process, parseInt(process.textContent), parseInt(data.process));
-            if (skill) animateValue(skill, parseInt(skill.textContent), parseInt(data.skill));
-            if (handicap) animateValue(handicap, parseInt(handicap.textContent), parseInt(data.handicap));
-            if (oneSkill) animateValue(oneSkill, parseInt(oneSkill.textContent), parseInt(data.oneSkill));
-            if (noSkill) animateValue(noSkill, parseInt(noSkill.textContent), parseInt(data.noSkill));
-        };
-        
-        function animateValue(element, start, end) {
-            const duration = 600;
-            const startTime = Date.now();
-            
-            const animate = () => {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const current = Math.floor(start + (end - start) * progress);
-                element.textContent = current.toLocaleString();
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                }
-            };
-            
-            animate();
-        }
-    </script>
+    <script type="application/json" id="dashboard-department-kpis">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DepartmentKpis))</script>
+    <script src="~/js/dashboard-kpis.js" asp-append-version="true"></script>
 
     <script>
         window.openObsoletedModal = function(){
@@ -2222,102 +1643,6 @@
             try{ const m = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el); m.show(); }catch(e){ el.style.display='block'; }
         };
         
-        window.handleProcessClick = function(processName){
-            const deptMap = {
-                'Ta Manufacturing': 'ta',
-                'SC Manufacturing': 'sc',
-                'QA': 'qa',
-                'Production & Material Planning': 'planning'
-            };
-            const cardMap = {
-                'Ta Manufacturing': 'pcTa',
-                'SC Manufacturing': 'pcSc',
-                'QA': 'pcQa',
-                'Production & Material Planning': 'pcPlanning'
-            };
-            
-            const activeCard = document.getElementById(cardMap[processName]);
-            const isCurrentlyActive = activeCard?.classList.contains('active-dept');
-            document.querySelectorAll('.otr-process-card').forEach(c => c.classList.remove('active-dept'));
-
-            const deptCode = deptMap[processName];
-            if (isCurrentlyActive || !deptCode) {
-                filterKpiByDept('all', document.querySelector('.kpi-dept-btn.all-data'));
-                return;
-            }
-
-            if (activeCard) activeCard.classList.add('active-dept');
-            const deptBtn = document.querySelector(`.kpi-dept-btn[onclick="filterKpiByDept('${deptCode}', this)"]`);
-            if (deptBtn) {
-                filterKpiByDept(deptCode, deptBtn);
-            } else {
-                filterKpiByDept(deptCode);
-            }
-        };
-        
-        // Clear process card active state when All Data clicked
-        const allDataBtn = document.querySelector('.kpi-dept-btn.all-data');
-        if (allDataBtn) {
-            allDataBtn.addEventListener('click', () => {
-                document.querySelectorAll('.otr-process-card').forEach(c => c.classList.remove('active-dept'));
-            });
-        }
-
-        // ── Count-up on page load for OTR KPI values ──
-        (function() {
-            function countUp(el, to, duration) {
-                const start = Date.now();
-                const tick = () => {
-                    const p = Math.min((Date.now() - start) / duration, 1);
-                    const ease = 1 - Math.pow(1 - p, 3);
-                    el.textContent = Math.floor(to * ease).toLocaleString();
-                    if (p < 1) requestAnimationFrame(tick);
-                };
-                requestAnimationFrame(tick);
-            }
-            document.addEventListener('DOMContentLoaded', () => {
-                document.querySelectorAll('.otr-kpi-value').forEach((el, i) => {
-                    const target = parseInt(el.getAttribute('data-all') || el.textContent) || 0;
-                    if (!target) return;
-                    el.textContent = '0';
-                    setTimeout(() => countUp(el, target, 900), 300 + i * 90);
-                });
-            });
-        })();
-
-        // ═══ FORCE Modal Centering Override ═══
-        document.addEventListener('DOMContentLoaded', function() {
-            const modals = document.querySelectorAll('.modal');
-            
-            modals.forEach(modal => {
-                modal.addEventListener('show.bs.modal', function(e) {
-                    this.style.display = 'flex';
-                    this.style.alignItems = 'center';
-                    this.style.justifyContent = 'center';
-                    this.style.position = 'fixed';
-                    this.style.top = '0';
-                    this.style.left = '0';
-                    this.style.width = '100%';
-                    this.style.height = '100%';
-                    this.style.zIndex = '1050';
-                    this.style.padding = '1rem';
-                    this.style.boxSizing = 'border-box';
-                });
-                
-                modal.addEventListener('shown.bs.modal', function(e) {
-                    this.style.display = 'flex';
-                    this.style.alignItems = 'center';
-                    this.style.justifyContent = 'center';
-                    
-                    const dialog = this.querySelector('.modal-dialog');
-                    if (dialog) {
-                        dialog.style.position = 'relative';
-                        dialog.style.margin = '0 auto';
-                        dialog.style.width = 'auto';
-                    }
-                });
-            });
-        });
     </script>
 
 

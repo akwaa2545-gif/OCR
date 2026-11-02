@@ -30,6 +30,10 @@ public class EmployeeSkillRecord
     public string? SkillLevel { get; set; }
     public string? JudgmentPractice { get; set; }
     public string? DownloadPath { get; set; }
+    public bool IsObsolete { get; set; }
+    public Guid? OcrSkillRowId { get; set; }
+    public Guid? CertificateFileId { get; set; }
+    public byte[]? FileStorageVersion { get; set; }
 }
 
 public class EmployeeDisqualifiedRecord

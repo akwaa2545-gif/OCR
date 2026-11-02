@@ -8,8 +8,10 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="xunit" Version="2.6.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.6.2" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\OperatorCertificationRecord\DesktopReportQuery.cs" Link="DesktopReportQuery.cs" />
     <ProjectReference Include="..\..\OperatorCertificationRecord.Web\OperatorCertificationRecord.Web.csproj" />
     <ProjectReference Include="..\..\OperatorCertificationRecord.PhotoCompatibility\OperatorCertificationRecord.PhotoCompatibility.csproj" />
   </ItemGroup>

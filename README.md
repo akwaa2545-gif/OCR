@@ -328,13 +328,13 @@ Your application is now running as a modern web application. You can:
 
 ### Photo compatibility deployment
 
-New web uploads are stored with a versioned name under `PhotoStorage:UploadRoot`, while a stable `<EmpCode>.<ext>` copy is written to `PhotoStorage:LegacyMirrorRoot` for the WinForms client. The database stores the canonical `/app/photos/<EmpCode>_<ticks>.<ext>` path.
+New web uploads are stored with a versioned name under `PhotoStorage:UploadRoot`, while a stable `<EmpCode>.<ext>` copy is written to the host-local `PhotoStorage:LegacyMirrorRoot`. The database stores the canonical `/app/photos/<EmpCode>_<ticks>.<ext>` path. This local mirror alone does not update the WinForms client's network share: a Windows-host bridge is required to publish the photo to `\\svr120a\PhotoEmp$`.
 
 For Docker deployment, the compose file mounts `C:/ocr-uploads` read/write at `/app/photo-source` (outside the public web root) and `C:/ocr-photos` at `/app/legacy-photos`. Ensure the container can write both host folders. Do not place network-share credentials in source-controlled configuration.
 
-Before deploying the legacy resolver, preview the one-time backfill with `./SyncLegacyPhotos.ps1 -WhatIf`, then run it without `-WhatIf` after confirming the source and destination. The script scans only root-level JPG/PNG files, so employee PDF subfolders are not copied.
+The production host bridge is implemented by `deploy/Sync-LegacyPhotos.ps1` and `deploy/Install-LegacyPhotoSync.ps1`; see the [deployment runbook](deploy/README.md). It follows committed database photo references, not whichever local file is newest. The older root-level `SyncLegacyPhotos.ps1` is a manual backfill tool, not the scheduled bridge; do not run it alongside the scheduled task because it lacks the bridge's conflict state.
 
-For the current manual `docker load` deployment, use the loaded image's actual tag in place of `<loaded-image-tag>`:
+The normal deployment uses GitHub Actions as described in the deployment runbook. For a separately planned manual `docker load` fallback, use the loaded image's actual tag in place of `<loaded-image-tag>`:
 
 ```powershell
 docker load -i C:\temp\ocr-webimagetest.tar

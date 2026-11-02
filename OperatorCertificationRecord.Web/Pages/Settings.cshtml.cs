@@ -47,6 +47,7 @@ namespace OperatorCertificationRecord.Web.Pages
         [BindProperty]
         public IFormFile? PhotoFile { get; set; }
 
+        [BindProperty] public byte[]? PhotoFileStorageVersion { get; set; }
         public string PhotoUrl { get; set; } = "";
 
         public async Task<IActionResult> OnGetAsync()
@@ -61,7 +62,10 @@ namespace OperatorCertificationRecord.Web.Pages
                 {
                     var emp = await _employeeService.GetEmployeeByCodeAsync(EmpCode);
                     if (emp?.PhotoPath != null)
+                    {
                         PhotoUrl = NormalizePhotoFileName(emp.PhotoPath);
+                        PhotoFileStorageVersion = emp.FileStorageVersion;
+                    }
                 }
                 catch { /* photo is non-critical */ }
             }
@@ -89,18 +93,13 @@ namespace OperatorCertificationRecord.Web.Pages
                     return RedirectToPage();
                 }
 
-                var storedPhoto = await _photoStorageService.StoreAndCommitAsync(
-                    empCode,
-                    PhotoFile,
-                    async (pendingPhoto, _) =>
-                    {
-                        emp.PhotoPath = pendingPhoto.DatabasePath;
-                        return await _employeeService.UpdateEmployeeAsync(emp);
-                    },
-                    HttpContext.RequestAborted);
+                if (PhotoFileStorageVersion != null) emp.FileStorageVersion = PhotoFileStorageVersion;
+                var storedPhoto = await _photoStorageService.SaveEmployeeAsync(emp, PhotoFile, false,
+                    empCode, HttpContext.RequestAborted);
                 var photoPath = storedPhoto.DatabasePath;
 
-                HttpContext.Session.SetString("PhotoPath", photoPath);
+                HttpContext.Session.SetString("PhotoPath", photoPath.StartsWith("/api/photo/employee/", StringComparison.OrdinalIgnoreCase)
+                    ? EmployeeFileUrls.CurrentPhoto(empCode) : photoPath);
                 StatusMessage = "Profile picture updated.";
                 StatusType = "success";
             }
@@ -132,6 +131,7 @@ namespace OperatorCertificationRecord.Web.Pages
         private string NormalizePhotoFileName(string storedPath)
         {
             if (string.IsNullOrWhiteSpace(storedPath)) return "";
+            if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
             var normalized = storedPath.Replace('\\', '/');
             return Path.GetFileName(normalized);
         }

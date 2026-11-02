@@ -17,6 +17,9 @@ public class Employee
     public string? WorkshopID { get; set; }
     public string? Shift { get; set; }
     public string? PhotoPath { get; set; }
+    public string? LegacyPhotoPath { get; set; }
+    public Guid? PhotoFileId { get; set; }
+    public byte[]? FileStorageVersion { get; set; }
     public string? Notice { get; set; }
 
     // Resignation fields

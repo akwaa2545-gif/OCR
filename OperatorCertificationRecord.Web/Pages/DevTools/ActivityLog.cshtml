@@ -1,0 +1,98 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.DevTools.ActivityLogModel
+@using OperatorCertificationRecord.Web.Services
+@using OperatorCertificationRecord.Web.Pages.DevTools
+@{
+    ViewData["Title"] = "Activity Log";
+    ViewData["PageHeadingId"] = "activity-heading";
+    ViewData["ActivePage"] = "DevTools";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-operations.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/activity-log.css" asp-append-version="true" />
+}
+<div class="admin-tools-shell activity-shell">
+    <aside class="admin-tools-sidebar">
+        <div class="admin-tools-nav-title"><i class="bi bi-code-square" aria-hidden="true"></i><span>Dev Tools</span></div>
+        <nav class="admin-tools-nav" aria-label="Developer tools">
+            <a asp-page="/DevTools"><i class="bi bi-grid" aria-hidden="true"></i><span>Overview</span></a>
+            <a asp-page="/DevTools/SkillRecovery"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Skill Recovery</span></a>
+            <a asp-page="/DevTools/ActivityLog" aria-current="page"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Activity Log</span></a>
+        </nav>
+    </aside>
+    <div class="admin-tools-content admin-ops-page">
+        <header class="activity-heading page-intro">
+            <div><p>Search an employee to see who changed their records and when.</p></div>
+            <span class="activity-coverage"><span aria-hidden="true"></span> Web app</span>
+        </header>
+        <nav class="activity-tabs" aria-label="Activity views">
+            @foreach (var tab in new[] { ("activity", "Employee history", "bi-person-lines-fill", "Changes by employee and time"), ("changes", "All changes", "bi-pencil-square", "Employee and admin updates"), ("attempts", "Attempts", "bi-shield-exclamation", "Blocked or unsuccessful actions") })
+            {
+                <a asp-page="./ActivityLog" asp-all-route-data="@Model.Routes(view: tab.Item1)" aria-current="@(Model.View == tab.Item1 ? "page" : null)" data-activity-view="@tab.Item1"><i class="bi @tab.Item3" aria-hidden="true"></i><span><strong>@tab.Item2</strong><small>@tab.Item4</small></span></a>
+            }
+        </nav>
+        @if (Model.RoleHealth is { } health && (health.PendingCount is null or > 0 || health.LastError != null))
+        {
+            <div class="admin-ops-notice activity-delivery" role="status"><i class="bi bi-hourglass-split" aria-hidden="true"></i><div><strong>Role history delivery</strong><p>@(health.PendingCount == null ? "Role history delivery could not be checked." : health.PendingCount + " saved role changes are waiting to appear in this log.") @health.LastError</p></div></div>
+        }
+        <section class="admin-ops-panel activity-filter-panel" aria-labelledby="activity-filter-heading">
+            <div class="activity-filter-title"><h2 id="activity-filter-heading"><i class="bi bi-search" aria-hidden="true"></i> Find employee history</h2><a asp-page="./ActivityLog" class="activity-text-link">Clear filters</a></div>
+            <form method="get" class="activity-filters" role="search" aria-label="Filter activity">
+                <input type="hidden" asp-for="View" />
+                <div class="admin-ops-field activity-employee-filter"><label for="activity-employee">Employee code</label><input asp-for="Employee" id="activity-employee" maxlength="20" placeholder="e.g. 101" aria-describedby="activity-employee-help" autocomplete="off" /><small id="activity-employee-help">The employee whose records changed.</small></div>
+                <div class="admin-ops-field"><label for="activity-who">Changed by</label><input asp-for="Who" id="activity-who" maxlength="200" placeholder="Admin ID or name" /></div>
+                <div class="admin-ops-field activity-skill-filter"><label for="activity-skill">Skill / item</label><input asp-for="Skill" id="activity-skill" maxlength="255" placeholder="Skill, workshop or process" /></div>
+                <div class="admin-ops-field"><label for="activity-action">Action</label><select asp-for="ActionFilter" id="activity-action" data-no-fancy><option value="">All actions</option>@foreach (var action in Model.Events.Actions) { <option value="@action">@WebActivityLabels.Action(action)</option> }</select></div>
+                <div class="admin-ops-field"><label for="activity-result">Result</label><select asp-for="Result" id="activity-result" data-no-fancy><option value="">All results</option>@foreach (var result in Model.Results) { <option value="@result.Code">@result.Label</option> }</select></div>
+                <div class="admin-ops-field activity-date-filter"><label for="activity-from">From</label><input asp-for="From" asp-format="{0:yyyy-MM-dd}" id="activity-from" type="date" /></div>
+                <div class="admin-ops-field activity-date-filter"><label for="activity-to">Through</label><input asp-for="To" asp-format="{0:yyyy-MM-dd}" id="activity-to" type="date" /></div>
+                <button type="submit" class="admin-ops-button activity-search"><i class="bi bi-search" aria-hidden="true"></i> Search</button>
+            </form>
+            <div class="activity-filter-footer"><a asp-page="./ActivityLog" asp-all-route-data="@Model.Routes(resetDates: true)" class="activity-preset @(Model.IsThisYear ? "is-active" : "")" aria-current="@(Model.IsThisYear ? "true" : null)">This year</a><span>Dates and times shown in Bangkok time.</span></div>
+            <div asp-validation-summary="All" class="admin-ops-validation" role="alert"></div>
+        </section>
+        @if (Model.ErrorMessage != null) { <div class="admin-ops-notice is-error" role="alert">@Model.ErrorMessage</div> }
+        <section class="admin-ops-panel activity-results" aria-labelledby="activity-results-heading">
+            <div class="activity-results-title"><div><span class="admin-ops-eyebrow">@(Model.View == "changes" ? "All changes" : Model.View == "activity" ? "Employee history" : "Action attempts") · Newest first</span><h2 id="activity-results-heading">@(Model.Employee == null ? "All employees" : "Employee " + Model.Employee)</h2><p class="activity-record-count">@(Model.Loaded ? Model.Events.Rows.Count + " events on this page" : "Activity records")</p></div><span class="activity-readonly"><i class="bi bi-lock" aria-hidden="true"></i> Read only</span></div>
+            @if (Model.Loaded && Model.Events.Rows.Count > 0)
+            {
+                <div class="admin-ops-table-wrap activity-table-wrap" tabindex="0" role="region" aria-label="Activity records">
+                    <table class="admin-ops-table activity-table"><caption class="admin-ops-sr-only">Who acted, what changed, the employee and skill or item, date and time, and result.</caption><thead><tr><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Employee</th><th scope="col">Skill / item</th><th scope="col">Date &amp; time</th><th scope="col">Result</th><th scope="col"><span class="admin-ops-sr-only">Details</span></th></tr></thead><tbody>
+                    @foreach (var entry in Model.Events.Rows)
+                    {
+                        <tr data-activity-event="@entry.EventId"><td class="activity-who"><strong>@(string.IsNullOrWhiteSpace(entry.ActorName) ? entry.ActorCode : entry.ActorName)</strong>@if (!string.IsNullOrWhiteSpace(entry.ActorName)) { <small>@entry.ActorCode</small> }<span class="activity-role" data-role="@ActivityLogModel.Role(entry)">@ActivityLogModel.Role(entry)</span></td><td class="activity-action"><strong>@WebActivityLabels.Action(entry.Action)</strong><small>@entry.Category</small></td><td class="activity-employee">@(entry.EmployeeCode ?? "—")</td><td class="activity-item"><span>@(entry.SkillName ?? entry.EntityLabel ?? "—")</span>@if (entry.ItemCount > 1) { <small>@entry.ItemCount items · See details</small> }</td><td class="activity-time"><time datetime="@ActivityLogModel.Iso(entry.OccurredUtc)">@ActivityLogModel.Date(entry.OccurredUtc)<small>@ActivityLogModel.Time(entry.OccurredUtc)</small></time></td><td><span class="activity-result" data-outcome="@entry.Outcome">@WebActivityLabels.Outcome(entry.Outcome)</span></td><td class="activity-open-cell"><a id="activity-event-@entry.EventId" asp-page="./ActivityLog" asp-all-route-data="@Model.Routes(eventId: entry.EventId)" class="activity-open" aria-label="@("View " + WebActivityLabels.Action(entry.Action) + " details for " + (entry.EmployeeCode ?? entry.EntityLabel ?? entry.ActorCode))"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></td></tr>
+                    }
+                    </tbody></table>
+                </div>
+                <nav class="admin-ops-pagination" aria-label="Activity pages">@if (Model.Events.Page > 1) { <a asp-page="./ActivityLog" asp-all-route-data="@Model.Routes(pageNumber: Model.Events.Page - 1)" class="admin-ops-button secondary">Previous</a> }<span>Page @Model.Events.Page</span>@if (Model.Events.HasMore) { <a asp-page="./ActivityLog" asp-all-route-data="@Model.Routes(pageNumber: Model.Events.Page + 1)" class="admin-ops-button secondary">Next</a> }</nav>
+            }
+            else if (Model.Loaded) { <div class="activity-empty"><i class="bi bi-clock-history" aria-hidden="true"></i><h3>No matching changes</h3><p>Check the employee code or choose another date range.</p></div> }
+            <p class="activity-scope-note">Web activity only. Earlier employee edits may not have been recorded.</p>
+        </section>
+        @if (Model.Selected is { } detail)
+        {
+            <dialog id="activity-dialog" class="activity-dialog" open aria-labelledby="activity-dialog-title" data-return-focus="activity-event-@detail.Event.EventId">
+                <header class="activity-dialog-header"><div><span class="admin-ops-eyebrow">Activity details</span><h2 id="activity-dialog-title" tabindex="-1">@WebActivityLabels.Action(detail.Event.Action)</h2><p>@ActivityLogModel.Date(detail.Event.OccurredUtc) · @ActivityLogModel.Time(detail.Event.OccurredUtc) Bangkok time</p></div><button type="button" class="activity-dialog-close" data-activity-close aria-label="Close activity details"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
+                <div class="activity-dialog-body">
+                    <div class="activity-detail-summary"><div><small>Who</small><strong>@(detail.Event.ActorName ?? detail.Event.ActorCode)</strong><span>@detail.Event.ActorCode · @ActivityLogModel.Role(detail.Event)</span></div><div><small>Result</small><span class="activity-result" data-outcome="@detail.Event.Outcome">@WebActivityLabels.Outcome(detail.Event.Outcome)</span></div><div><small>Affected items</small><strong>@detail.Changes.Count</strong></div></div>
+                    <p class="activity-detail-description">@detail.Event.Summary</p>
+                    @for (var index = 0; index < detail.Changes.Count; index++)
+                    {
+                        var item = detail.Changes[index];
+                        <details class="activity-change" open="@(index == 0 || detail.Changes.Count == 1)"><summary><span><strong>@item.Label</strong><small>@(item.EmployeeCode == null ? "" : "Employee " + item.EmployeeCode + " · ")@(item.SkillName ?? item.EntityType)@if (item.TableKind != null) { <span> · @item.TableKind</span> }</small></span><span class="activity-effect">@ActivityLogModel.Effect(item)</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                            @if (item.Fields.Count > 0) { <div class="admin-ops-table-wrap activity-diff-wrap"><table class="admin-ops-table activity-diff"><caption class="admin-ops-sr-only">Before and after values for @item.Label</caption><thead><tr><th scope="col">Field</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>@foreach (var field in item.Fields) { <tr><th scope="row">@WebActivityLabels.Field(field.Field)</th><td>@ActivityLogModel.Value(field, true)</td><td>@ActivityLogModel.Value(field, false)</td></tr> }</tbody></table></div> }
+                            else { <p class="activity-no-diff">No field comparison was recorded for this item.</p> }
+                        </details>
+                    }
+                    @if (detail.Changes.Count == 0) { <p class="admin-ops-notice">This event records an action or result; no saved field changes were recorded.</p> }
+                    @if (detail.Event.RecoveryActionId.HasValue) { <a asp-page="/DevTools/SkillRecovery" asp-route-EmpCode="@detail.RecoveryEmployeeCode" asp-route-Recovery="@detail.Event.RecoveryActionId" asp-fragment="recovery-history-heading" class="admin-ops-button secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> View recovery history</a> }
+                    <details class="activity-reference"><summary>Reference</summary><dl><dt>Event</dt><dd>@detail.Event.EventUid</dd><dt>Operation</dt><dd>@detail.Event.OperationId</dd><dt>Request</dt><dd>@detail.RequestId</dd><dt>Page</dt><dd>@detail.Route</dd><dt>Source</dt><dd>@detail.OriginKind</dd></dl></details>
+                    <button type="button" class="admin-ops-button secondary activity-dialog-done" data-activity-close>Close</button>
+                    <noscript><a asp-page="./ActivityLog" asp-all-route-data="@Model.Routes()" class="admin-ops-button secondary">Back to activity</a></noscript>
+                </div>
+            </dialog>
+        }
+    </div>
+</div>
+@section Scripts { <script src="~/js/activity-log.js" asp-append-version="true"></script> }

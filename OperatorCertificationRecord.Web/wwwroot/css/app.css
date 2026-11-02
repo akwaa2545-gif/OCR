@@ -1719,13 +1719,27 @@ a:hover {
     display: none;
     position: fixed;
     inset: 0;
-    align-items: center;
+    align-items: safe center;
     justify-content: center;
+    overflow-y: auto;
+    padding: 1rem;
+    box-sizing: border-box;
     z-index: 10050 !important;
 }
-.modal.show {
-    display: flex;
+.modal.show,
+.modal[aria-modal="true"] {
+    display: flex !important;
 }
+.modal-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    margin: auto;
+    flex-shrink: 0;
+}
+.modal-dialog.modal-sm { max-width: 300px; }
+.modal-dialog.modal-lg { max-width: 800px; }
+.modal-dialog.modal-xl { max-width: 1140px; }
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -2964,4 +2978,23 @@ thead .msr-col-cur { background: #b45309 !important; color: #fff !important; }
 .ra-month-pivot tbody tr:nth-child(5) td.ra-td-num { color: #064e3b; font-weight: 600; }
 .ra-month-pivot tbody tr:nth-child(odd) td { background: #fafafa; }
 .ra-month-pivot tbody tr:hover td { background: #f0f9ff !important; }
+
+/* Match the year dropdown to the month control. */
+.flatpickr-calendar .flatpickr-current-month select.fp-year-select {
+    appearance: auto;
+    color: #fff;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 1.08rem;
+    font-weight: 800;
+    min-width: 5.5ch;
+    max-width: 7ch;
+    padding: .1rem;
+    cursor: pointer;
+}
+.flatpickr-calendar select.fp-year-select option { color: #111827; background: #fff; }
+.flatpickr-calendar select.fp-year-select:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.flatpickr-calendar[lang="th"] .flatpickr-weekday { font-size: .82rem; letter-spacing: 0; }
 

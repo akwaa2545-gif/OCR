@@ -4,11 +4,13 @@ WORKDIR /src
 
 # Restore layer cached until csproj changes
 COPY OperatorCertificationRecord.PhotoCompatibility/OperatorCertificationRecord.PhotoCompatibility.csproj OperatorCertificationRecord.PhotoCompatibility/
+COPY OperatorCertificationRecord.FileStorage/OperatorCertificationRecord.FileStorage.csproj OperatorCertificationRecord.FileStorage/
 COPY OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj OperatorCertificationRecord.Web/
 RUN dotnet restore OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj -r linux-x64
 
 # Copy source and publish
 COPY OperatorCertificationRecord.PhotoCompatibility/ OperatorCertificationRecord.PhotoCompatibility/
+COPY OperatorCertificationRecord.FileStorage/ OperatorCertificationRecord.FileStorage/
 COPY OperatorCertificationRecord.Web/ OperatorCertificationRecord.Web/
 RUN dotnet publish OperatorCertificationRecord.Web/OperatorCertificationRecord.Web.csproj \
     -c Release -r linux-x64 --self-contained false -o /app/publish --no-restore
@@ -36,6 +38,8 @@ RUN apt-get update && \
 # Tell PuppeteerSharp where system Chromium lives (no download needed)
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV ASPNETCORE_URLS=http://+:80
+LABEL ocr.sql-file-storage="1" ocr.sql-access-roles="1"
 
 COPY --from=build /app/publish .
 

@@ -11,7 +11,7 @@ using OperatorCertificationRecord.Web.Filters;
 
 namespace OperatorCertificationRecord.Web.Pages
 {
-    [AdminOnly]
+    [UpdateUserAccess]
     public class UpdateUserModel : PageModel
     {
         private readonly EmployeeService _employeeService;
@@ -68,6 +68,7 @@ namespace OperatorCertificationRecord.Web.Pages
         public string Message { get; set; } = "";
         public string MessageType { get; set; } = "";
         public string? PhotoPath { get; set; }
+        [BindProperty] public byte[]? PhotoFileStorageVersion { get; set; }
         public string? PhotoUrl { get; set; }
 
         // Display the user name that will be recorded when performing actions like resign
@@ -109,6 +110,12 @@ namespace OperatorCertificationRecord.Web.Pages
             {
                 Response.Redirect("/Login");
                 return;
+            }
+
+            if (TempData["Message"] is string statusMessage)
+            {
+                Message = statusMessage;
+                MessageType = TempData["MessageType"] as string ?? "success";
             }
 
             // set recorded user for UI display
@@ -220,6 +227,9 @@ namespace OperatorCertificationRecord.Web.Pages
                     Shift = Shift,
                     JoinDate = JoinDate,
                     PhotoPath = path,
+                    LegacyPhotoPath = emp.LegacyPhotoPath,
+                    PhotoFileId = emp.PhotoFileId,
+                    FileStorageVersion = PhotoFileStorageVersion ?? emp.FileStorageVersion,
                     StatusWork = emp.StatusWork,
                     ResignBy = emp.ResignBy,
                     ResignDate = emp.ResignDate,
@@ -232,15 +242,9 @@ namespace OperatorCertificationRecord.Web.Pages
                 {
                     if (PhotoFile != null && PhotoFile.Length > 0)
                     {
-                        await _photoStorageService.StoreAndCommitAsync(
-                            EmpCode!,
-                            PhotoFile,
-                            async (storedPhoto, _) =>
-                            {
-                                photoPath = storedPhoto.DatabasePath;
-                                return await _employeeService.UpdateEmployeeAsync(UpdatedEmployee(photoPath));
-                            },
-                            HttpContext.RequestAborted);
+                        var savedPhoto = await _photoStorageService.SaveEmployeeAsync(UpdatedEmployee(photoPath), PhotoFile, false,
+                            HttpContext.Session.GetString("UserCode") ?? "", HttpContext.RequestAborted);
+                        photoPath = savedPhoto.DatabasePath;
                         success = true;
                     }
                     else
@@ -272,10 +276,16 @@ namespace OperatorCertificationRecord.Web.Pages
                 }
                 if (success)
                 {
-                    Message = "Employee updated successfully.";
+                    Message = $"Employee {EmpCode} updated.";
                     MessageType = "success";
                     PhotoPath = photoPath;
                     PhotoUrl = ResolvePublicPhotoUrl(photoPath);
+                    var refreshedEmployee = await _employeeService.GetEmployeeByCodeAsync(EmpCode!);
+                    PhotoFileStorageVersion = refreshedEmployee?.FileStorageVersion;
+                    ModelState.Remove(nameof(PhotoFileStorageVersion));
+                    if (string.Equals(HttpContext.Session.GetString("UserCode"), EmpCode, StringComparison.Ordinal))
+                        HttpContext.Session.SetString("PhotoPath", photoPath.StartsWith("/api/photo/employee/", StringComparison.OrdinalIgnoreCase)
+                            ? EmployeeFileUrls.CurrentPhoto(EmpCode!) : photoPath);
                     FoundEmployee = true;
                 }
                 else
@@ -370,32 +380,23 @@ namespace OperatorCertificationRecord.Web.Pages
                     DownloadPath = null
                 };
 
-                // handle file upload
-                if (SkillFile != null && SkillFile.Length > 0)
+                bool ok;
+                try
                 {
-                    try
-                    {
-                        var uploadsFolder = ResolveUploadDir(_configuration, EmpCode ?? "");
-                        if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-                        var fileName = CertificateStoragePaths.NewFileName(SkillFile.FileName);
-                        var filePath = Path.Combine(uploadsFolder, fileName);
-                        using (var stream = new FileStream(filePath, FileMode.CreateNew)) await SkillFile.CopyToAsync(stream);
-                        input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, fileName);
-                    }
-                    catch (Exception ex)
-                    {
-                        Message = $"Error uploading skill file: {ex.Message}";
-                        MessageType = "error";
-                        FoundEmployee = true;
-                        await LoadDropdowns(DeptID);
-                        return Page();
-                    }
+                    ok = await HttpContext.RequestServices.GetRequiredService<EmployeeCertificateStorageService>().SaveAsync(
+                        input, SkillFile, HttpContext.Session.GetString("UserCode") ?? "", HttpContext.RequestAborted);
                 }
-
-                var ok = await _employeeService.AddOrUpdateQualifiedAsync(input);
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger?.LogError(ex, "Certificate publication failed for employee {EmployeeCode}", EmpCode);
+                    Message = "The certificate could not be saved. Reload the employee and try again.";
+                    MessageType = "error";
+                    await LoadDropdowns(DeptID);
+                    return Page();
+                }
                 if (ok)
                 {
-                    Message = "Skill saved.";
+                    Message = $"Skill {Skill_ProcessName} saved for employee {EmpCode}.";
                     MessageType = "success";
                 }
                 else
@@ -434,6 +435,8 @@ namespace OperatorCertificationRecord.Web.Pages
                 if (ok)
                 {
                     // on successful resign, redirect to ViewUser so the resigned state is shown there
+                    TempData["Message"] = $"Employee {EmpCode} marked as resigned.";
+                    TempData["MessageType"] = "success";
                     return Redirect($"/ViewUser?empCode={EmpCode}");
                 }
                 else
@@ -580,6 +583,8 @@ namespace OperatorCertificationRecord.Web.Pages
 
                 if (ok)
                 {
+                    TempData["Message"] = $"Employee {EmpCode} transferred to the selected workshop and shift.";
+                    TempData["MessageType"] = "success";
                     return Redirect($"/ViewUser?empCode={EmpCode}");
                 }
                 else
@@ -610,6 +615,7 @@ namespace OperatorCertificationRecord.Web.Pages
             WorkshopID = emp.WorkshopID;
             Shift = emp.Shift;
             JoinDate = emp.JoinDate;
+            PhotoFileStorageVersion = emp.FileStorageVersion;
             PhotoPath = emp.PhotoPath;
             PhotoUrl = ResolvePublicPhotoUrl(emp.PhotoPath);
             Notice = emp.Notice;
@@ -724,6 +730,7 @@ namespace OperatorCertificationRecord.Web.Pages
         {
             _logger?.LogInformation("UpdateUser ResolvePublicPhotoUrl called with storedPath={StoredPath}", storedPath);
             if (string.IsNullOrWhiteSpace(storedPath)) return null;
+        if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
             if (storedPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || storedPath.StartsWith("/photos/", StringComparison.OrdinalIgnoreCase))
             {
                 var fn = Path.GetFileName(storedPath);

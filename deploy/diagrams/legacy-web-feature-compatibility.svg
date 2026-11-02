@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="590" viewBox="0 0 1360 590" role="img" aria-labelledby="title description">
+  <title id="title">Old program and web app feature compatibility</title>
+  <desc id="description">Two main lines represent the old program and the web app. Five connecting paths join employee information, photos and PDFs, skills and certificates, report rules and exclusions, and workshops and processes. Web-only tools stay on the web app line. These are compatibility targets, not confirmation of installed releases.</desc>
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; }
+      .heading { font-size: 28px; font-weight: 700; fill: #17243b; }
+      .subtitle { font-size: 18px; fill: #57677e; }
+      .app { font-size: 23px; font-weight: 700; }
+      .feature { font-size: 19px; font-weight: 600; fill: #184d3d; text-anchor: middle; }
+      .note { font-size: 17px; fill: #57677e; }
+      .bridge { fill: none; stroke: #209776; stroke-width: 5; stroke-linecap: round; }
+      .card { fill: #f0faf5; stroke: #9ccfbb; stroke-width: 1.5; }
+    </style>
+    <marker id="old-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10" fill="#c77a16"/></marker>
+    <marker id="web-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10" fill="#2867ba"/></marker>
+  </defs>
+  <rect width="1360" height="590" rx="18" fill="#ffffff"/>
+  <text x="40" y="46" class="heading">Old program and web app</text>
+  <text x="40" y="76" class="subtitle">Shared features connect both applications.</text>
+
+  <path d="M264 130H1306" fill="none" stroke="#c77a16" stroke-width="7" stroke-linecap="round" marker-end="url(#old-arrow)"/>
+  <path d="M264 420H1306" fill="none" stroke="#2867ba" stroke-width="7" stroke-linecap="round" marker-end="url(#web-arrow)"/>
+  <rect x="40" y="103" width="204" height="54" rx="12" fill="#fff0d4" stroke="#e3bd7f"/>
+  <text x="142" y="139" text-anchor="middle" class="app" fill="#79420a">Old program</text>
+  <rect x="40" y="393" width="204" height="54" rx="12" fill="#2867ba"/>
+  <text x="142" y="429" text-anchor="middle" class="app" fill="#ffffff">Web app</text>
+
+  <g>
+    <path class="bridge" d="M338 130C338 177 360 177 360 235M360 315C360 373 382 373 382 420"/>
+    <circle cx="338" cy="130" r="9" fill="#ffffff" stroke="#c77a16" stroke-width="4"/>
+    <circle cx="382" cy="420" r="9" fill="#ffffff" stroke="#2867ba" stroke-width="4"/>
+    <rect class="card" x="267" y="235" width="186" height="80" rx="14"/>
+    <text class="feature" x="360" y="268"><tspan x="360">Employee</tspan><tspan x="360" dy="27">information</tspan></text>
+  </g>
+  <g>
+    <path class="bridge" d="M548 130C548 177 570 177 570 235M570 315C570 373 592 373 592 420"/>
+    <circle cx="548" cy="130" r="9" fill="#ffffff" stroke="#c77a16" stroke-width="4"/>
+    <circle cx="592" cy="420" r="9" fill="#ffffff" stroke="#2867ba" stroke-width="4"/>
+    <rect class="card" x="477" y="235" width="186" height="80" rx="14"/>
+    <text class="feature" x="570" y="268"><tspan x="570">Photos</tspan><tspan x="570" dy="27">and PDFs</tspan></text>
+  </g>
+  <g>
+    <path class="bridge" d="M758 130C758 177 780 177 780 235M780 315C780 373 802 373 802 420"/>
+    <circle cx="758" cy="130" r="9" fill="#ffffff" stroke="#c77a16" stroke-width="4"/>
+    <circle cx="802" cy="420" r="9" fill="#ffffff" stroke="#2867ba" stroke-width="4"/>
+    <rect class="card" x="687" y="235" width="186" height="80" rx="14"/>
+    <text class="feature" x="780" y="268"><tspan x="780">Skills and</tspan><tspan x="780" dy="27">certificates</tspan></text>
+  </g>
+  <g>
+    <path class="bridge" d="M968 130C968 177 990 177 990 235M990 315C990 373 1012 373 1012 420"/>
+    <circle cx="968" cy="130" r="9" fill="#ffffff" stroke="#c77a16" stroke-width="4"/>
+    <circle cx="1012" cy="420" r="9" fill="#ffffff" stroke="#2867ba" stroke-width="4"/>
+    <rect class="card" x="897" y="235" width="186" height="80" rx="14"/>
+    <text class="feature" x="990" y="268"><tspan x="990">Report rules</tspan><tspan x="990" dy="27">and exclusions</tspan></text>
+  </g>
+  <g>
+    <path class="bridge" d="M1178 130C1178 177 1200 177 1200 235M1200 315C1200 373 1222 373 1222 420"/>
+    <circle cx="1178" cy="130" r="9" fill="#ffffff" stroke="#c77a16" stroke-width="4"/>
+    <circle cx="1222" cy="420" r="9" fill="#ffffff" stroke="#2867ba" stroke-width="4"/>
+    <rect class="card" x="1107" y="235" width="186" height="80" rx="14"/>
+    <text class="feature" x="1200" y="268"><tspan x="1200">Workshops</tspan><tspan x="1200" dy="27">and processes</tspan></text>
+  </g>
+
+  <path d="M802 432V476" fill="none" stroke="#2867ba" stroke-width="2"/>
+  <rect x="267" y="476" width="1026" height="48" rx="12" fill="#edf4fd" stroke="#c4d8f2"/>
+  <text x="287" y="507" font-size="17" fill="#244c7e"><tspan font-weight="700">Web only:</tspan> Admin tools · Skill recovery · Activity log · Browser sign-in</text>
+  <circle cx="48" cy="562" r="6" fill="#209776"/>
+  <text x="64" y="568" class="note">A connecting feature means both apps must follow the same data rules. Installed releases still need verification.</text>
+</svg>

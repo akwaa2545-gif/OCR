@@ -18,7 +18,7 @@ function setup(fetch) {
     };
     const context = vm.createContext({ document: { getElementById: id => elements[id] }, fetch,
         Option: function(text, value) { this.text = text; this.value = value; },
-        Toast: { info() {} }, setTimeout: fn => fn() });
+        Toast: { info() {} }, EmployeeForms: { submit: form => { if (!form.reportValidity()) return false; form.submit(); return true; } }, setTimeout: fn => fn() });
     vm.runInContext(sections + submit, context);
     return { elements, context };
 }

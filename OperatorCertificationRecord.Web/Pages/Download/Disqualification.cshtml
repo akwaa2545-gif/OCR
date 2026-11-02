@@ -5,9 +5,9 @@
     ViewData["ActivePage"] = "DownloadDisqualification";
 }
 
-<div class="page-header">
+<div class="page-header page-intro">
     <div>
-        <h1 class="page-title">Download Disqualification Data</h1>
+
         <p class="page-subtitle">Export disqualification records</p>
     </div>
 </div>
@@ -65,6 +65,7 @@
                         <button data-days="7" onclick="setPreset(7)">Last 7 days</button>
                         <button data-days="30" onclick="setPreset(30)">Last 30 days</button>
                         <button data-days="365" onclick="setPreset(365)">Last Year</button>
+                        <button data-days="year" class="active" onclick="setPreset('year')">This year</button>
                         <button data-days="0" onclick="setPreset(0)">All Time</button>
                     </div>
                 </div>
@@ -120,9 +121,8 @@
 
         const today = new Date();
         const prior = new Date(); prior.setDate(today.getDate() - 30);
-        function toInputDate(d){ return d.toISOString().slice(0,10); }
-        startEl.value = toInputDate(prior);
-        endEl.value = toInputDate(today);
+        function toInputDate(d){ return ReportDateRanges.formatLocal(d); }
+        ReportDateRanges.initialize(startEl, endEl);
 
         const deptEl = document.getElementById('dqDept');
         const sectEl = document.getElementById('dqSect');
@@ -132,7 +132,7 @@
         let previewTimer = null;
 
         function setActivePreset(days){
-            document.querySelectorAll('.dq-preset-btns button').forEach(b => {
+            startEl.closest('.card').querySelectorAll('.dq-preset-btns button').forEach(b => {
                 b.classList.toggle('active', b.getAttribute('data-days') == String(days));
             });
         }
@@ -203,22 +203,13 @@
         }
 
         window.setPreset = function(days){
-            const e = new Date();
-            if (days === 0) {
-                const s = new Date(2000, 0, 1);
-                startEl.value = toInputDate(s);
-                endEl.value = toInputDate(new Date(2099, 11, 31));
-            } else {
-                const s = new Date(); s.setDate(e.getDate() - (days-1));
-                startEl.value = toInputDate(s);
-                endEl.value = toInputDate(e);
-            }
+            ReportDateRanges.apply(startEl, endEl, days);
             setActivePreset(days);
             scheduleAutoPreview();
         };
 
         // initialize active preset
-        setActivePreset(30);
+        setActivePreset('year');
 
 
 

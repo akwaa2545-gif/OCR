@@ -1,8 +1,12 @@
 ﻿@page
 @model OperatorCertificationRecord.Web.Pages.UpdateUserModel
+@inject OperatorCertificationRecord.Web.Services.AdminService AdminService
+@inject OperatorCertificationRecord.Web.Services.DeveloperRoleService DeveloperRoles
 @{
     ViewData["Title"] = "Update Employee";
     ViewData["ActivePage"] = "UpdateUser";
+    bool isAdmin = AdminService.IsAdmin(HttpContext.Session.GetString("UserCode"));
+    bool isDeveloper = DeveloperRoles.IsDeveloper(HttpContext.Session.GetString("UserCode"));
     var photoUrl = Model.PhotoUrl ?? "/images/placeholder-employee.svg";
     var deptName = Model.Departments.FirstOrDefault(d => d.DeptID == Model.DeptID)?.DeptName ?? "-";
     var sectName = Model.Sections.FirstOrDefault(s => s.SectID == Model.SectID)?.SectName ?? "-";
@@ -13,7 +17,13 @@
     bool tenOk = Model.PromotionInfo != null && Model.PromotionInfo.TenureMonths >= Model.PromotionInfo.RequiredTenureMonths;
 }
 
-<div class="uu-layout">
+
+@if (!string.IsNullOrWhiteSpace(Model.Message))
+{
+    <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger")" role="@(Model.MessageType == "success" ? "status" : "alert")">@Model.Message</div>
+}
+
+<div class="uu-layout employee-form-page">
 
     <!-- =====================================================
          LEFT SIDEBAR
@@ -23,9 +33,12 @@
         <div class="uu-card uu-photo-card">
             <div class="uu-avatar-ring @(Model.IsResigned ? "ring-resigned" : Model.IsPromoted ? "ring-promoted" : "ring-default")">
                 <img id="photoTopRight" src="@photoUrl" class="uu-avatar-img" alt="Employee Photo" />
-                <button type="button" class="uu-cam-btn" onclick="document.getElementById('PhotoFile').click()" title="Change photo">
-                    <i class="bi bi-camera-fill"></i>
-                </button>
+                @if (isAdmin)
+                {
+                    <button type="button" class="uu-cam-btn" onclick="document.getElementById('PhotoFile').click()" title="Change photo">
+                        <i class="bi bi-camera-fill"></i>
+                    </button>
+                }
             </div>
             <div class="uu-avatar-name">
                 @(Model.PrefixEng) @(Model.FirstNameEng) @(Model.LastNameEng)
@@ -98,11 +111,12 @@
 
         <div class="uu-card uu-nav-card">
             <a href="/ViewUser?empCode=@Model.EmpCode" class="uu-nav-link">
-                <i class="bi bi-person-lines-fill"></i> View Full Profile
+                <i class="bi bi-person-lines-fill" aria-hidden="true"></i> View Full Profile
             </a>
-            <button type="button" class="uu-nav-link" onclick="history.back()">
-                <i class="bi bi-arrow-left"></i> Go Back
-            </button>
+            <a asp-page="@(string.IsNullOrWhiteSpace(Model.EmpCode) ? "/Dashboard" : "/ViewUser")"
+               asp-route-empCode="@(string.IsNullOrWhiteSpace(Model.EmpCode) ? null : Model.EmpCode)" class="uu-nav-link">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Go Back
+            </a>
         </div>
 
     </aside>
@@ -113,7 +127,72 @@
     <main class="uu-main">
         @if (Model.FoundEmployee)
         {
-            <form method="post" enctype="multipart/form-data" id="updateUserForm">
+            @if (isDeveloper)
+            {
+                var employeeIsAdmin = AdminService.IsAdmin(Model.EmpCode);
+                var employeeIsDeveloper = DeveloperRoles.IsDeveloper(Model.EmpCode);
+                <section class="uu-section uu-access-section" aria-labelledby="employeeAccessHeading">
+                    <div class="uu-section-hdr">
+                        <div class="uu-section-icon" style="background:#fff7ed;color:#ea580c;"><i class="bi bi-shield-lock" aria-hidden="true"></i></div>
+                        <div>
+                            <h2 id="employeeAccessHeading" class="uu-section-title">Application access</h2>
+                            <div class="uu-section-sub">Manage each role separately from the employee's job grade.</div>
+                        </div>
+                    </div>
+                    <div class="uu-access-roles">
+                        <div class="uu-access-grade">
+                            <span class="uu-label">Job Grade</span>
+                            <strong>@(Model.JobGrade ?? "-")</strong>
+                            <span class="uu-access-grade-note">Current grade</span>
+                        </div>
+                        <form method="post" asp-page="/AccessRole" class="uu-role-form">
+                            <input type="hidden" name="empCode" value="@Model.EmpCode" />
+                            <input type="hidden" name="roleKind" value="admin" />
+                            <div class="uu-role-heading">
+                                <h3>Admin</h3>
+                                <span class="uu-role-status @(employeeIsAdmin ? "is-granted" : "")">@(employeeIsAdmin ? "Granted" : "Not granted")</span>
+                            </div>
+                            <p id="employeeAdminDescription" class="uu-role-description">Edit employee profiles and use Admin Tools.</p>
+                            <div class="uu-role-controls">
+                                <div class="uu-role-select">
+                                    <label for="employeeAdminAccess" class="uu-label">Admin access</label>
+                                    <select id="employeeAdminAccess" name="accessEnabled" class="uu-input" aria-describedby="employeeAdminDescription" data-no-fancy>
+                                        <option value="false" selected="@(!employeeIsAdmin)">Not granted</option>
+                                        <option value="true" selected="@(employeeIsAdmin)">Granted</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="uu-role-apply" aria-label="Save Admin access">Save</button>
+                            </div>
+                        </form>
+                        <form method="post" asp-page="/AccessRole" class="uu-role-form">
+                            <input type="hidden" name="empCode" value="@Model.EmpCode" />
+                            <input type="hidden" name="roleKind" value="developer" />
+                            <div class="uu-role-heading">
+                                <h3>Developer</h3>
+                                <span class="uu-role-status @(employeeIsDeveloper ? "is-granted" : "")">@(employeeIsDeveloper ? "Granted" : "Not granted")</span>
+                            </div>
+                            <p id="employeeDeveloperDescription" class="uu-role-description">Manage application access and use Dev Tools.</p>
+                            <div class="uu-role-controls">
+                                <div class="uu-role-select">
+                                    <label for="employeeDeveloperAccess" class="uu-label">Developer access</label>
+                                    <select id="employeeDeveloperAccess" name="accessEnabled" class="uu-input" aria-describedby="employeeDeveloperDescription" data-no-fancy>
+                                        <option value="false" selected="@(!employeeIsDeveloper)">Not granted</option>
+                                        <option value="true" selected="@(employeeIsDeveloper)">Granted</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="uu-role-apply" aria-label="Save Developer access">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            }
+            @if (!isAdmin)
+            {
+                <p class="uu-readonly-note">Employee profile details are read-only. Admin access is required to change them.</p>
+            }
+            <form method="post" enctype="multipart/form-data" id="updateUserForm" data-employee-form>
+                <fieldset class="uu-profile-fields" disabled="@(!isAdmin)" inert="@(!isAdmin ? string.Empty : null)">
+    <input type="hidden" name="PhotoFileStorageVersion" value="@(Model.PhotoFileStorageVersion == null ? "" : Convert.ToBase64String(Model.PhotoFileStorageVersion))" />
                 <div asp-validation-summary="All" class="text-danger" role="alert"></div>
                 <input type="hidden" name="action" id="formActionInput" value="" />
                 <input type="hidden" name="Transfer_DeptID" id="transferDeptInput" value="" />
@@ -134,10 +213,12 @@
                         <div class="uu-field">
                             <label class="uu-label">Employee No.</label>
                             <input type="number" class="uu-input" id="EmpCode" asp-for="EmpCode" readonly>
+                        <span asp-validation-for="EmpCode" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Join Date</label>
                             <input type="date" class="uu-input" id="JoinDate" asp-for="JoinDate" required>
+                        <span asp-validation-for="JoinDate" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Job Grade</label>
@@ -152,6 +233,7 @@
                                     <option value="@jg.JobGradeID" selected="@(Model.JobGrade == jg.JobGradeID)">@jg.JobGradeID</option>
                                 }
                             </select>
+                        <span asp-validation-for="JobGrade" class="employee-field-error"></span>
                         </div>
                     </div>
                 </div>
@@ -177,14 +259,17 @@
                                         <option value="Ms.">Ms.</option>
                                         <option value="Mrs.">Mrs.</option>
                                     </select>
+                        <span asp-validation-for="PrefixEng" class="employee-field-error"></span>
                                 </div>
                                 <div class="uu-field">
                                     <label class="uu-label">First Name</label>
                                     <input type="text" class="uu-input" id="FirstNameEng" asp-for="FirstNameEng">
+                        <span asp-validation-for="FirstNameEng" class="employee-field-error"></span>
                                 </div>
                                 <div class="uu-field">
                                     <label class="uu-label">Last Name</label>
                                     <input type="text" class="uu-input" id="LastNameEng" asp-for="LastNameEng">
+                        <span asp-validation-for="LastNameEng" class="employee-field-error"></span>
                                 </div>
                             </div>
                         </div>
@@ -200,14 +285,17 @@
                                         <option value="นาง">นาง</option>
                                         <option value="นางสาว">นางสาว</option>
                                     </select>
+                        <span asp-validation-for="PrefixThai" class="employee-field-error"></span>
                                 </div>
                                 <div class="uu-field">
                                     <label class="uu-label">ชื่อ</label>
                                     <input type="text" class="uu-input" id="FirstNameThai" asp-for="FirstNameThai">
+                        <span asp-validation-for="FirstNameThai" class="employee-field-error"></span>
                                 </div>
                                 <div class="uu-field">
                                     <label class="uu-label">นามสกุล</label>
                                     <input type="text" class="uu-input" id="LastNameThai" asp-for="LastNameThai">
+                        <span asp-validation-for="LastNameThai" class="employee-field-error"></span>
                                 </div>
                             </div>
                         </div>
@@ -237,6 +325,7 @@
                                     <option value="@dept.DeptID" selected="@(Model.DeptID == dept.DeptID)">@dept.DeptName</option>
                                 }
                             </select>
+                        <span asp-validation-for="DeptID" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Section</label>
@@ -251,6 +340,7 @@
                                     <option value="@sect.SectID" selected="@(Model.SectID == sect.SectID)">@sect.SectName</option>
                                 }
                             </select>
+                        <span asp-validation-for="SectID" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Workshop</label>
@@ -265,6 +355,7 @@
                                     <option value="@workshop.WorkshopID" selected="@(Model.WorkshopID == workshop.WorkshopID)">@workshop.WorkshopName</option>
                                 }
                             </select>
+                        <span asp-validation-for="WorkshopID" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Shift</label>
@@ -275,6 +366,7 @@
                                 <option value="C">C</option>
                                 <option value="DAY">DAY</option>
                             </select>
+                        <span asp-validation-for="Shift" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Notice</label>
@@ -285,6 +377,7 @@
                                     <option value="@n" selected="@(Model.Notice == n)">@n</option>
                                 }
                             </select>
+                        <span asp-validation-for="Notice" class="employee-field-error"></span>
                         </div>
                         <div class="uu-field">
                             <label class="uu-label">Qualified Processes</label>
@@ -316,12 +409,13 @@
                         </label>
                         <input type="file" id="PhotoFile" asp-for="PhotoFile" accept=".jpg,.jpeg,.png,.gif,.bmp,.webp"
                                onchange="previewPhoto(event)" style="display:none;">
+                        <span asp-validation-for="PhotoFile" class="employee-field-error"></span>
                     </div>
                 </div>
 
                 <!-- Action bar -->
                 <div class="uu-actions">
-                    <button type="button" id="updateEmployeeBtn" class="uu-btn uu-btn-primary" onclick="submitUpdate('update')">
+                    <button type="button" id="updateEmployeeBtn" data-save-action class="uu-btn uu-btn-primary" onclick="submitUpdate('update')">
                         <i class="bi bi-check-circle-fill"></i> Save Changes
                     </button>
                     @if (Model.IsResigned)
@@ -366,6 +460,7 @@
                     }
                 </div>
 
+                </fieldset>
             </form>
 
             <!-- ============================================
@@ -627,6 +722,36 @@
    ================================================================ */
 
 /* Layout */
+.uu-profile-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.uu-access-section .uu-section-hdr { padding: 16px 18px; }
+.uu-access-section .uu-section-icon { width: 36px; height: 36px; font-size: 16px; }
+.uu-access-roles { display: grid; grid-template-columns: 120px repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px; }
+.uu-access-grade { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 16px; border: 1px solid #e2e8f0; border-top: 3px solid #f97316; border-radius: 8px; background: #f8fafc; }
+.uu-access-grade strong { color: #0f172a; font-size: 24px; line-height: 1.2; }
+.uu-access-grade-note { color: #64748b; font-size: 11px; }
+.uu-role-form { display: flex; flex-direction: column; min-width: 0; gap: 10px; margin: 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+.uu-role-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.uu-role-heading h3 { margin: 0; color: #0f172a; font-size: 15px; font-weight: 700; }
+.uu-role-status { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid #e2e8f0; border-radius: 5px; background: #f8fafc; color: #475569; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.uu-role-status.is-granted { border-color: #bbdfcc; background: #effaf4; color: #166534; }
+.uu-role-status.is-granted::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.uu-role-description { margin: 0; color: #475569; font-size: 12px; line-height: 1.5; }
+.uu-role-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; margin-top: auto; padding-top: 4px; }
+.uu-role-select { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
+.uu-role-controls select.uu-input { min-height: 40px; padding: 8px 10px; border: 1px solid #64748b; background: #fff; font-size: 14px; appearance: auto; -webkit-appearance: auto; }
+.uu-role-apply { min-height: 40px; padding: 8px 16px; border: 1px solid #0f172a; border-radius: 7px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.uu-role-apply:hover { background: #334155; }
+.uu-role-apply:focus-visible, .uu-role-controls select.uu-input:focus-visible { outline: 3px solid #ea580c; outline-offset: 3px; }
+.uu-readonly-note { color: #64748b; font-size: 13px; }
+@@media (max-width: 1200px) {
+    .uu-access-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .uu-access-grade { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-left: 3px solid #f97316; }
+    .uu-access-grade strong { font-size: 20px; }
+}
+@@media (max-width: 700px) {
+    .uu-access-roles { grid-template-columns: minmax(0, 1fr); padding: 14px; gap: 12px; }
+    .uu-access-section .uu-section-hdr { padding: 14px; }
+}
 .uu-layout {
     display: grid;
     grid-template-columns: 200px 1fr;
@@ -703,18 +828,22 @@
 .uu-stat-lbl { font-size: 0.54rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* Nav card */
-.uu-nav-card { overflow: hidden; }
+.uu-nav-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow: hidden; }
 .uu-nav-link {
-    display: flex; align-items: center; gap: 0.45rem;
-    padding: 0.45rem 0.7rem; font-size: 0.7rem; font-weight: 600; color: #475569;
-    border-bottom: 1px solid #f1f5f9;
-    text-decoration: none; background: none;
-    border-left: 0; border-right: 0; border-top: 0;
-    width: 100%; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    min-height: 52px; padding: 12px 10px;
+    font-size: 14px; font-weight: 700; line-height: 1.3; color: #334155;
+    border: 1px solid #64748b; border-radius: 8px;
+    text-decoration: none; background: #fff;
+    width: 100%; box-sizing: border-box; cursor: pointer;
     transition: background 0.14s, color 0.14s;
 }
-.uu-nav-link:last-child { border-bottom: 0; }
-.uu-nav-link:hover { background: #fff7ed; color: #ea580c; }
+.uu-nav-link i { flex: 0 0 20px; font-size: 20px; text-align: center; }
+.uu-nav-link:first-child { background: #0f172a; border-color: #0f172a; color: #fff; }
+.uu-nav-link:first-child i { color: #fdba74; }
+.uu-nav-link:hover { background: #fff7ed; color: #9a3412; }
+.uu-nav-link:first-child:hover { background: #334155; border-color: #334155; color: #fff; }
+.uu-nav-link:focus-visible { outline: 3px solid #c2410c; outline-offset: 2px; }
 
 /* Badges */
 .uu-badge {
@@ -727,7 +856,11 @@
 .uu-badge.resigned { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 
 /* Main */
-.uu-main { display: flex; flex-direction: column; gap: 0.65rem; }
+.uu-main { display: flex; flex-direction: column; min-width: 0; gap: 0.85rem; }
+.uu-main .uu-section-title { margin: 0; font-size: 16px; line-height: 1.4; }
+.uu-main .uu-section-sub { font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 3px; }
+.uu-main .uu-label { font-size: 11px; letter-spacing: .05em; }
+.uu-main .uu-input { min-height: 40px; font-size: 14px; }
 
 .uu-section {
     background: #fff; border: 1px solid #e2e8f0;
@@ -1009,9 +1142,11 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
     .crop-btn-x   { background:rgba(255,255,255,0.08); color:#cbd5e1; }
     .crop-btn:hover { opacity:0.82; }
 </style>
+<link rel="stylesheet" href="~/css/employee-forms.css" asp-append-version="true" />
 }
 
 @section Scripts {
+<script src="~/js/employee-forms.js" asp-append-version="true"></script>
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
 <script>
@@ -1080,6 +1215,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
                 const input = document.getElementById('PhotoFile');
                 closeCropModal();
                 input.files = dt.files;
+                input.dispatchEvent?.(new Event('employee:filechange', { bubbles: true }));
                 const url = URL.createObjectURL(blob);
                 ['photoPreview', 'photoTopRight'].forEach(id => {
                     const el = document.getElementById(id);
@@ -1172,12 +1308,11 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
             const res = await fetch('/api/processes?workshopId=' + encodeURIComponent(ws));
             if (!res.ok) throw new Error();
             const list = await res.json();
-            let html = '<option value="">Select process</option>';
+            procEl.replaceChildren(new Option('Select process', ''));
             list.forEach(p => {
                 const name = p.ProcessName || p.processName || p.name || '';
-                html += `<option value="${name}">${name}</option>`;
+                procEl.add(new Option(name, name));
             });
-            procEl.innerHTML = html;
             const cur = procEl.getAttribute('data-current');
             if (cur) procEl.value = cur;
         } catch { procEl.innerHTML = '<option value="">Select process</option>'; }
@@ -1194,13 +1329,12 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
             const res = await fetch('/api/sections?deptId=' + encodeURIComponent(dept));
             if (!res.ok) throw new Error();
             const list = await res.json();
-            let html = '<option value="">Select section</option>';
+            sectEl.replaceChildren(new Option('Select section', ''));
             list.forEach(s => {
                 const id   = s.SectID || s.sectID || s.sectId || s.id || s.ID;
                 const name = s.SectName || s.sectName || s.name || s.Name || '';
-                html += `<option value="${id}">${name}</option>`;
+                sectEl.add(new Option(name, id));
             });
-            sectEl.innerHTML = html;
             if (preselectSectId) sectEl.value = preselectSectId;
         } catch { sectEl.innerHTML = '<option value="">Select section</option>'; }
     }
@@ -1208,7 +1342,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
     async function submitUpdate(action) {
         const form = document.getElementById('updateUserForm');
         if (!form) return;
-        if (action === 'update' && (document.getElementById('SectID')?.disabled || !form.reportValidity())) return;
+        if (action === 'update' && document.getElementById('SectID')?.disabled) return;
         if (action === 'resign') {
             const modal = document.getElementById('confirmResignModal');
             if (modal) {
@@ -1240,9 +1374,10 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
             }
             return;
         }
-        try { Toast.info('Saving', action === 'update' ? 'Submitting employee update...' : 'Preparing...'); } catch(e){}
         document.getElementById('formActionInput').value = action;
-        form.submit();
+        if (EmployeeForms.submit(form)) {
+            try { Toast.info('Saving', 'Submitting employee update...'); } catch(e){}
+        }
     }
 
     function showPromotionModal() {
@@ -1254,8 +1389,8 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
         try { loadSections(); } catch(e){}
 
         try {
-            const msg  = '@(Model.Message ?? "")'.trim();
-            const type = '@(Model.MessageType ?? "")'.trim();
+            const msg = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Message ?? ""));
+            const type = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MessageType ?? ""));
             if (msg) { type === 'success' ? Toast.success('Success', msg) : Toast.error('Error', msg); }
         } catch(e){}
 
@@ -1267,7 +1402,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
             try { Toast.info('Resigning', 'Recording resignation...'); } catch(e){}
             document.getElementById('formActionInput').value = 'resign';
             rModal.style.display = 'none';
-            setTimeout(() => document.getElementById('updateUserForm').submit(), 120);
+            EmployeeForms.submit(document.getElementById('updateUserForm'), { validate: false });
         });
         rModal?.addEventListener('click', e => { if (e.target === rModal) closeRm(); });
 
@@ -1279,7 +1414,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
             try { Toast.info('Promoting', 'Processing promotion...'); } catch(e){}
             document.getElementById('formActionInput').value = 'promote';
             pModal.style.display = 'none';
-            setTimeout(() => document.getElementById('updateUserForm').submit(), 120);
+            EmployeeForms.submit(document.getElementById('updateUserForm'), { validate: false });
         });
         pModal?.addEventListener('click', e => { if (e.target === pModal) closePm(); });
 
@@ -1303,7 +1438,7 @@ input[type="date"].uu-input:focus { border-left-color: #d97706; box-shadow: 0 0 
             try { Toast.info('Transferring', 'Processing transfer...'); } catch(e){}
             document.getElementById('formActionInput').value = 'transfer';
             tModal.style.display = 'none';
-            setTimeout(() => document.getElementById('updateUserForm').submit(), 120);
+            EmployeeForms.submit(document.getElementById('updateUserForm'), { validate: false });
         });
         tModal?.addEventListener('click', e => { if (e.target === tModal) closeTm(); });
     });

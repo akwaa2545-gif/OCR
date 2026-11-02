@@ -1,0 +1,83 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AdminTools.BulkEmployeesModel
+@{
+    ViewData["Title"] = "Bulk employee updates";
+    ViewData["ActivePage"] = "AdminTools";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-operations.css" asp-append-version="true" />
+}
+<div class="admin-tools-shell">
+    <partial name="_AdminToolsNavigation" model='@("bulk")' />
+    <div class="admin-tools-content admin-ops-page">
+        <header class="admin-ops-header page-intro"><p>Select current employees, choose what to change, then review every change before saving.</p></header>
+        @if (!string.IsNullOrEmpty(Model.StatusMessage))
+        {
+            <div class="admin-ops-notice @(Model.HasError ? "is-error" : "is-success")" role="@(Model.HasError ? "alert" : "status")">@Model.StatusMessage</div>
+        }
+        @if (Model.Preview is { } preview)
+        {
+            <section class="admin-ops-panel" aria-labelledby="bulk-preview-heading">
+                <div class="admin-ops-summary"><div><span class="admin-tools-eyebrow">Review your changes</span><h2 id="bulk-preview-heading">@preview.Batch.Rows.Count selected employees</h2><p class="admin-ops-muted">This preview expires in 10 minutes. If any employee changes, the entire update stops for a fresh review.</p></div><span class="admin-ops-badge">Preview</span></div>
+                <div class="admin-ops-table-wrap" tabindex="0" role="region" aria-label="Before and after employee changes">
+                    <table class="admin-ops-table"><thead><tr><th>Employee</th><th>Workshop</th><th>Shift</th><th>Job grade</th></tr></thead><tbody>
+                    @foreach (var employee in preview.Batch.Rows)
+                    {
+                        <tr><td><strong>@employee.Name</strong><small>@employee.EmpCode</small></td>
+                            <td>@if (preview.Batch.Patch.WorkshopId != null && employee.WorkshopId?.Trim() != preview.Batch.Patch.WorkshopId) { <span class="admin-ops-muted">@(employee.WorkshopName ?? "—") →</span> <strong>@preview.Batch.WorkshopName</strong> } else { @(employee.WorkshopName ?? "—") }</td>
+                            <td>@if (preview.Batch.Patch.Shift != null && employee.Shift?.Trim() != preview.Batch.Patch.Shift) { <span class="admin-ops-muted">@(employee.Shift ?? "—") →</span> <strong>@preview.Batch.Patch.Shift</strong> } else { @(employee.Shift ?? "—") }</td>
+                            <td>@if (preview.Batch.Patch.JobGrade != null && employee.JobGrade?.Trim() != preview.Batch.Patch.JobGrade) { <span class="admin-ops-muted">@(employee.JobGrade ?? "—") →</span> <strong>@preview.Batch.Patch.JobGrade</strong> } else { @(employee.JobGrade ?? "—") }</td></tr>
+                    }
+                    </tbody></table>
+                </div>
+                <form method="post" asp-page-handler="Apply" class="admin-ops-toolbar">
+                    <input type="hidden" name="PreviewToken" value="@preview.Token" />
+                    <input type="hidden" asp-for="Query" /><input type="hidden" asp-for="PageNumber" />
+                    <label class="admin-ops-checkbox"><input asp-for="ConfirmApply" required /> I reviewed these changes and want to apply them.</label>
+                    <button type="submit" class="admin-ops-button"><i class="bi bi-check2-all" aria-hidden="true"></i> Apply reviewed changes</button>
+                    <a asp-page="/AdminTools/BulkEmployees" asp-route-Query="@Model.Query" class="admin-ops-button secondary">Cancel preview</a>
+                </form>
+            </section>
+        }
+        <section class="admin-ops-panel" aria-labelledby="bulk-selection-heading">
+            <div class="admin-ops-summary"><div><span class="admin-tools-eyebrow">1 · Select employees</span><h2 id="bulk-selection-heading">Current employees</h2></div><span class="admin-ops-muted">@Model.Search.Total employees</span></div>
+            <form method="get" class="admin-ops-toolbar">
+                <div class="admin-ops-field"><label for="bulk-search">Employee ID or name</label><input asp-for="Query" id="bulk-search" maxlength="80" type="search" placeholder="Search employees…" /></div>
+                <button type="submit" class="admin-ops-button secondary"><i class="bi bi-search" aria-hidden="true"></i> Search</button>
+            </form>
+            @if (Model.Loaded)
+            {
+                <form method="post" asp-page-handler="Preview" id="bulk-employee-form">
+                    <input type="hidden" asp-for="Query" /><input type="hidden" asp-for="PageNumber" />
+                    <div class="admin-ops-table-wrap" tabindex="0" role="region" aria-label="Select employees to update">
+                        <table class="admin-ops-table"><thead><tr><th><input type="checkbox" id="bulk-select-page" aria-label="Select all editable employees on this page" /></th><th>Employee</th><th>Workshop</th><th>Shift</th><th>Job grade</th></tr></thead><tbody>
+                        @foreach (var employee in Model.Search.Rows)
+                        {
+                            var protectedEmployee = Model.ProtectedCodes.Contains(employee.EmpCode);
+                            <tr><td><input type="checkbox" name="SelectedCodes" value="@employee.EmpCode" checked="@(Model.SelectedCodes.Contains(employee.EmpCode))" disabled="@protectedEmployee" aria-label="Select @employee.Name (@employee.EmpCode)" /></td><td><strong>@employee.Name</strong><small>@employee.EmpCode</small>@if (protectedEmployee) { <span class="admin-ops-badge">Developer · protected</span> }</td><td>@(employee.WorkshopName ?? "—")</td><td>@(employee.Shift ?? "—")</td><td>@(employee.JobGrade ?? "—") @if (employee.Promoted) { <span class="admin-ops-badge">Grade locked</span> }</td></tr>
+                        }
+                        </tbody></table>
+                    </div>
+                    @if (Model.Search.Rows.Count == 0) { <p class="admin-ops-empty">No current employees match this search.</p> }
+                    <p class="admin-ops-muted" id="bulk-selection-count" aria-live="polite">Select employees on this page or enter their IDs below. Maximum 100 per update.</p>
+                    <div class="admin-ops-field"><label asp-for="PastedCodes">Employee IDs (optional)</label><textarea asp-for="PastedCodes" maxlength="2000" rows="2" placeholder="Paste IDs separated by spaces, commas or new lines"></textarea></div>
+                    <div class="admin-ops-summary"><div><span class="admin-tools-eyebrow">2 · Choose changes</span><h2>Keep everything else as it is</h2></div></div>
+                    <div class="admin-ops-grid">
+                        <div class="admin-ops-field"><label for="bulk-workshop">Workshop</label><select asp-for="Patch.WorkshopId" id="bulk-workshop" data-no-fancy><option value="">Keep current workshop</option>@foreach (var choice in Model.Choices.Workshops) { <option value="@choice.Id">@choice.Name</option> }</select></div>
+                        <div class="admin-ops-field"><label for="bulk-shift">Shift</label><select asp-for="Patch.Shift" id="bulk-shift" data-no-fancy><option value="">Keep current shift</option>@foreach (var shift in new[] { "A", "B", "C", "G" }) { <option value="@shift">@shift</option> }</select></div>
+                        <div class="admin-ops-field"><label for="bulk-grade">Job grade</label><select asp-for="Patch.JobGrade" id="bulk-grade" data-no-fancy><option value="">Keep current job grade</option>@foreach (var choice in Model.Choices.Grades) { <option value="@choice.Id">@choice.Id · @choice.Name</option> }</select></div>
+                    </div>
+                    <p class="admin-ops-muted">Promoted employees keep their locked job grade. Names, photos, passwords, skills and access roles are preserved.</p>
+                    <button type="submit" class="admin-ops-button"><i class="bi bi-eye" aria-hidden="true"></i> Preview changes</button>
+                </form>
+                <nav class="admin-ops-pagination" aria-label="Employee pages">
+                    @if (Model.Search.Page > 1) { <a asp-route-Query="@Model.Query" asp-route-PageNumber="@(Model.Search.Page - 1)" class="admin-ops-button secondary">Previous</a> }
+                    <span>Page @Model.Search.Page of @Math.Max(1, (int)Math.Ceiling(Model.Search.Total / 50d))</span>
+                    @if (Model.Search.Page * 50 < Model.Search.Total) { <a asp-route-Query="@Model.Query" asp-route-PageNumber="@(Model.Search.Page + 1)" class="admin-ops-button secondary">Next</a> }
+                </nav>
+            }
+        </section>
+    </div>
+</div>
+@section Scripts { <script src="~/js/admin-bulk-employees.js" asp-append-version="true"></script> }

@@ -5,10 +5,14 @@
     ViewData["ActivePage"] = "UpdateSkill";
 }
 
-<div class="usk-profile-card">
+<div class="usk-profile-card employee-form-page">
     <div class="usk-banner">
+        <div class="usk-employee-photo">
+            <img src="@(Model.PhotoUrl ?? "/images/placeholder-employee.svg")"
+                 alt="Employee @Model.EmpCode photo" width="72" height="88"
+                 onerror="this.onerror=null;this.src='/images/placeholder-employee.svg';" />
+        </div>
         <div class="usk-banner-info">
-            <div class="usk-banner-title">Update Skill Certification</div>
             <div class="usk-banner-name">
                 @(Model.Employee != null && !string.IsNullOrWhiteSpace(Model.Employee.FirstNameEng)
                     ? (Model.Employee.PrefixEng + " " + Model.Employee.FirstNameEng + " " + Model.Employee.LastNameEng).Trim()
@@ -31,21 +35,21 @@
                 }
             </div>
         </div>
-        <div class="usk-banner-icon-wrap">
-            <i class="bi bi-pencil-square usk-banner-icon"></i>
-        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(Model.Message))
     {
-        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") mx-3 mt-3 mb-0" role="alert">
+        <div class="alert alert-@(Model.MessageType == "success" ? "success" : "danger") mx-3 mt-3 mb-0" role="@(Model.MessageType == "success" ? "status" : "alert")">
             <i class="bi bi-@(Model.MessageType == "success" ? "check-circle" : "exclamation-circle")"></i>
             @Model.Message
         </div>
     }
 
     <div class="usk-body">
-        <form method="post" enctype="multipart/form-data" id="skillForm" data-validate>
+        <form method="post" enctype="multipart/form-data" id="skillForm" data-employee-form data-validate>
+            <div asp-validation-summary="All" class="employee-validation-summary" role="alert"></div>
+    <input type="hidden" name="SkillRowId" value="@Model.SkillRowId" />
+    <input type="hidden" name="SkillFileStorageVersion" value="@(Model.SkillFileStorageVersion == null ? "" : Convert.ToBase64String(Model.SkillFileStorageVersion))" />
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmpCode" value="@Model.EmpCode" />
             <input type="hidden" name="Skill_TestResult" id="Skill_TestResult" value="@Model.TestResult" />
@@ -58,28 +62,30 @@
                     @if (!string.IsNullOrEmpty(Model.ProcessName))
                     {
                         <div class="usk-input-static usk-process-badge">@Model.ProcessName</div>
-                        <input type="hidden" name="Skill_ProcessName" value="@Model.ProcessName" />
+                        <input type="hidden" name="Skill_ProcessName" value="@(Model.Skill_ProcessName ?? Model.ProcessName)" />
                     }
                     else
                     {
-                        <select class="usk-input" name="Skill_ProcessName" id="Skill_ProcessName" data-current="@Model.ProcessName" required>
+                        <select class="usk-input" name="Skill_ProcessName" id="Skill_ProcessName" data-current="@(Model.Skill_ProcessName ?? Model.ProcessName)" required>
                             <option value="">Select Process</option>
                             @foreach(var p in Model.Processes)
                             {
                                 <option value="@p.ProcessName">@p.ProcessName</option>
                             }
                         </select>
+                    <span asp-validation-for="Skill_ProcessName" class="employee-field-error"></span>
                     }
                 </div>
                 <div class="usk-field">
                     <label class="usk-field-label">Certification Type</label>
-                    <select class="usk-input" name="Skill_OperatorTraining" id="Skill_OperatorTraining" data-current="@Model.OperatorTraining">
+                    <select class="usk-input" name="Skill_OperatorTraining" id="Skill_OperatorTraining" data-current="@(Model.Skill_OperatorTraining ?? Model.OperatorTraining)">
                         <option value="">Select</option>
                         @foreach(var ot in Model.OperatorTrainings)
                         {
                             <option value="@ot.OperatorTrainingName" selected="@(Model.OperatorTraining == ot.OperatorTrainingName)">@ot.OperatorTrainingName</option>
                         }
                     </select>
+                    <span asp-validation-for="Skill_OperatorTraining" class="employee-field-error"></span>
                 </div>
                 <div class="usk-field">
                     <label class="usk-field-label">Verifier</label>
@@ -92,11 +98,13 @@
             <div class="usk-fields-grid cols-2 mb-3">
                 <div class="usk-field">
                     <label class="usk-field-label">Theory Training</label>
-                    <input type="date" class="usk-input" name="Skill_TheoryTraining" value="@Model.TheoryTraining?.ToString("yyyy-MM-dd")">
+                    <input type="date" class="usk-input" name="Skill_TheoryTraining" value="@((Model.Skill_TheoryTraining ?? Model.TheoryTraining)?.ToString("yyyy-MM-dd"))">
+                    <span asp-validation-for="Skill_TheoryTraining" class="employee-field-error"></span>
                 </div>
                 <div class="usk-field">
                     <label class="usk-field-label">OJT Training</label>
-                    <input type="date" class="usk-input" name="Skill_OJTTraining" value="@Model.OJTTraining?.ToString("yyyy-MM-dd")">
+                    <input type="date" class="usk-input" name="Skill_OJTTraining" value="@((Model.Skill_OJTTraining ?? Model.OJTTraining)?.ToString("yyyy-MM-dd"))">
+                    <span asp-validation-for="Skill_OJTTraining" class="employee-field-error"></span>
                 </div>
             </div>
 
@@ -107,7 +115,8 @@
                 <div class="usk-field">
                     <label class="usk-field-label">Full Score</label>
                     <div class="input-with-icon">
-                        <input type="number" class="usk-input input-medium" name="Skill_FullScore" placeholder="125" value="@Model.FullScore" min="0" max="125" />
+                        <input type="number" class="usk-input input-medium" name="Skill_FullScore" placeholder="125" value="@(Model.Skill_FullScore ?? Model.FullScore)" min="0" max="125" />
+                    <span asp-validation-for="Skill_FullScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="fullScoreIcon">—</span>
                     </div>
                     <div class="form-text text-danger small d-none" id="fullScoreError" style="margin-top:0.25rem;">Must be 0–125.</div>
@@ -115,7 +124,8 @@
                 <div class="usk-field">
                     <label class="usk-field-label">Actual Score</label>
                     <div class="input-with-icon">
-                        <input type="number" class="usk-input input-medium" name="Skill_ActualScore" placeholder="125" value="@Model.ActualScore" min="0" max="125" />
+                        <input type="number" class="usk-input input-medium" name="Skill_ActualScore" placeholder="125" value="@(Model.Skill_ActualScore ?? Model.ActualScore)" min="0" max="125" />
+                    <span asp-validation-for="Skill_ActualScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="actualScoreIcon">—</span>
                     </div>
                     <div class="form-text text-danger small d-none" id="actualScoreError" style="margin-top:0.25rem;">Cannot exceed Full Score.</div>
@@ -135,7 +145,8 @@
                 <div class="usk-field">
                     <label class="usk-field-label">Knowledge Score</label>
                     <div class="input-with-icon">
-                        <input type="number" class="usk-input input-narrow" name="Skill_KnowledgeScore" placeholder="80" value="@Model.KnowledgeScore" min="0" max="125" />
+                        <input type="number" class="usk-input input-narrow" name="Skill_KnowledgeScore" placeholder="80" value="@(Model.Skill_KnowledgeScore ?? Model.KnowledgeScore)" min="0" max="125" />
+                    <span asp-validation-for="Skill_KnowledgeScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="knowledgeValidIcon">—</span>
                         <span id="Skill_KnowledgeLevel_display" class="badge badge-secondary" style="margin-left:8px;">—</span>
                     </div>
@@ -143,7 +154,8 @@
                 <div class="usk-field">
                     <label class="usk-field-label">Skill Score</label>
                     <div class="input-with-icon">
-                        <input type="number" class="usk-input input-narrow" name="Skill_SkillScore" placeholder="90" value="@Model.SkillScore" min="0" max="125" />
+                        <input type="number" class="usk-input input-narrow" name="Skill_SkillScore" placeholder="90" value="@(Model.Skill_SkillScore ?? Model.SkillScore)" min="0" max="125" />
+                    <span asp-validation-for="Skill_SkillScore" class="employee-field-error"></span>
                         <span class="validation-icon neutral" id="skillValidIcon">—</span>
                         <span id="Skill_SkillLevel_display" class="badge badge-secondary" style="margin-left:8px;">—</span>
                     </div>
@@ -163,16 +175,19 @@
             <div class="usk-fields-grid mb-3">
                 <div class="usk-field">
                     <label class="usk-field-label">Certified Date</label>
-                    <input type="date" id="Skill_CertifiedDate" class="usk-input" name="Skill_CertifiedDate" onchange="autoCalculateExpiryDate()" value="@Model.CertifiedDate?.ToString("yyyy-MM-dd")">
+                    <input type="date" id="Skill_CertifiedDate" class="usk-input" name="Skill_CertifiedDate" onchange="autoCalculateExpiryDate()" value="@((Model.Skill_CertifiedDate ?? Model.CertifiedDate)?.ToString("yyyy-MM-dd"))">
+                    <span asp-validation-for="Skill_CertifiedDate" class="employee-field-error"></span>
                 </div>
                 <div class="usk-field">
                     <label class="usk-field-label">Expiry Date</label>
-                    <input type="date" id="Skill_ExpiryDate" class="usk-input" name="Skill_ExpiryDate" value="@Model.ExpiryDate?.ToString("yyyy-MM-dd")">
+                    <input type="date" id="Skill_ExpiryDate" class="usk-input" name="Skill_ExpiryDate" value="@((Model.Skill_ExpiryDate ?? Model.ExpiryDate)?.ToString("yyyy-MM-dd"))">
+                    <span asp-validation-for="Skill_ExpiryDate" class="employee-field-error"></span>
                     <div class="form-text text-danger small d-none" id="expiryDateError" style="margin-top:0.25rem;">Expiry Date must be on or after Certified Date.</div>
                 </div>
                 <div class="usk-field">
                     <label class="usk-field-label">Remarks</label>
-                    <input type="text" class="usk-input" name="Skill_Remark" placeholder="Optional notes..." value="@Model.Remark" />
+                    <input type="text" class="usk-input" name="Skill_Remark" placeholder="Optional notes..." value="@(Model.Skill_Remark ?? Model.Remark)" />
+                    <span asp-validation-for="Skill_Remark" class="employee-field-error"></span>
                 </div>
             </div>
 
@@ -187,20 +202,21 @@
                 </div>
                 <div class="form-text text-danger small d-none" id="skillFileError" style="margin-top:0.4rem;">Please upload a PDF certificate.</div>
                 <input type="file" name="SkillFile" accept="application/pdf" id="skillFileInput" style="display:none;" required>
+                    <span asp-validation-for="SkillFile" class="employee-field-error"></span>
             </div>
 
             <!-- Action Buttons -->
             <input type="hidden" name="action" id="skillFormActionInput" value="" />
             <div class="usk-actions">
-                @if (Model.IsPromoted)
+                @if (Model.IsResigned || (Model.IsPromoted && !Model.CanOverridePromotion))
                 {
-                    <button type="button" class="usk-btn usk-btn-success disabled" aria-disabled="true" title="Employee promoted — cannot update skills">
+                    <button type="button" class="usk-btn usk-btn-success disabled" aria-disabled="true" title="@(Model.IsResigned ? "Employee resigned — cannot update skills" : "Employee promoted — cannot update skills")">
                         <i class="bi bi-check-lg"></i> Confirm &amp; Save
                     </button>
                 }
                 else
                 {
-                    <button type="button" id="confirmSaveBtn" class="usk-btn usk-btn-success" onclick="submitSkill('addskill')">
+                    <button type="button" id="confirmSaveBtn" data-save-action class="usk-btn usk-btn-success" onclick="submitSkill('addskill')">
                         <i class="bi bi-check-lg"></i> Confirm &amp; Save
                     </button>
                 }
@@ -532,9 +548,11 @@
     .usk-btn-ghost { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
     .usk-btn-ghost:hover:not(.disabled) { background: #e2e8f0; }
 </style>
+<link rel="stylesheet" href="~/css/employee-forms.css" asp-append-version="true" />
 }
 
 @section Scripts {
+<script src="~/js/employee-forms.js" asp-append-version="true"></script>
 <script>
     function autoCalculateExpiryDate() {
         try {
@@ -786,6 +804,7 @@
                     _uploadFilename.style.display = 'none';
                     _uploadHint.style.display = '';
                 }
+                updateDerivedFields();
             });
             _uploadZone.addEventListener('dragover', function (e) {
                 e.preventDefault();
@@ -805,6 +824,7 @@
                     const dt = new DataTransfer();
                     dt.items.add(files[0]);
                     _fileInput.files = dt.files;
+                    _fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                     this.classList.add('has-file');
                     _uploadFilename.textContent = files[0].name;
                     _uploadFilename.style.display = '';
@@ -820,16 +840,17 @@
         if (saveBtn && saveBtn.disabled) return;
         const form = document.getElementById('skillForm');
         if (!form) return;
-        try { Toast.info('Saving', 'Saving skill — please wait...'); } catch (e) { }
         const act = document.getElementById('skillFormActionInput');
         if (act) act.value = action;
-        setTimeout(() => form.submit(), 150);
+        if (EmployeeForms.submit(form)) {
+            try { Toast.info('Saving', 'Saving skill — please wait...'); } catch (e) { }
+        }
     }
 
     // show server-side message as toast when present
     try {
-        const serverMsg = '@(Model.Message ?? "")'.trim();
-        const serverType = '@(Model.MessageType ?? "")'.trim();
+        const serverMsg = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Message ?? ""));
+        const serverType = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MessageType ?? ""));
         if (serverMsg) {
             if (serverType === 'success') Toast.success('Success', serverMsg);
             else Toast.error('Error', serverMsg);

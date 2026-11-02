@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace OperatorCertificationRecord.Web.Pages;
 
-[AdminOnly]
+[AdminOrDeveloper]
 public class AddSkillModel : PageModel
 {
     private readonly EmployeeService _employeeService;
@@ -24,6 +24,9 @@ public class AddSkillModel : PageModel
     private readonly DepartmentService _departmentService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AddSkillModel>? _logger;
+    private readonly DeveloperRoleService? _developers;
+
+    public bool CanOverridePromotion => _developers?.IsDeveloper(HttpContext.Session.GetString("UserCode")) == true;
 
     [BindProperty] public string? EmpCode { get; set; }
     [BindProperty(Name = "Skill_ProcessName")] public string? Skill_ProcessName { get; set; }
@@ -75,7 +78,7 @@ public class AddSkillModel : PageModel
 /// PageModel class for AddSkill page.
 /// </summary>
 /*******  7fd9e30a-f569-47d6-ba7b-e4187993055c  *******/
-    public AddSkillModel(EmployeeService employeeService, WorkshopService workshopService, OperatorTrainingService operatorTrainingService, SectionService sectionService, DepartmentService departmentService, IConfiguration configuration, ILogger<AddSkillModel>? logger = null)
+    public AddSkillModel(EmployeeService employeeService, WorkshopService workshopService, OperatorTrainingService operatorTrainingService, SectionService sectionService, DepartmentService departmentService, IConfiguration configuration, ILogger<AddSkillModel>? logger = null, DeveloperRoleService? developers = null)
     {
         _employeeService = employeeService;
         _workshopService = workshopService;
@@ -84,9 +87,10 @@ public class AddSkillModel : PageModel
         _departmentService = departmentService;
         _configuration = configuration;
         _logger = logger;
+        _developers = developers;
     }
 
-    public async Task OnGetAsync(string? empCode)
+    public virtual async Task OnGetAsync(string? empCode)
     {
         var userCode = HttpContext.Session.GetString("UserCode");
         if (string.IsNullOrEmpty(userCode))
@@ -137,7 +141,7 @@ public class AddSkillModel : PageModel
 
             // Check if employee has been promoted and set locked state
             IsPromoted = await _employeeService.IsEmployeePromotedAsync(emp.EmpCode ?? "");
-            if (IsPromoted)
+            if (IsPromoted && !CanOverridePromotion)
             {
                 Message = "Employee has been promoted — cannot add new skills.";
                 MessageType = "error";
@@ -158,6 +162,7 @@ public class AddSkillModel : PageModel
     {
         _logger?.LogInformation("ResolvePublicPhotoUrl called with storedPath={StoredPath}", storedPath);
         if (string.IsNullOrWhiteSpace(storedPath)) return null;
+        if (storedPath.StartsWith("/api/photo/", StringComparison.OrdinalIgnoreCase)) return storedPath;
         if (storedPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) || storedPath.StartsWith("/photos/", StringComparison.OrdinalIgnoreCase))
         {
             var fn = Path.GetFileName(storedPath);
@@ -185,7 +190,7 @@ public class AddSkillModel : PageModel
         // Prevent adding skills for promoted or resigned employees
         if (!string.IsNullOrWhiteSpace(EmpCode))
         {
-            if (await _employeeService.IsEmployeePromotedAsync(EmpCode))
+            if (!CanOverridePromotion && await _employeeService.IsEmployeePromotedAsync(EmpCode))
             {
                 Message = "Employee has been promoted — cannot add new skills.";
                 MessageType = "error";
@@ -223,6 +228,16 @@ public class AddSkillModel : PageModel
         if (string.IsNullOrWhiteSpace(Skill_SkillScore)) missing.Add("Skill Score");
         if (missing.Count > 0)
         {
+            var fields = new Dictionary<string, string>
+            {
+                [nameof(EmpCode)] = "Employee", [nameof(Skill_WorkshopID)] = "Workshop",
+                [nameof(Skill_ProcessName)] = "Process", [nameof(Skill_OperatorTraining)] = "Certification Type",
+                [nameof(Skill_CertifiedDate)] = "Certified Date", [nameof(Skill_ExpiryDate)] = "Expiry Date",
+                [nameof(Skill_FullScore)] = "Full Score", [nameof(Skill_ActualScore)] = "Actual Score",
+                [nameof(Skill_KnowledgeScore)] = "Knowledge Score", [nameof(Skill_SkillScore)] = "Skill Score"
+            };
+            foreach (var field in fields.Where(field => missing.Contains(field.Value)))
+                ModelState.AddModelError(field.Key, $"{field.Value} is required.");
             Message = "Please fill required fields: " + string.Join(", ", missing) + ".";
             MessageType = "error";
             await OnGetAsync(EmpCode);
@@ -256,6 +271,7 @@ public class AddSkillModel : PageModel
             // Require a PDF certificate file to be uploaded when adding a skill
             if (pdfFile == null || pdfFile.Length == 0)
             {
+                ModelState.AddModelError(nameof(SkillFile), "Upload a PDF certificate.");
                 Message = "A PDF certificate is required to add a skill.";
                 MessageType = "error";
                 await OnGetAsync(EmpCode);
@@ -266,41 +282,43 @@ public class AddSkillModel : PageModel
             var extension = Path.GetExtension(pdfFile.FileName) ?? string.Empty;
             if (!extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase) && !string.Equals(pdfFile.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
             {
+                ModelState.AddModelError(nameof(SkillFile), "Choose a PDF file.");
                 Message = "Uploaded file must be a PDF.";
                 MessageType = "error";
                 await OnGetAsync(EmpCode);
                 return Page();
             }
 
-            var safeFileName = CertificateStoragePaths.NewFileName(pdfFile.FileName);
-            var uploadsDir = ResolveUploadDir(_configuration, EmpCode ?? "unknown");
-            Directory.CreateDirectory(uploadsDir);
-            var filePath = Path.Combine(uploadsDir, safeFileName);
-            using (var stream = new FileStream(filePath, FileMode.CreateNew))
-            {
-                await pdfFile.CopyToAsync(stream);
-            }
-            // All certificate entry points write directly to the configured root.
-            // The Windows bridge publishes missing files to the legacy share.
-            input.DownloadPath = ResolveDownloadPath(_configuration, EmpCode, safeFileName);
             {
                 if (!int.TryParse(input.FullScore, out int parsedFull) || parsedFull < 0 || parsedFull > 125)
-                    validationErrors.Add("0 - 125.");
+                {
+                    ModelState.AddModelError(nameof(Skill_FullScore), "Enter a whole number from 0 to 125.");
+                    validationErrors.Add("Check Full Score.");
+                }
             }
             if (!string.IsNullOrWhiteSpace(input.ActualScore))
             {
                 if (!int.TryParse(input.ActualScore, out int parsedActual) || parsedActual < 0 || parsedActual > 125)
-                    validationErrors.Add("0 - 125.");
+                {
+                    ModelState.AddModelError(nameof(Skill_ActualScore), "Enter a whole number from 0 to 125.");
+                    validationErrors.Add("Check Actual Score.");
+                }
             }
             if (!string.IsNullOrWhiteSpace(input.KnowledgeScore))
             {
                 if (!int.TryParse(input.KnowledgeScore, out int parsedKnowledge) || parsedKnowledge < 0 || parsedKnowledge > 125)
-                    validationErrors.Add("0 - 125.");
+                {
+                    ModelState.AddModelError(nameof(Skill_KnowledgeScore), "Enter a whole number from 0 to 125.");
+                    validationErrors.Add("Check Knowledge Score.");
+                }
             }
             if (!string.IsNullOrWhiteSpace(input.SkillScore))
             {
                 if (!int.TryParse(input.SkillScore, out int parsedSkill) || parsedSkill < 0 || parsedSkill > 125)
-                    validationErrors.Add("0 -125.");
+                {
+                    ModelState.AddModelError(nameof(Skill_SkillScore), "Enter a whole number from 0 to 125.");
+                    validationErrors.Add("Check Skill Score.");
+                }
             }
             if (validationErrors.Count > 0)
             {
@@ -342,10 +360,11 @@ public class AddSkillModel : PageModel
                 input.JudgmentPractice = (input.KnowledgeLevel != "X" && input.SkillLevel != "X") ? "Pass" : "Fail";
             }
 
-            var success = await _employeeService.AddOrUpdateQualifiedAsync(input);
+            var success = await HttpContext.RequestServices.GetRequiredService<EmployeeCertificateStorageService>().SaveAsync(
+                    input, SkillFile, HttpContext.Session.GetString("UserCode") ?? "", HttpContext.RequestAborted);
             if (success)
             {
-                TempData["Message"] = "Skill added successfully.";
+                TempData["Message"] = $"Skill {Skill_ProcessName} added for employee {EmpCode}.";
                 TempData["MessageType"] = "success";
                 return RedirectToPage("/ViewUser", new { empCode = EmpCode });
             }
@@ -357,7 +376,8 @@ public class AddSkillModel : PageModel
         }
         catch (Exception ex)
         {
-            Message = $"Error: {ex.Message}";
+            _logger?.LogError(ex, "Certificate publication failed for employee {EmployeeCode}", EmpCode);
+            Message = "The skill could not be saved. Reload the employee and try again.";
             MessageType = "error";
         }
 

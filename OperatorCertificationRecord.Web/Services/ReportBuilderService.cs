@@ -88,9 +88,9 @@ namespace OperatorCertificationRecord.Web.Services
 
             if (startDate.HasValue && endDate.HasValue)
             {
-                sql += " AND q.CertifiedDate BETWEEN @start AND @end";
+                sql += " AND q.CertifiedDate >= @start AND q.CertifiedDate < @end";
                 parameters.Add(new SqlParameter("@start", startDate.Value.Date));
-                parameters.Add(new SqlParameter("@end", endDate.Value.Date.AddDays(1).AddTicks(-1)));
+                parameters.Add(new SqlParameter("@end", endDate.Value.Date.AddDays(1)));
             }
 
             // determine ORDER BY - always include an ORDER BY so OFFSET/FETCH is valid
@@ -182,9 +182,9 @@ namespace OperatorCertificationRecord.Web.Services
 
             if (startDate.HasValue && endDate.HasValue)
             {
-                sql += " AND q.CertifiedDate BETWEEN @start AND @end";
+                sql += " AND q.CertifiedDate >= @start AND q.CertifiedDate < @end";
                 parameters.Add(new SqlParameter("@start", startDate.Value.Date));
-                parameters.Add(new SqlParameter("@end", endDate.Value.Date.AddDays(1).AddTicks(-1)));
+                parameters.Add(new SqlParameter("@end", endDate.Value.Date.AddDays(1)));
             }
 
             using (var conn = new SqlConnection(_connectionString))
@@ -321,9 +321,9 @@ namespace OperatorCertificationRecord.Web.Services
 
             if (startDate.HasValue && endDate.HasValue)
             {
-                sql += $" AND {dateCol} BETWEEN @start AND @end";
+                sql += $" AND {dateCol} >= @start AND {dateCol} < @end";
                 parameters.Add(new SqlParameter("@start", startDate.Value.Date));
-                parameters.Add(new SqlParameter("@end", endDate.Value.Date.AddDays(1).AddTicks(-1)));
+                parameters.Add(new SqlParameter("@end", endDate.Value.Date.AddDays(1)));
             }
 
             if (groupExprs.Count == 1)
@@ -447,9 +447,9 @@ namespace OperatorCertificationRecord.Web.Services
             if (startDate.HasValue && endDate.HasValue)
             {
                 var df = string.IsNullOrWhiteSpace(dateField) ? (onlyDisqualified ? "q.DisqualifiedDate" : "q.CertifiedDate") : ("q." + dateField);
-                sql += $" AND {df} BETWEEN @startRow AND @endRow";
+                sql += $" AND {df} >= @startRow AND {df} < @endRow";
                 parameters.Add(new SqlParameter("@startRow", startDate.Value.Date));
-                parameters.Add(new SqlParameter("@endRow", endDate.Value.Date.AddDays(1).AddTicks(-1)));
+                parameters.Add(new SqlParameter("@endRow", endDate.Value.Date.AddDays(1)));
             }
 
             sql += " ORDER BY q.DeptName, q.SectName, q.ProcessName, q.DisqualifiedDate DESC";

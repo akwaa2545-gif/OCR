@@ -4,7 +4,6 @@
     ViewData["Title"] = "Custom Report Builder";
 }
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .builder-container {
         display: grid;
@@ -928,7 +927,6 @@
 </div>
 
 @section Scripts {
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Report Builder State
@@ -953,7 +951,9 @@
     function initDatePicker() {
         flatpickr('#quickFilterDateRange', {
             mode: 'range',
-            dateFormat: 'Y-m-d'
+            locale: { ...flatpickr.l10ns.th, firstDayOfWeek: 0 },
+            dateFormat: 'Y-m-d',
+            onReady: function(_, __, instance) { window.AppDatePicker.installYearDropdown(instance); }
         });
     }
     

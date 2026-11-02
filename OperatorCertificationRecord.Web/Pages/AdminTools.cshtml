@@ -1,0 +1,54 @@
+@page
+@model OperatorCertificationRecord.Web.Pages.AdminToolsModel
+@{
+    ViewData["Title"] = Model.IsCatalogTool ? "Workshops & Processes" : "Admin Tools";
+    ViewData["ActivePage"] = "AdminTools";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin-tools.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-catalog.css" asp-append-version="true" />
+}
+
+<div class="admin-tools-shell">
+    @await Html.PartialAsync("_AdminToolsNavigation", Model.IsCatalogTool ? "workshops" : "overview")
+    <div class="admin-tools-content">
+        @if (Model.IsCatalogTool)
+        {
+            <partial name="_AdminWorkshopCatalog" model="Model" />
+        }
+        else
+        {
+            <section class="admin-tools-features" aria-label="Available admin tools">
+                <a asp-page="/AdminTools" asp-route-tool="workshops" class="admin-tool-card">
+                    <span class="admin-tool-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
+                    <div class="admin-tool-description">
+                        <h2>Workshops &amp; Processes</h2>
+                        <span class="admin-tool-open">Open tool <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+                <a asp-page="/AdminTools/BulkEmployees" class="admin-tool-card">
+                    <span class="admin-tool-icon"><i class="bi bi-people" aria-hidden="true"></i></span>
+                    <div class="admin-tool-description">
+                        <h2>Bulk Employee Updates</h2>
+                        <span class="admin-tool-open">Open tool <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+                <a asp-page="/AdminTools/MissingFiles" class="admin-tool-card">
+                    <span class="admin-tool-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span>
+                    <div class="admin-tool-description">
+                        <h2>Missing Files Center</h2>
+                        <span class="admin-tool-open">Open tool <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </section>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.IsCatalogTool)
+    {
+        <script src="~/js/admin-catalog.js" asp-append-version="true"></script>
+    }
+}

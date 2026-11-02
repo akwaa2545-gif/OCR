@@ -234,6 +234,11 @@ function Get-OcrContainer {
     param([string]$Name)
     if ($Name -like '*-candidate-*') { return [pscustomobject]@{NetworkSettings=[pscustomobject]@{Ports=[pscustomobject]@{'80/tcp'=@([pscustomobject]@{HostPort='49152'})}}} }
     $existing = New-ExistingContainer
+    $existing.HostConfig.RestartPolicy.Name = $script:previousRestartPolicy
+    if ($script:sqlOldCompatible) {
+        $existing.Config.Labels = [pscustomobject]@{'ocr.sql-file-storage'='1';'ocr.sql-access-roles'='1'}
+        $existing.Config.Env += @('FileStorage__ReadSqlEnabled=true','AccessRoles__Storage=Sql')
+    }
     if ($script:failure -eq 'disable-restart-retries') {
         $existing.HostConfig.RestartPolicy.Name = 'on-failure'
         $existing.HostConfig.RestartPolicy.MaximumRetryCount = 3
@@ -244,16 +249,31 @@ function Invoke-OcrDocker {
     param([string[]]$Arguments)
     $script:operations.Add(($Arguments -join ' '))
     if ($Arguments[0] -eq 'info') { return 'linux' }
+    if ($Arguments[0] -eq 'load') {
+        if ($script:failure -eq 'load') { throw 'simulated archive load failure' }
+        if ($script:failure -eq 'load-tag') { return 'Loaded image: ocr-web:other' }
+        return 'Loaded image: ocr-web:sql-storage'
+    }
+    if ($Arguments[0] -eq 'image') {
+        if ($script:failure -eq 'image-json') { return 'invalid metadata secret-sentinel' }
+        if ($script:failure -eq 'image-id') { return (@{Id='mutable-tag';Os='linux';Architecture='amd64'} | ConvertTo-Json -Compress) }
+        if ($script:failure -eq 'image-arch') { return (@{Id=('sha256:' + ('b' * 64));Os='linux';Architecture='arm64'} | ConvertTo-Json -Compress) }
+        $labels = @{'ocr.sql-file-storage'='1';'ocr.sql-access-roles'='1'}
+        if ($script:failure -eq 'image-labels') { $labels = @{} }
+        if ($script:failure -eq 'image-role-label') { $labels['ocr.sql-access-roles'] = '0' }
+        return (@{Id=('sha256:' + ('b' * 64));Os='linux';Architecture='amd64';Config=@{Labels=$labels}} | ConvertTo-Json -Depth 4 -Compress)
+    }
     if ($script:failure -eq 'pull' -and $Arguments[0] -eq 'pull') { throw 'simulated pull failure' }
     if ($script:failure -eq 'rename' -and $Arguments[0] -eq 'rename') { throw 'simulated rename failure' }
     if ($script:failure -like 'disable-restart*' -and $Arguments[0] -eq 'update' -and $Arguments[2] -eq 'no') { throw 'simulated update failure' }
+    if ($script:failure -eq 'unverified-policy' -and $Arguments[0] -eq 'update' -and $Arguments[2] -eq 'no') { throw 'simulated update failure' }
     return ''
 }
 function Wait-OcrReady {
     param([int]$Port, [int]$Attempts=30)
-    if (($script:failure -eq 'candidate' -and $Port -eq 49152) -or ($script:failure -eq 'final' -and $Port -eq 8081)) { throw 'simulated readiness failure' }
+    if (($script:failure -eq 'candidate' -and $Port -eq 49152) -or ($script:failure -in @('final','unverified-policy') -and $Port -eq 8081)) { throw 'simulated readiness failure' }
 }
-function Reset-Fake { param([string]$Failure='') $script:failure=$Failure; $script:operations=New-Object 'System.Collections.Generic.List[string]' }
+function Reset-Fake { param([string]$Failure='') $script:failure=$Failure; $script:sqlOldCompatible=$true; $script:previousRestartPolicy='unless-stopped'; $script:operations=New-Object 'System.Collections.Generic.List[string]' }
 $digest = 'ghcr.io/example/ocr@sha256:' + ('a' * 64)
 Test-Case 'test and production mount their configured app data' {
     foreach ($target in @('test','prod')) {
@@ -304,5 +324,128 @@ Test-Case 'rollback preserves on-failure retry limit' {
     Reset-Fake 'disable-restart-retries'
     Assert-Throws { Invoke-OcrDeployment 'test' $digest 'C:\unused' } '*update failure*'
     Assert-True ($script:operations -contains 'update --restart on-failure:3 ocr-test') 'Retry limit lost on rollback.'
+}
+# SQL and archive boundaries are replaced here; no real SQL or Docker calls occur.
+function Assert-OcrSqlStorageReady {
+    param([string]$Root, [string]$Target, $Config)
+    $script:sqlChecks++
+    if ($script:failure -eq 'sql') { throw 'SQL storage is not ready.' }
+}
+$archiveFixture = Join-Path ([IO.Path]::GetTempPath()) ('ocr-image-test-' + [Guid]::NewGuid().ToString('N'))
+$null = New-Item -ItemType Directory -Path $archiveFixture
+$archive = Join-Path $archiveFixture 'ocr.tar'
+[IO.File]::WriteAllText($archive, 'synthetic archive; docker load is mocked')
+try {
+    Test-Case 'SQL container receives global flags and matching legacy certificate path' {
+        Reset-Fake
+        $copy = New-TestConfig 'prod' 8080; $copy | Add-Member AppDataRoot 'C:\prod\appdata'
+        New-OcrContainer $copy 'ocr-prod' '8080:80' $digest 'prod' 'C:\unused' -EnableSqlStorage
+        foreach ($setting in @('FileStorage__ReadSqlEnabled=true','FileStorage__WriteSqlEnabled=true','AccessRoles__Storage=Sql','LocalUploadSubfolder=/app/wwwroot/certs')) {
+            Assert-True ([bool]($script:operations -like ('create *' + $setting + '*'))) ('SQL setting missing: ' + $setting)
+        }
+    }
+    Test-Case 'SQL mode requires persistent app data before Docker create' {
+        Reset-Fake
+        Assert-Throws { New-OcrContainer $script:prodConfig 'ocr-prod' '8080:80' $digest 'prod' 'C:\unused' -EnableSqlStorage } '*AppDataRoot*'
+        Assert-True ($script:operations.Count -eq 0) 'Container created without app data.'
+    }
+    $script:testConfig | Add-Member AppDataRoot 'C:\test\appdata'
+    Test-Case 'local image archive is loaded and pinned without pulling' {
+        Reset-Fake; $script:sqlChecks=0
+        Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage
+        Assert-True ($script:sqlChecks -eq 1) 'SQL preflight was not called.'
+        Assert-True ([bool]($script:operations -like 'load --input *')) 'Archive was not loaded.'
+        Assert-True (-not [bool]($script:operations -like 'pull *')) 'Local image pulled from registry.'
+        Assert-True (@($script:operations | Where-Object { $_ -like ('create *sha256:' + ('b' * 64)) }).Count -eq 2) 'Candidate/final image was not pinned.'
+        Assert-True (@($script:operations | Where-Object { $_ -like 'create *FileStorage__WriteSqlEnabled=true*' }).Count -eq 2) 'SQL flags not applied to both containers.'
+    }
+    Test-Case 'archive validate-only does not load or modify images/containers' {
+        Reset-Fake; $script:sqlChecks=0
+        Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage -CheckOnly
+        Assert-True ($script:sqlChecks -eq 1) 'SQL validation missing.'
+        Assert-True ($script:operations.Count -eq 1 -and $script:operations[0] -like 'info *') 'Validate-only mutated Docker state.'
+    }
+    Test-Case 'SQL failure cannot load image or stop existing container' {
+        Reset-Fake 'sql'; $script:sqlChecks=0
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*SQL storage is not ready*'
+        Assert-True (-not [bool]($script:operations -match '^(load|pull|create|stop) ')) 'Unready SQL changed Docker state.'
+    }
+    Test-Case 'archive tag mismatch never stops existing container' {
+        Reset-Fake 'load-tag'; $script:sqlChecks=0
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*requested image tag*'
+        Assert-True (-not [bool]($script:operations -like 'stop *')) 'Mismatched archive stopped original.'
+    }
+    Test-Case 'archive load failure cannot stop an existing container' {
+        Reset-Fake 'load'; $script:sqlChecks=0
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*archive load failure*'
+        Assert-True (-not [bool]($script:operations -like 'stop *')) 'Failed archive stopped original.'
+    }
+    Test-Case 'invalid immutable ID architecture and metadata reject before cutover' {
+        foreach ($failure in @('image-json','image-id','image-arch')) {
+            Reset-Fake $failure; $script:sqlChecks=0
+            Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*verified immutable Linux/amd64 image ID*'
+            Assert-True (-not [bool]($script:operations -match '^(create|stop) ')) 'Invalid loaded image reached cutover.'
+        }
+    }
+    Test-Case 'missing archive and option-like tag fail before Docker' {
+        Reset-Fake
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive ($archive + '.missing') } '*archive*'
+        Assert-True ($script:operations.Count -eq 0) 'Missing archive called Docker.'
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archiveFixture } '*archive*'
+        Assert-True ($script:operations.Count -eq 0) 'Archive directory called Docker.'
+        Assert-Throws { Invoke-OcrDeployment 'test' '--privileged' 'C:\unused' -ImageArchive $archive } '*tag*'
+        Assert-True ($script:operations.Count -eq 0) 'Option-like tag called Docker.'
+    }
+    Test-Case 'SQL image capability labels are required before create or stop' {
+        foreach ($failure in @('image-labels','image-role-label')) {
+            Reset-Fake $failure; $script:sqlChecks=0
+            Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*SQL storage capabilities*'
+            Assert-True (-not [bool]($script:operations -match '^(create|stop) ')) 'Unverified SQL image changed the original container.'
+        }
+    }
+    Test-Case 'pulled SQL image also requires capabilities before cutover' {
+        Reset-Fake 'image-labels'; $script:sqlChecks=0; $script:sqlOldCompatible=$false
+        Assert-Throws { Invoke-OcrDeployment 'test' $digest 'C:\unused' -EnableSqlStorage } '*SQL storage capabilities*'
+        Assert-True ([bool]($script:operations -like 'pull *')) 'Registry image was not pulled.'
+        Assert-True (-not [bool]($script:operations -match '^(create|stop) ')) 'Capability rejection stopped the running previous container.'
+    }
+    Test-Case 'SQL rollback requires enabled SQL reads and SQL access-role storage' {
+        foreach ($settings in @(@('FileStorage__ReadSqlEnabled=false','AccessRoles__Storage=Sql'), @('FileStorage__ReadSqlEnabled=true','AccessRoles__Storage=File'))) {
+            $container = New-ExistingContainer
+            $container.Config.Labels = [pscustomobject]@{'ocr.sql-file-storage'='1';'ocr.sql-access-roles'='1'}
+            $container.Config.Env = $settings
+            Assert-True (-not (Test-OcrSqlRollback $container)) 'SQL capability labels alone allowed unsafe rollback.'
+        }
+    }
+    Test-Case 'verified SQL previous image supports automatic rollback' {
+        Reset-Fake 'final'; $script:sqlChecks=0
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*readiness failure*'
+        Assert-True ($script:operations[$script:operations.Count-1] -eq 'start ocr-test') 'Archive deployment did not restore original.'
+    }
+    Test-Case 'unverified previous image remains stopped after SQL cutover failure' {
+        Reset-Fake 'final'; $script:sqlChecks=0; $script:sqlOldCompatible=$false
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*SQL compatibility*not verified*remains stopped*No volumes were removed*'
+        Assert-True (@($script:operations | Where-Object { $_ -eq 'start ocr-test' }).Count -eq 1) 'Unsafe previous image was restarted.'
+        Assert-True ([bool]($script:operations -like 'rename ocr-test-backup-* ocr-test')) 'Previous container name was not restored.'
+        Assert-True (-not [bool]($script:operations -match '(^| )(-v|--volumes)( |$)')) 'Volume removal was requested.'
+    }
+    Test-Case 'unverified always-restart previous image has restart disabled on rollback' {
+        Reset-Fake 'final'; $script:sqlChecks=0; $script:sqlOldCompatible=$false; $script:previousRestartPolicy='always'
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*SQL compatibility*not verified*remains stopped*'
+        Assert-True ([bool]($script:operations -eq 'update --restart no ocr-test')) 'Unsafe previous image retained automatic restart.'
+        Assert-True (-not [bool]($script:operations -eq 'update --restart always ocr-test')) 'Unsafe previous restart policy was restored.'
+        Assert-True (@($script:operations | Where-Object { $_ -eq 'start ocr-test' }).Count -eq 1) 'Unsafe previous image was restarted.'
+    }
+    Test-Case 'failure disabling unsafe previous restart policy requires intervention' {
+        Reset-Fake 'unverified-policy'; $script:sqlChecks=0; $script:sqlOldCompatible=$false; $script:previousRestartPolicy='always'
+        Assert-Throws { Invoke-OcrDeployment 'test' 'ocr-web:sql-storage' 'C:\unused' -ImageArchive $archive -EnableSqlStorage } '*automatic restart may still be enabled*operator intervention*'
+        Assert-True (@($script:operations | Where-Object { $_ -eq 'start ocr-test' }).Count -eq 1) 'Unsafe previous image was restarted after policy failure.'
+    }
+} finally {
+    $resolved = [IO.Path]::GetFullPath($archiveFixture)
+    $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    if ($resolved.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolved -Leaf) -like 'ocr-image-test-*') {
+        Remove-Item -LiteralPath $resolved -Recurse -Force
+    }
 }
 Write-Output "$script:passed offline deployment tests passed."
