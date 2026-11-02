@@ -1,6 +1,37 @@
-# Legacy Windows and web compatibility migration plan
+# Legacy Windows and web compatibility implementation plan
+
+> For agentic workers: implement approved tasks with `superpowers:subagent-driven-development`
+> or `superpowers:executing-plans`, using the checkboxes below to record progress.
 
 Updated: **2 November 2026, Asia/Bangkok**.
+
+**Goal:** keep both applications compatible while transferring supported workflows to the web.
+
+**Architecture:** share one SQL business database, immutable attachment ownership and SQL role
+membership. Change shared contracts with both client adapters; develop web interface features
+independently. Transfer write ownership per feature after compatibility checks.
+
+**Tech stack:** Windows Forms / .NET Framework 4.8 x86, ASP.NET Core / .NET 8,
+shared .NET Standard 2.0 storage library, SQL Server 2014 / compatibility level 100.
+
+**References:** [current-employee storage scope](CURRENT-EMPLOYEE-SQL-STORAGE-PLAN-2026-10-27.md)
+and [shared SQL role contract](SQL-ACCESS-ROLES.md). This plan also covers the requested
+coexistence and eventual Windows-to-web handover.
+
+## Delivery snapshot
+
+- [x] Resolved current-employee attachment import recorded as completed on 27 October.
+- [x] Shared SQL access roles imported on 2 November: 2 Developers and 10 Admins.
+- [x] SQL-aware Windows and web releases built and copied to the local release folders.
+- [x] Implementation pushed to branch [`SQL-storage`](https://github.com/akwaa2545-gif/OCR/tree/SQL-storage),
+  baseline commit `6005e9e`.
+- [ ] Replace and verify the mapped-drive Windows executable and matching dependencies/config.
+- [ ] Deploy and verify the updated hosted web build against its intended SQL database.
+- [ ] Finish profile stale-save protection and enforce the supported write boundary.
+- [ ] Accept each replacement workflow before retiring its Windows version.
+
+The branch snapshot includes the two earlier SQL/web feature commits. The checkboxes record
+evidence available when this document was updated; they are not live deployment monitoring.
 
 ## Goal and scope
 
@@ -53,7 +84,7 @@ No Docker or mapped-drive deployment is established by that database import.
 | W03 Developer recovery | Correctly read resulting states and file ownership. | Recovery remains web-only and checks the exact row, state and version before applying. |
 | W04 Activity Log | No desktop audit is added by this plan. | Coverage remains web actions only; Windows and direct SQL edits are not represented as fully audited. |
 
-### Rules that must survive every release
+### Global constraints
 
 - Employee codes are strings. Keep `0402567` unchanged and do not repad an existing
   short code such as `101`. The web's seven-digit new-employee rule applies to creation.
@@ -71,6 +102,16 @@ No Docker or mapped-drive deployment is established by that database import.
   foreign keys by cascading deletion of employee files and qualification history.
 
 ## Implementation sequence
+
+### Review focus
+
+| Condition | Required behavior | Task below |
+| --- | --- | --- |
+| Another app changes a profile or photo while an edit screen is open | Reject the stale save; preserve the committed photo link. | T2 |
+| SQL roles cannot be read on a PC without the development folder | Deny privileged checks and stop reports visibly; never substitute an empty list. | T1 |
+| A login field contains quotes or SQL syntax | Treat it only as a bound parameter; grant no extra access. | T3 |
+| A report includes a late-night end-date row, DAY shift or different job grade | Apply the same named report policy and exclusive next-day boundary everywhere. | T4 |
+| A process moves workshops or recovery changes a skill state | Keep historical identity and file ownership; refresh both clients' relevant views. | T5 |
 
 ### Phase 1 — Establish the installed baseline
 
@@ -152,6 +193,22 @@ reviewed change after this evidence exists. Do not rerun the completed attachmen
 as a substitute for client rollout or bulk-import unrelated legacy history into web audit.
 
 ## Feature branches and merge graph
+
+### Published baseline
+
+This graph records the published commit ancestry at the start of this continuation.
+`main` has not been merged with `SQL-storage` by this documentation task.
+
+```mermaid
+gitGraph
+    commit id: "eb6c174 main baseline"
+    branch SQL-storage
+    commit id: "76807be shared SQL files"
+    commit id: "11d3a1e web tools and audit"
+    commit id: "6005e9e SQL roles reports UI"
+```
+
+### Future feature integration
 
 This is a **proposed integration topology**, not actual repository history. Use short-lived
 feature branches in the existing repository, rather than maintaining divergent old-app and
@@ -235,3 +292,102 @@ Related evidence: [SQL file-storage runbook](SQL-FILE-STORAGE-RUNBOOK.md),
 [download comparison](DOWNLOAD-COUNT-COMPARISON-2026-10-30.md),
 [web activity scope](DEV-ACTIVITY-LOG-PLAN.md),
 [Skill Recovery scope](DEV-SKILL-RECOVERY-PLAN.md).
+
+## Next change sets
+
+These are implementation instructions for future approved work. This Markdown update
+does not run them, deploy applications or change the database.
+
+### T1: Finish the SQL-compatible client rollout
+
+**Release files:** Windows `bin/Release-WebReportRules/Operator Training Record.exe`
+with its matching `.exe.config` and DLLs; web `bin/Release-SqlStorage`.
+**Contract:** `RoleActivityStorage` selects SQL; `DesktopSqlDeveloperRoles.ReadRoles(string connectionString)`
+reads the same database. The JSON role files are no longer the updated clients' runtime authority.
+
+- [ ] Record installed executable/build paths and database identity for each supported launch location.
+- [ ] Update the selected Windows launch folder and web environment as a coordinated rollout.
+- [ ] On a PC without `C:\code test`, download a report and confirm Developer exclusions.
+- [ ] Verify a Developer can manage roles, an Admin cannot manage a Developer, and SQL failure has no JSON fallback.
+- [ ] Record installed-client evidence before marking this task complete. Do not rerun the completed imports.
+
+### T2: Prevent stale employee profile saves in both apps
+
+**Modify:** `OperatorCertificationRecord/DesktopEmployeeCommand.cs`, `frmUpdateUser.cs`,
+web `o/Employee.cs` (the `Models.Employee` type), `Services/DataServices.cs`, `Services/EmployeeFileMutations.cs`
+and `Pages/UpdateUser.cshtml.cs`.
+**Tests:** `DesktopEmployeeCommandTests.cs`, `EmployeeProfileValidationTests.cs`
+and an isolated SQL cross-app stale-save test.
+
+**Proposed contract:** extend `ForProfileUpdate(string employeeCode, DateTime joinDate,
+IDictionary<string, string> values)` with a required `byte[] expectedVersion` argument.
+Carry the loaded version through web profile edits as well. Read the existing employee
+`FileStorageVersion`; add no second rowversion column without a separate schema decision.
+
+- [ ] Write failing tests for two editors saving one employee, including a photo change between load and save.
+- [ ] Include the expected version in both update predicates and require exactly one affected row.
+- [ ] Update every caller to supply the version read with the displayed profile; reject a missing token.
+- [ ] Show a reload message on conflict; preserve SQL photo ownership and the successful editor's data.
+- [ ] Run desktop profile, web profile and isolated SQL conflict tests; commit this paired change independently.
+
+### T3: Parameterize the legacy login before further rollout
+
+**Modify:** `OperatorCertificationRecord/Login.cs`.
+**Test:** add `tests/OperatorCertificationRecord.Desktop.Tests/DesktopLoginCommandTests.cs`.
+**Contract:** employee code and supplied password are typed SQL parameters, not query fragments.
+This task preserves the shared credential representation while both login clients remain supported.
+
+- [ ] Add a failing command test with quotes and SQL-like input in each field; assert values appear only in parameters.
+- [ ] Extract the command builder and make the existing login use that command for its data adapter.
+- [ ] Test ordinary success, incorrect credentials and inactive/resigned accounts against the agreed existing policy.
+- [ ] Verify that no password enters logs, then review and commit the scoped login fix.
+
+### T4: Close the remaining alternate Section route mismatch
+
+**Modify:** web `Controllers/DownloadController.cs` and its report query/service helpers.
+**Tests:** `DownloadSectionBackendTests.cs`, `ReportDateBoundaryTests.cs`, desktop `DesktopReportTests.cs`.
+**Contract:** the alternate `/api/download/section/count` and its corresponding export
+must use the same canonical Section population as the main Inventory/Section pair.
+
+- [ ] Add a failing preview/export comparison covering DAY, 51T, 52T, other grades, resigned and Developer employees.
+- [ ] Reuse the named canonical query policy rather than adding another copied WHERE clause.
+- [ ] Compare full export rows/columns, not only totals; include an end-date row with a non-midnight time.
+- [ ] Retain distinct policies for No-skill, Expiry, Disqualified, Obsolete and Resignation.
+- [ ] Verify every supported download entry point and commit the route alignment independently.
+
+### T5: Verify catalog and skill-state interoperability
+
+**Inspect/modify only where acceptance exposes a gap:** Windows `frmUpdateSkill.cs`,
+`frmOperatorTraining.cs`, `DesktopSkillMutation.cs`; web catalog
+and Skill Recovery services.
+**Tests:** `AdminCatalogServiceTests.cs`, `AdminCatalogSqlStoreTests.cs`,
+`SkillRecoveryServiceTests.cs`, `SkillRecoveryFileTests.cs` and a Windows UI smoke check.
+
+- [ ] Move an existing process to one selected workshop; confirm no duplicate workshop link is created.
+- [ ] Refresh the Windows process lookup and confirm the new workshop assignment without rewriting historical skills.
+- [ ] Check web recovery to Current, Disqualified and Obsolete against the Windows views.
+- [ ] Check PDF replacement/removal and exact skill/file ownership after a state change or employee transfer.
+- [ ] Preserve remarks unless the selected operation explicitly edits them; keep web-only audit scope unchanged.
+
+### T6: Transfer write ownership and retire features
+
+**Deliverable:** a completed per-feature release worksheet; database/service enforcement
+for the selected writable operations. A disabled Windows button alone is not enforcement.
+
+- [ ] For each F01-F07 feature, record compatible Windows/web builds, schema contract, current writer and evidence.
+- [ ] Keep incompatible Windows operations read-only until a trusted shared command boundary or restricted DB write path exists.
+- [ ] Test that an unsupported old client/session cannot bypass the selected write restriction.
+- [ ] Move the accepted feature to web-owned writes; retain compatible Windows reads where useful.
+- [ ] Retire the Windows feature only after users accept its web replacement; schedule destructive schema cleanup separately.
+
+## Validation notes for the published baseline
+
+Before `6005e9e` was pushed, 765 web tests, 67 desktop tests and 201 JavaScript tests
+passed; optional tests were skipped where their fixtures were not enabled. The dedicated
+SQL-role storage/migration set passed 20 tests on isolated LocalDB. Storage unit checks
+passed 56 tests per target (.NET 8 and .NET Framework 4.8), and migration unit checks passed 39.
+
+The broader storage/migration SQL integration runs could not connect to their stopped
+local Docker SQL fixture on port 14339. This is an outstanding environment check;
+do not describe the complete integration suite as green. No production database may
+be substituted for a synthetic test fixture.
