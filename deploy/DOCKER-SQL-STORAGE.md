@@ -106,10 +106,10 @@ readiness, not a full attachment or role-envelope audit. It performs no schema
 creation, file import or role seeding. Prepare a test database separately before
 using `-Environment test`; production migration does not initialize the test DB.
 
-Existing registry/GitHub deployment calls are not automatically switched to SQL
-mode by this new manual wrapper. For a prepared registry deployment, pass
-`-EnableSqlStorage` to `Deploy-Ocr.ps1` too; enable that workflow option only after
-the selected environment's SQL structures and roles are ready.
+The GitHub deployment workflow also passes `-EnableSqlStorage` for both test and
+production. Each environment must have its own prepared SQL structures and roles;
+an unprepared database stops deployment before containers change. Deployment does
+not create schemas, import attachments or seed roles.
 
 ## Equivalent runtime flags
 

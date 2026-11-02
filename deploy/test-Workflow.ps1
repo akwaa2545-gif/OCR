@@ -14,6 +14,7 @@ $checks = @{
     'No deployment native credential login or logout' = ($deployment -notmatch 'docker(\.exe)?\s+(login|logout)')
     'Inherited registry override cleared' = ($deployment -match 'Remove-Item Env:DOCKER_AUTH_CONFIG')
     'Token removed before Docker deployment' = ($deployment -match '(?s)Remove-Item Env:GH_TOKEN.*?& ./deploy/Deploy-Ocr.ps1')
+    'SQL authority enabled for every deployment' = ($deployment -match '(?m)^\s*& ./deploy/Deploy-Ocr\.ps1[^\r\n]* -EnableSqlStorage\s*$')
     'Windows PowerShell offline checks' = ($workflow -match 'runs-on: windows-latest' -and $workflow -match 'shell: powershell' -and $workflow -match 'test-Deploy-Ocr.ps1')
     'No storage migration in deployment' = ($workflow -notmatch '&\s+./deploy/Isolate-TestStorage.ps1')
 }

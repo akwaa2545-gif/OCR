@@ -7,6 +7,11 @@ For the updated app deployed from a local TAR file, use
 [the SQL-storage Docker guide](DOCKER-SQL-STORAGE.md) and `Deploy-LocalImage.ps1`.
 It enables SQL file reads/writes and SQL roles while preserving the required host mounts.
 
+GitHub deployments enable the same SQL storage settings for test and production.
+The selected database must already contain the file-storage schema and initialized
+Admin/Developer role stores. Read-only checks stop an unprepared deployment before
+containers change; the workflow does not migrate databases or copy production data.
+
 The workflow builds on GitHub-hosted Ubuntu, tests deployment scripts on GitHub-hosted Windows PowerShell 5.1, publishes a Linux/amd64 image to GHCR, and deploys its immutable digest on the Windows host. The legacy .NET Framework desktop application is not part of this web deployment.
 
 ## Use

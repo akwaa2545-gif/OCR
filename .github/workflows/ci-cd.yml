@@ -129,7 +129,7 @@ jobs:
             $registryConfig = New-OcrRegistryConfig -Root 'C:\ocr-deploy' -Actor $env:GH_ACTOR -Token $env:GH_TOKEN
             $env:DOCKER_CONFIG = $registryConfig
             Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
-            & ./deploy/Deploy-Ocr.ps1 -Environment $env:DEPLOY_TARGET -Image $env:DEPLOY_IMAGE -ConfigRoot 'C:\ocr-deploy'
+            & ./deploy/Deploy-Ocr.ps1 -Environment $env:DEPLOY_TARGET -Image $env:DEPLOY_IMAGE -ConfigRoot 'C:\ocr-deploy' -EnableSqlStorage
           } catch {
             $deploymentFailed = $true
             throw
