@@ -12,6 +12,7 @@ public class AdminService
     private readonly ILogger<AdminService> _logger;
     private readonly DeveloperRoleService? _developers;
     private readonly RoleActivityJournal? _activity;
+    private readonly RoleActivityStorage _storage;
 
     public AdminService(IConfiguration configuration, ILogger<AdminService>? logger = null, DeveloperRoleService? developers = null,
         RoleActivityJournal? activity = null)
@@ -19,9 +20,9 @@ public class AdminService
         _logger = logger ?? NullLogger<AdminService>.Instance;
         _developers = developers;
         _activity = activity;
-        _storePath = Path.GetFullPath(configuration["AdminRoles:StorePath"] ??
-            Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "admins.json"));
-        _lock = RoleActivityFileGate.SyncRoot(_storePath);
+        _storage = new RoleActivityStorage(configuration);
+        _storePath = _storage.Resolve("Admin");
+        _lock = _storage.SyncRoot(_storePath);
         lock (_lock) TryReadAdmins(out _);
     }
 
@@ -44,7 +45,7 @@ public class AdminService
         {
             lock (_lock)
             {
-                using var fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath);
+                using var fileGate = _activity == null ? null : _storage.Enter(_storePath);
                 if (!TryReadAdmins(out var admins)) return RoleChangeResult.Forbidden;
                 var actorCode = actor.Trim();
                 var actorIsDeveloper = developers.Contains(actorCode);
@@ -83,9 +84,7 @@ public class AdminService
         admins = new HashSet<string>(StringComparer.Ordinal);
         try
         {
-            var attributes = File.GetAttributes(_storePath);
-            if ((attributes & FileAttributes.Directory) != 0) throw new IOException("Admin store is not a file.");
-            var entries = RoleActivityFileStore.Read(_storePath).Members;
+            var entries = _storage.Read(_storePath).Members;
             admins = new HashSet<string>(entries, StringComparer.Ordinal);
             return true;
         }
@@ -103,7 +102,7 @@ public class AdminService
 
     protected virtual void Persist(HashSet<string> admins)
     {
-        if (RoleActivityFileStore.Read(_storePath).SchemaVersion != 0)
+        if (_storage.Read(_storePath).SchemaVersion != 0)
             throw new IOException("Audited access changes require the activity journal.");
         var directory = Path.GetDirectoryName(_storePath)!;
         var temporaryPath = Path.Combine(directory, ".admins-" + Guid.NewGuid().ToString("N") + ".tmp");

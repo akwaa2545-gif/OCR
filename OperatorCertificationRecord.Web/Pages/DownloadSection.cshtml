@@ -112,15 +112,11 @@
 </style>
 
 <!-- Hero -->
-<div class="dl-hero">
+<div class="dl-hero page-intro">
     <div class="dl-hero-inner">
-        <div>
-            <div class="dl-hero-badge"><i class="bi bi-cloud-arrow-down-fill"></i> Export Center</div>
-            <h1 class="dl-hero-title">Download Reports</h1>
-        </div>
         <div class="dl-hero-chips">
-            <div class="dl-hero-chip"><i class="bi bi-file-earmark-spreadsheet-fill"></i> 7 report types</div>
-            <div class="dl-hero-chip"><i class="bi bi-shield-check-fill"></i> Parameterized SQL</div>
+            <div class="dl-hero-chip"><i class="bi bi-file-earmark-spreadsheet-fill"></i> 6 report types</div>
+            <div class="dl-hero-chip"><i class="bi bi-file-earmark-arrow-down"></i> Excel &amp; CSV</div>
             <div class="dl-hero-chip"><i class="bi bi-funnel-fill"></i> Date &amp; dept filters</div>
         </div>
     </div>
@@ -179,125 +175,7 @@
     </a>
 </div>
 
-<style>
-    /* Force modals to center on screen */
-    .modal.fade {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        display: none;
-        z-index: 1050;
-    }
-    
-    .modal.fade.show {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    
-    .modal-dialog { 
-        margin: 0 auto !important;
-        position: relative;
-        width: auto;
-        pointer-events: none;
-    }
-
-    .modal.show .modal-dialog {
-        transform: none;
-        pointer-events: auto;
-    }
-    
-    .modal-dialog-centered {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-    }
-    
-    .modal-dialog-centered .modal-content {
-        max-height: 90vh;
-        overflow-y: auto;
-        pointer-events: auto;
-    }
-    
-    .modal-content { 
-        backface-visibility: hidden; 
-        -webkit-backface-visibility: hidden; 
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Ensure backdrop is visible and properly positioned */
-    .modal-backdrop {
-        position: fixed !important;
-        top: 0;
-        left: 0;
-        z-index: 1040;
-        width: 100% !important;
-        height: 100% !important;
-    }
-    
-    .modal-backdrop.show { 
-        opacity: 0.5 !important;
-    }
-</style>
-
-<!-- FORCE Modal Centering Override -->
-<style>
-    .modal {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        display: none !important;
-        z-index: 1050 !important;
-    }
-
-    .modal.show {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 1rem !important;
-        box-sizing: border-box !important;
-    }
-
-    .modal-dialog {
-        position: relative !important;
-        width: auto !important;
-        margin: 0 auto !important;
-        max-width: 540px !important;
-    }
-
-    .modal-dialog.modal-lg {
-        max-width: 800px !important;
-    }
-
-    .modal-dialog-centered {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    .modal-content {
-        max-height: 90vh !important;
-        overflow-y: auto !important;
-    }
-
-    .modal-backdrop {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        z-index: 1040 !important;
-        width: 100% !important;
-        height: 100% !important;
-    }
-</style>
-        
-        
-        <!-- Skill Inventory Modal (same layout as Section) -->
+<!-- Skill Inventory Modal (same layout as Section) -->
         <div class="modal fade" id="skillInventoryModal" tabindex="-1" aria-labelledby="skillInventoryLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content dm-modal-content" style="--dm-color:#1d4ed8;--dm-light:#eff6ff;">
@@ -353,7 +231,7 @@
                 </div>
             </div>
         </div>
-        
+
         @* include disqualification modal partial so it can be opened from this page *@
         @await Html.PartialAsync("Shared/_DisqualificationDownloadModal")
         @* include resign modal partial *@
@@ -454,48 +332,68 @@
 
 // Defensive modal open handler for Operator No-skill (ensures modal opens even if data-attrs are blocked)
 (function initOperatorNoSkillModal(){
+    let fallbackOpen = false;
     function openModalFallback(el){
-        document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+        if (fallbackOpen || !el.dispatchEvent(new Event('show.bs.modal', { bubbles: true, cancelable: true }))) return;
+        fallbackOpen = true;
+        const previousFocus = document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        const wasModalOpen = document.body.classList.contains('modal-open');
         const backdrop = document.createElement('div');
         backdrop.className = 'modal-backdrop fade show';
         document.body.appendChild(backdrop);
-        // force display
+        document.body.classList.add('modal-open');
+        document.body.style.overflow = 'hidden';
+        const closeButtons = Array.from(el.querySelectorAll('[data-bs-dismiss="modal"], .btn-close'));
+        function close(){
+            if (!el.dispatchEvent(new Event('hide.bs.modal', { bubbles: true, cancelable: true }))) return;
+            fallbackOpen = false;
+            el.classList.remove('show');
+            el.style.display = 'none';
+            el.removeAttribute('aria-modal');
+            el.setAttribute('aria-hidden', 'true');
+            backdrop.remove();
+            document.body.style.overflow = previousOverflow;
+            if (!wasModalOpen) document.body.classList.remove('modal-open');
+            closeButtons.forEach(button => button.removeEventListener('click', close));
+            el.removeEventListener('click', outside);
+            document.removeEventListener('keydown', keyboard);
+            el.dispatchEvent(new Event('hidden.bs.modal', { bubbles: true }));
+            if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+        }
+        function outside(event){ if (event.target === el || event.target === backdrop) close(); }
+        function keyboard(event){
+            if (event.key === 'Escape') { event.preventDefault(); close(); }
+            if (event.key !== 'Tab') return;
+            const controls = Array.from(el.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+                .filter(control => control.getClientRects().length > 0);
+            const first = controls[0], last = controls[controls.length - 1];
+            if (!first) { event.preventDefault(); el.focus(); }
+            else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
+        closeButtons.forEach(button => button.addEventListener('click', close));
+        backdrop.addEventListener('click', outside);
+        el.addEventListener('click', outside);
+        document.addEventListener('keydown', keyboard);
         el.classList.add('show');
         el.style.display = 'flex';
         el.setAttribute('aria-modal','true');
         el.removeAttribute('aria-hidden');
         const focusable = el.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
         if (focusable) focusable.focus();
-        // dispatch Bootstrap-like event so listeners in modal partial run
-        try{ el.dispatchEvent(new Event('shown.bs.modal')); } catch(e){ /* ignore */ }
-        if (window.Toast) try{ window.Toast.info('Modal','Operator No-skill opened (fallback)'); } catch(e){}
-        backdrop.addEventListener('click', ()=> {
-        // ensure close buttons inside fallback modal also clear backdrop
-        el.querySelectorAll("[data-bs-dismiss=\"modal\"], .btn-close").forEach(function(btn){ btn.addEventListener("click", function(){ try{ el.classList.remove("show"); el.style.display="none"; backdrop.remove(); } catch(e){ console.error("Backdrop close error", e); } }); });
-            try{ el.classList.remove('show'); el.style.display = 'none'; backdrop.remove(); }catch(e){ console.error('Backdrop close error', e); }
-        });
+        el.dispatchEvent(new Event('shown.bs.modal', { bubbles: true }));
     }
 
     function handler(e){
         e && e.preventDefault();
-        console.debug('[OperatorNoSkill] click handler invoked');
         try{
             const el = document.getElementById('operatorNoSkillModal');
             if(!el){ console.error('[OperatorNoSkill] modal not found in DOM'); if(window.Toast) window.Toast.warning('Modal not available','Operator No-skill modal is not present on this page'); return; }
-            console.debug('[OperatorNoSkill] bootstrap=', !!(window.bootstrap && window.bootstrap.Modal));
             if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
                 try {
                     const inst = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
                     inst.show();
-                    // if bootstrap didn't actually show the modal (race/issue), fallback after short delay
-                    setTimeout(()=>{
-                        if (!el.classList.contains('show')){
-                            console.warn('[OperatorNoSkill] bootstrap modal did not become visible — using fallback');
-                            openModalFallback(el);
-                        } else {
-                            if (window.Toast) try{ window.Toast.info('Modal','Operator No-skill opened'); } catch(e){}
-                        }
-                    }, 80);
                     return;
                 } catch(e) {
                     console.error('[OperatorNoSkill] bootstrap modal show failed', e);
@@ -504,13 +402,12 @@
             openModalFallback(el);
         }catch(err){
             console.error('[OperatorNoSkill] Error opening modal', err);
-            document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+            if (window.Toast) window.Toast.error('Unable to open report', 'Please reload the page and try again.');
         }
     }
 
     function setup(){
         const btn = document.getElementById('operatorNoSkillBtn');
-        console.debug('[OperatorNoSkill] setup — btn found=', !!btn);
         if(!btn) return;
         // hide the button when the modal markup is not present on the page (prevents toast/error)
         const modalEl = document.getElementById('operatorNoSkillModal');
@@ -598,6 +495,9 @@ function setSkillPreset(days){
 
     if (!previewBtn) return;
 
+    const previewState = DownloadPreview.create({ modal: document.getElementById('skillInventoryModal'), badge, loading, preview: previewBtn, download: downloadBtn, disableDownload: true, filters: [selectEl,allDeptEl,document.getElementById('skillStart'),document.getElementById('skillEnd')] });
+    function scheduleAutoPreview(){ previewState.schedule(preview); }
+
     function setBadge(count){
         badge.style.background=''; badge.style.color='';
         if(count === null){ badge.textContent='err'; badge.style.background='#ef4444'; badge.style.color='#fff'; return; }
@@ -608,6 +508,7 @@ function setSkillPreset(days){
     }
 
     async function preview(){
+        const ticket = previewState.begin();
         const section = selectEl.value;
         const allDept = allDeptEl?.checked;
         if (!section && !allDept) { if(window.Toast) window.Toast.warning('No Selection','Please select a section or choose All Departments to preview'); return; }
@@ -627,22 +528,24 @@ function setSkillPreset(days){
                 throw new Error('Invalid server response (not JSON)');
             }
             const j = await res.json();
+            if (!previewState.current(ticket)) return false;
             const cnt = j.count ?? 0;
             setBadge(cnt);
-            downloadBtn.classList.remove('dl-pending');
+            previewState.complete(ticket);
             downloadBtn.disabled = false;
-            if (window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' records');
+
             return true;
         }catch(err){
+            if (!previewState.current(ticket)) return false;
             console.error('Preview error', err);
             setBadge(null);
             downloadBtn.classList.add('dl-pending');
             if (window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
             return false;
-        } finally {
+        } finally { if (previewState.current(ticket)) {
             loading.style.display = 'none';
             previewBtn.disabled = false;
-        }
+        } }
     }
 
     async function download(){
@@ -665,33 +568,18 @@ function setSkillPreset(days){
     previewBtn.addEventListener('click', function(e){ e.preventDefault(); preview(); });
     downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
 
-    // Checkbox (All Departments) uses native change event — reliable
-    if(allDeptEl) allDeptEl.addEventListener('change', function(){
-        if(this.checked){ selectEl.value = ''; selectEl.disabled = true; preview(); }
-        else { selectEl.disabled = false; badge.textContent='—'; downloadBtn.classList.add('dl-pending'); }
+    allDeptEl.addEventListener('change', function(){
+        selectEl.disabled = this.checked;
+        if (this.checked) selectEl.value = '';
+        if (this.checked || selectEl.value) scheduleAutoPreview();
+        else previewState.invalidate();
     });
-    // Polling: detect fancy-select section changes
-    let _skp = '', _skt = null;
-    const _skEl = document.getElementById('skillInventoryModal');
-    if (_skEl) {
-        _skEl.addEventListener('shown.bs.modal', function() {
-            _skp = selectEl.value;
-            if (_skp || (allDeptEl && allDeptEl.checked)) preview();
-            _skt = setInterval(function() {
-                if (previewBtn.disabled) return;
-                if (!_skEl.classList.contains('show')) { clearInterval(_skt); _skt = null; return; }
-                const sv = selectEl.value;
-                if (sv !== _skp) {
-                    _skp = sv;
-                    if(allDeptEl) allDeptEl.checked = false;
-                    selectEl.disabled = false;
-                    if (sv) preview();
-                    else { badge.textContent='—'; downloadBtn.classList.add('dl-pending'); }
-                }
-            }, 250);
-        });
-        _skEl.addEventListener('hidden.bs.modal', function() { if (_skt) { clearInterval(_skt); _skt = null; } });
-    }
+    selectEl.addEventListener('change', scheduleAutoPreview);
+    document.getElementById('skillInventoryModal').addEventListener('shown.bs.modal', function(){
+        previewState.open();
+        allDeptEl.checked = true; selectEl.value = ''; selectEl.disabled = true;
+        scheduleAutoPreview();
+    });
 })();
 
 // preset helper used by skill preset buttons
@@ -739,6 +627,11 @@ function setSkillPreset(days){
 
     if (!previewBtn) return;
 
+    const previewState = DownloadPreview.create({ modal: document.getElementById('operatorNoSkillModal'), badge, loading, preview: previewBtn, download: downloadBtn, disableDownload: true, filters: [deptEl,sectEl,document.getElementById('onsStart'),document.getElementById('onsEnd')] });
+    function scheduleAutoPreview(){ previewState.schedule(preview); }
+
+    ReportDateRanges.initialize(document.getElementById('onsStart'), document.getElementById('onsEnd'), document.getElementById('operatorNoSkillModal'));
+
     function setBadge(count){
         badge.style.background=''; badge.style.color='';
         if(count === null){ badge.textContent='err'; badge.style.background='#ef4444'; badge.style.color='#fff'; return; }
@@ -749,10 +642,12 @@ function setSkillPreset(days){
     }
 
     async function preview(){
+        const ticket = previewState.begin();
         const dept = deptEl?.value;
         const sect = sectEl?.value;
         const start = document.getElementById('onsStart')?.value;
         const end = document.getElementById('onsEnd')?.value;
+        if ((!!start !== !!end) || (start && end && start > end)) return false;
         badge.textContent = '…'; loading.style.display = 'inline'; previewBtn.disabled = true;
         try{
             const params = [];
@@ -765,21 +660,24 @@ function setSkillPreset(days){
             const ct = (res.headers.get('content-type') || '').toLowerCase();
             if (!ct.includes('application/json')) throw new Error('Invalid server response (not JSON)');
             const j = await res.json();
+            if (!previewState.current(ticket)) return false;
             const cnt = j.count ?? 0;
             setBadge(cnt);
-            downloadBtn.classList.remove('dl-pending');
-            if (window.Toast) window.Toast.info('Preview complete', 'Found ' + cnt + ' operators with no skill');
+            previewState.complete(ticket);
+            downloadBtn.disabled = false;
+
             return true;
         }catch(err){
+            if (!previewState.current(ticket)) return false;
             console.error('[ONS] Preview error', err);
             setBadge(null);
             downloadBtn.classList.add('dl-pending');
             if (window.Toast) window.Toast.error('Preview failed', err.message || 'Check console');
             return false;
-        } finally {
+        } finally { if (previewState.current(ticket)) {
             loading.style.display = 'none';
             previewBtn.disabled = false;
-        }
+        } }
     }
 
     async function download(){
@@ -800,26 +698,15 @@ function setSkillPreset(days){
 
     previewBtn.addEventListener('click', function(e){ e.preventDefault(); preview(); });
     downloadBtn.addEventListener('click', function(e){ e.preventDefault(); download(); });
-    // Polling: detect fancy-select value changes for both dept and sect
-    let _op = '', _os = '', _ot = null;
-    const _onEl = document.getElementById('operatorNoSkillModal');
-    if (_onEl) {
-        _onEl.addEventListener('shown.bs.modal', function() {
-            _op = deptEl ? deptEl.value : ''; _os = sectEl ? sectEl.value : '';
-            if (_op || _os) preview();
-            _ot = setInterval(function() {
-                if (previewBtn.disabled) return;
-                if (!_onEl.classList.contains('show')) { clearInterval(_ot); _ot = null; return; }
-                const dv = deptEl ? deptEl.value : '', sv = sectEl ? sectEl.value : '';
-                if (dv !== _op || sv !== _os) {
-                    _op = dv; _os = sv;
-                    if (dv || sv) preview();
-                    else { badge.textContent='—'; downloadBtn.classList.add('dl-pending'); }
-                }
-            }, 250);
-        });
-        _onEl.addEventListener('hidden.bs.modal', function() { if (_ot) { clearInterval(_ot); _ot = null; } });
-    }
+    [deptEl, sectEl].filter(Boolean).forEach(field => field.addEventListener('change', scheduleAutoPreview));
+    [document.getElementById('onsStart'), document.getElementById('onsEnd')].filter(Boolean).forEach(field => {
+        field.addEventListener('input', scheduleAutoPreview);
+        field.addEventListener('change', scheduleAutoPreview);
+    });
+    document.getElementById('operatorNoSkillModal').addEventListener('shown.bs.modal', function(){
+        previewState.open();
+        scheduleAutoPreview();
+    });
 })();
 
 function setOnsPreset(days){
@@ -828,6 +715,7 @@ function setOnsPreset(days){
     if (!startEl || !endEl) return;
     if (days === 0) { startEl.value = ''; endEl.value = ''; }
     else ReportDateRanges.apply(startEl, endEl, days);
+    startEl.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 (function(){
@@ -839,88 +727,5 @@ function setOnsPreset(days){
         const dl = document.getElementById('downloadOnsBtn'); if(dl) dl.classList.add('dl-pending');
     });
 })();
-// relocate modals to body to escape any transformed ancestors\n(function(){\n  document.querySelectorAll('.modal').forEach(function(m){\n    if(m.parentElement !== document.body) document.body.appendChild(m);\n  });\n})();\n
-function validateDateRange(startId, endId, errId, previewBtnId, dlBtnId) {
-    const s = document.getElementById(startId);
-    const e = document.getElementById(endId);
-    const err = document.getElementById(errId);
-    if (!s || !e || !err) return true;
-    const invalid = s.value && e.value && s.value > e.value;
-    if (invalid) {
-        s.classList.add('dm-invalid'); e.classList.add('dm-invalid');
-        err.textContent = 'End date must be on or after start date.';
-        err.classList.add('visible');
-    } else {
-        s.classList.remove('dm-invalid'); e.classList.remove('dm-invalid');
-        err.classList.remove('visible'); err.textContent = '';
-    }
-    if (previewBtnId) { const b = document.getElementById(previewBtnId); if (b) b.disabled = !!invalid; }
-    if (dlBtnId)      { const b = document.getElementById(dlBtnId);      if (b) b.disabled = !!invalid; }
-
-    return !invalid;
-}
-
-// ═══ FORCE Modal Centering Override ═══
-document.addEventListener('DOMContentLoaded', function() {
-    const modals = document.querySelectorAll('.modal');
-    
-    modals.forEach(modal => {
-        modal.addEventListener('show.bs.modal', function(e) {
-            // Remove ALL inline styles and force our own
-            this.removeAttribute('style');
-            this.setAttribute('style', `
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                z-index: 1050 !important;
-                padding: 1rem !important;
-            `);
-        });
-        
-        modal.addEventListener('shown.bs.modal', function(e) {
-            // Keep forcing it after Bootstrap finishes
-            this.style.display = 'flex';
-            this.style.alignItems = 'center';
-            this.style.justifyContent = 'center';
-            this.style.position = 'fixed';
-            this.style.top = '0';
-            this.style.left = '0';
-            this.style.width = '100%';
-            this.style.height = '100%';
-            this.style.zIndex = '1050';
-            this.style.padding = '1rem';
-            this.style.boxSizing = 'border-box';
-            
-            const dialog = this.querySelector('.modal-dialog');
-            if (dialog) {
-                dialog.style.position = 'relative';
-                dialog.style.margin = '0 auto';
-                dialog.style.width = 'auto';
-            }
-        });
-    });
-    
-    // Also intercept modal display changes
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                const modal = mutation.target;
-                if (modal.classList.contains('show') && modal.classList.contains('modal')) {
-                    modal.style.display = 'flex !important';
-                    modal.style.alignItems = 'center !important';
-                    modal.style.justifyContent = 'center !important';
-                }
-            }
-        });
-    });
-    
-    modals.forEach(modal => {
-        observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
-    });
-});
+// relocate modals through modal-layer.js before opening.
 </script>

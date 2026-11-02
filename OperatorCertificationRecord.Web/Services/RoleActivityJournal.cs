@@ -6,7 +6,7 @@ namespace OperatorCertificationRecord.Web.Services;
 public sealed record RoleActivityHealth(int? PendingCount, string? LastError, DateTimeOffset? LastDeliveryUtc);
 internal sealed record PendingRoleActivity(string StorePath, WebActivityRecord Record);
 
-/// <summary>Publishes membership and its delivery record together; never writes SQL under a role lock.</summary>
+/// <summary>Publishes membership, audit delivery and command receipts together in the selected role store.</summary>
 public sealed class RoleActivityJournal
 {
     private readonly WebActivityContextFactory _context;
@@ -15,6 +15,7 @@ public sealed class RoleActivityJournal
     private readonly string[] _stores;
     private readonly int _maxPending, _maxBytes, _maxReceipts;
     private readonly Action<string, string>? _publish;
+    private readonly RoleActivityStorage _storage;
     private readonly object _healthGate = new();
     private string? _lastError;
     private DateTimeOffset? _lastDeliveryUtc;
@@ -31,11 +32,8 @@ public sealed class RoleActivityJournal
             maxReceipts < 1 || maxReceipts > RoleActivityFileStore.MaxReceipts)
             throw new ArgumentOutOfRangeException(nameof(maxPending));
         _context = context; _clock = clock; _logger = logger; _maxPending = maxPending; _maxBytes = maxBytes; _publish = publish; _maxReceipts = maxReceipts;
-        _stores = new[]
-        {
-            Path.GetFullPath(configuration["DeveloperRoles:StorePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "developers.json")),
-            Path.GetFullPath(configuration["AdminRoles:StorePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "admins.json"))
-        };
+        _storage = new RoleActivityStorage(configuration);
+        _stores = new[] { _storage.Resolve("Developer"), _storage.Resolve("Admin") };
         if (_stores.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 2)
             throw new InvalidOperationException("Admin and Developer role stores must be separate files.");
     }
@@ -45,11 +43,11 @@ public sealed class RoleActivityJournal
     {
         var identity = _context.CurrentForRoles(actor, isAdmin, isDeveloper);
         var hash = IntentHash(identity, target, role, enabled);
-        using var developerGate = RoleActivityFileGate.Enter(_stores[0]);
-        using var adminGate = RoleActivityFileGate.Enter(_stores[1]);
+        using var developerGate = _storage.Enter(_stores[0]);
+        using var adminGate = _storage.Enter(_stores[1]);
         foreach (var path in _stores)
         {
-            var receipt = RoleActivityFileStore.Read(path, _maxBytes, _maxPending).ConsumedCommands!
+            var receipt = _storage.Read(path, _maxBytes, _maxPending).ConsumedCommands!
                 .SingleOrDefault(item => item.CommandId == identity.OperationId && item.ExpiresUtc > _clock.GetUtcNow());
             if (receipt == null) continue;
             if (receipt.ActorCode != actor || receipt.TargetCode != target || receipt.Role != role ||
@@ -86,11 +84,11 @@ public sealed class RoleActivityJournal
         IReadOnlySet<string> after, string actor, string target, bool enabled, bool actorIsAdmin, bool actorIsDeveloper)
     {
         var expectedPath = role switch { "Admin" => _stores[1], "Developer" => _stores[0], _ => throw new ArgumentException("Unknown access role.") };
-        if (!string.Equals(Path.GetFullPath(path), expectedPath, StringComparison.OrdinalIgnoreCase))
+        if (!_storage.Matches(path, expectedPath))
             throw new InvalidOperationException("The role store does not match its configured authority.");
-        using var gate = RoleActivityFileGate.Enter(path);
+        using var gate = _storage.Enter(path);
         var identity = _context.CurrentForRoles(actor, actorIsAdmin, actorIsDeveloper);
-        var current = RoleActivityFileStore.Read(path, _maxBytes, _maxPending);
+        var current = _storage.Read(path, _maxBytes, _maxPending);
         var expectedAfter = new HashSet<string>(enabled ? before.Append(target) : before.Where(code => code != target), StringComparer.Ordinal);
         if (!new HashSet<string>(current.Members, StringComparer.Ordinal).SetEquals(before) ||
             before.Contains(target) == enabled || !expectedAfter.SetEquals(after))
@@ -106,7 +104,7 @@ public sealed class RoleActivityJournal
         var updated = new RoleActivityEnvelope(1, checked(current.MembershipRevision + 1),
             after.Order(StringComparer.Ordinal).ToArray(), current.PendingAuditEvents.Append(record).ToArray(),
             AddReceipt(current, identity, target, role, enabled, RoleChangeResult.Updated));
-        RoleActivityFileStore.Write(path, updated, _maxBytes, _publish);
+        _storage.Write(path, updated, _maxBytes, _publish);
         _context.MarkRecorded("Committed");
     }
 
@@ -115,10 +113,10 @@ public sealed class RoleActivityJournal
     {
         if (result is not (RoleChangeResult.Unchanged or RoleChangeResult.LastMember)) throw new ArgumentException("Invalid role result.");
         var identity = _context.CurrentForRoles(actor, isAdmin, isDeveloper);
-        using var gate = RoleActivityFileGate.Enter(path);
-        var current = RoleActivityFileStore.Read(path, _maxBytes, _maxPending);
+        using var gate = _storage.Enter(path);
+        var current = _storage.Read(path, _maxBytes, _maxPending);
         var updated = current with { SchemaVersion = 1, ConsumedCommands = AddReceipt(current, identity, target, role, enabled, result) };
-        RoleActivityFileStore.Write(path, updated, _maxBytes, _publish);
+        _storage.Write(path, updated, _maxBytes, _publish);
         _context.MarkRecorded("NoChange");
     }
 
@@ -126,8 +124,8 @@ public sealed class RoleActivityJournal
     {
         try
         {
-            using var gate = RoleActivityFileGate.Enter(_stores[1]);
-            return RoleActivityFileStore.Read(_stores[1], _maxBytes, _maxPending).Members.Contains(actor, StringComparer.Ordinal);
+            using var gate = _storage.Enter(_stores[1]);
+            return _storage.Read(_stores[1], _maxBytes, _maxPending).Members.Contains(actor, StringComparer.Ordinal);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
@@ -150,9 +148,9 @@ public sealed class RoleActivityJournal
         {
             try
             {
-                lock (RoleActivityFileGate.SyncRoot(path))
+                lock (_storage.SyncRoot(path))
                 {
-                    var envelope = RoleActivityFileStore.Read(path, _maxBytes, _maxPending);
+                    var envelope = _storage.Read(path, _maxBytes, _maxPending);
                     items.AddRange(envelope.PendingAuditEvents.Select(record => new PendingRoleActivity(path, record)));
                 }
             }
@@ -168,11 +166,11 @@ public sealed class RoleActivityJournal
     internal void Acknowledge(PendingRoleActivity delivered)
     {
         if (!_stores.Contains(delivered.StorePath, StringComparer.OrdinalIgnoreCase)) throw new ArgumentException("Unknown role queue.");
-        using var gate = RoleActivityFileGate.Enter(delivered.StorePath);
-        var current = RoleActivityFileStore.Read(delivered.StorePath, _maxBytes, _maxPending);
+        using var gate = _storage.Enter(delivered.StorePath);
+        var current = _storage.Read(delivered.StorePath, _maxBytes, _maxPending);
         if (!current.PendingAuditEvents.Any(record => record.EventUid == delivered.Record.EventUid)) return;
         var updated = current with { PendingAuditEvents = current.PendingAuditEvents.Where(record => record.EventUid != delivered.Record.EventUid).ToArray() };
-        RoleActivityFileStore.Write(delivered.StorePath, updated, _maxBytes, _publish);
+        _storage.Write(delivered.StorePath, updated, _maxBytes, _publish);
         lock (_healthGate) { _lastDeliveryUtc = _clock.GetUtcNow(); _lastError = null; }
     }
 

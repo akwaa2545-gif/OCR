@@ -276,7 +276,7 @@ namespace OperatorCertificationRecord.Web.Pages
                 }
                 if (success)
                 {
-                    Message = "Employee updated successfully.";
+                    Message = $"Employee {EmpCode} updated.";
                     MessageType = "success";
                     PhotoPath = photoPath;
                     PhotoUrl = ResolvePublicPhotoUrl(photoPath);
@@ -396,7 +396,7 @@ namespace OperatorCertificationRecord.Web.Pages
                 }
                 if (ok)
                 {
-                    Message = "Skill saved.";
+                    Message = $"Skill {Skill_ProcessName} saved for employee {EmpCode}.";
                     MessageType = "success";
                 }
                 else
@@ -435,6 +435,8 @@ namespace OperatorCertificationRecord.Web.Pages
                 if (ok)
                 {
                     // on successful resign, redirect to ViewUser so the resigned state is shown there
+                    TempData["Message"] = $"Employee {EmpCode} marked as resigned.";
+                    TempData["MessageType"] = "success";
                     return Redirect($"/ViewUser?empCode={EmpCode}");
                 }
                 else
@@ -581,6 +583,8 @@ namespace OperatorCertificationRecord.Web.Pages
 
                 if (ok)
                 {
+                    TempData["Message"] = $"Employee {EmpCode} transferred to the selected workshop and shift.";
+                    TempData["MessageType"] = "success";
                     return Redirect($"/ViewUser?empCode={EmpCode}");
                 }
                 else

@@ -131,7 +131,11 @@ public class DownloadSectionModel : PageModel
 
 	public async Task OnGetAsync()
 	{
-		if (string.IsNullOrEmpty(HttpContext.Session.GetString("UserCode"))) Response.Redirect("/Login");
+		if (string.IsNullOrWhiteSpace(HttpContext.Session.GetString("UserCode")))
+		{
+			Response.Redirect("/Login");
+			return;
+		}
 		Sections = await _sectionService.GetAllSectionsAsync();
 		Departments = await _departmentService.GetAllDepartmentsAsync();
 	}

@@ -40,7 +40,17 @@ try
 {
     Log.Information("Starting OperatorCertificationRecord Web Application...");
 
-    var builder = WebApplication.CreateBuilder(args);
+    var migrateAccessRoles = args.Contains("--migrate-access-roles", StringComparer.Ordinal);
+    var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--migrate-access-roles").ToArray());
+    if (migrateAccessRoles)
+    {
+        var imported = RoleActivitySqlMigration.Apply(builder.Configuration,
+            builder.Configuration["DeveloperRoles:StorePath"] ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "developers.json"),
+            builder.Configuration["AdminRoles:StorePath"] ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "admins.json"));
+        Log.Information("SQL access roles {Status}. Developers: {Developers}; administrators: {Administrators}",
+            imported.Imported ? "imported" : "already initialized", imported.DeveloperCount, imported.AdminCount);
+        return;
+    }
     
     // Use Serilog as the logging provider
     builder.Host.UseSerilog();
@@ -85,7 +95,7 @@ try
     // Add Logging Service (singleton for in-memory log storage)
     builder.Services.AddSingleton<LoggingService>();
 
-    // Admin service to track administrators (from appsettings or App_Data/admins.json)
+    // Role membership and its audit outbox share the configured SQL authority.
     builder.Services.AddSingleton<AdminService>();
     builder.Services.AddSingleton<DeveloperRoleService>();
     builder.Services.AddScoped<OperatorCertificationRecord.Web.Filters.AdminOnlyFilter>();
@@ -236,6 +246,7 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly!");
+    Environment.ExitCode = 1;
 }
 finally
 {

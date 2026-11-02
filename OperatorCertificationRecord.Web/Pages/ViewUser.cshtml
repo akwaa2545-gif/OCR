@@ -352,7 +352,14 @@
     var photoUrl = Model.PhotoUrl ?? "/images/placeholder-employee.svg";
     var ringClass = Model.IsResigned ? "ring-resigned" : ((Model.PromotedSkills != null && Model.PromotedSkills.Count > 0) ? "ring-promoted" : "ring-default");
 
-    <div class="vu-page">
+    <div class="vu-page" data-table-density="compact">
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="vu-save-notice @(Model.MessageType == "success" ? "is-success" : "is-error")" role="@(Model.MessageType == "success" ? "status" : "alert")">
+            <i class="bi @(Model.MessageType == "success" ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+            <span>@Model.Message</span>
+        </div>
+    }
 
     <!-- ── Profile Header ── -->
     <section class="vu-profile" aria-labelledby="employeeProfileName">
@@ -507,10 +514,15 @@
                 </a>
 
                 @* ── Fit ── *@
-                <button type="button" id="skillFitBtn" class="btn-sk btn-sk-fit" title="Fit all columns to screen without scrolling">
-                    <i class="bi bi-arrows-angle-contract"></i> Fit
+                <button type="button" id="skillFitBtn" class="btn-sk btn-sk-fit fit-active" aria-pressed="true" title="Expand columns for larger text and resizing">
+                    <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i> <span>Expand</span>
                 </button>
+                <div class="vu-table-density" role="group" aria-label="Table row spacing">
+                    <button type="button" data-table-density="comfortable" aria-pressed="false">Comfortable</button>
+                    <button type="button" data-table-density="compact" aria-pressed="true">Compact</button>
+                </div>
             </div>
+            <p class="vu-table-hint">All columns fit on screen. Choose Expand for larger text and adjustable columns.</p>
 
             <style>
                 /* Fit mode: compress all skill tab tables to viewport width */
@@ -529,11 +541,11 @@
                     min-width: 0 !important;
                     width: auto !important;
                     padding: 0.2rem 0.3rem !important;
-                    white-space: nowrap !important;
-                    overflow: hidden !important;
-                    text-overflow: ellipsis !important;
+                    white-space: normal !important;
+                    overflow-wrap: anywhere;
+                    text-overflow: clip !important;
                 }
-                .skill-table-fit col { width: auto !important; }
+                .skill-table-fit col { width: var(--vu-fit-width, auto) !important; }
                 .skill-table-fit .col-resizer { display: none; }
                 #skillFitBtn.fit-active {
                     background: #0f172a !important;
@@ -616,12 +628,13 @@
                 {
                     <form method="post" asp-page-handler="BulkDisqualify" asp-antiforgery="true" id="bulkDisqualifyForm">
                         <input type="hidden" name="empCode" value="@Model.Employee?.EmpCode" />
-                        <div class="table-container vu-skill-scroll" role="region" aria-label="Current skills and certificate downloads" tabindex="0">
+                        <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Current skills and certificate downloads" tabindex="0">
                             <table class="table" id="currentSkillTable">
+                                <caption class="vu-table-caption">Current skills and certificates</caption>
                                 <thead>
                                     <tr>
-                                        <th style="width: 40px;"><input type="checkbox" id="selectAllSkills" class="form-checkbox" aria-label="Select all current skills" /></th>
-                                        <th>Process</th>
+                                        <th style="width: 40px;" data-column-key="selection"><input type="checkbox" id="selectAllSkills" class="form-checkbox" aria-label="Select all current skills" /></th>
+                                        <th data-column-key="process">Process</th>
                                         <th>Classification</th>
                                         <th>Theory</th>
                                         <th>OJT</th>
@@ -718,8 +731,9 @@
             <div class="tab-content" id="disqualified">
                 @if (Model.DisqualifiedSkills != null && Model.DisqualifiedSkills.Count > 0)
                 {
-                    <div class="table-container vu-skill-scroll" role="region" aria-label="Disqualified skills" tabindex="0">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Disqualified skills" tabindex="0">
                         <table class="table" id="disqualifiedTable" style="table-layout:fixed; width:100%; min-width:820px;">
+                            <caption class="vu-table-caption">Disqualified skills</caption>
                             <colgroup>
                                 <col style="width:170px"><!-- Process -->
                                 <col style="width:90px"> <!-- Certified Date -->
@@ -733,7 +747,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Certified Date</th>
                                     <th>K</th>
                                     <th>S</th>
@@ -777,8 +791,9 @@
             <div class="tab-content" id="obsoleted">
                 @if (Model.ObsoletedSkills != null && Model.ObsoletedSkills.Count > 0)
                 {
-                    <div class="table-container vu-skill-scroll" role="region" aria-label="Obsoleted skills and certificate downloads" tabindex="0">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Obsoleted skills and certificate downloads" tabindex="0">
                         <table class="table" id="obsoletedTable" style="table-layout:fixed; width:100%; min-width:920px;">
+                            <caption class="vu-table-caption">Obsoleted skills</caption>
                             <colgroup>
                                 <col style="width:160px"><!-- Process -->
                                 <col style="width:140px"><!-- Classification -->
@@ -795,7 +810,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Classification</th>
                                     <th>Theory</th>
                                     <th>OJT</th>
@@ -1079,8 +1094,9 @@
             <div class="tab-content" id="promoted">
                 @if (Model.PromotedSkills != null && Model.PromotedSkills.Count > 0)
                 {
-                    <div class="table-container vu-skill-scroll" role="region" aria-label="Promoted skills and certificate downloads" tabindex="0">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Promoted skills and certificate downloads" tabindex="0">
                         <table class="table" id="promotedTable" style="table-layout:fixed; width:100%; min-width:880px;">
+                            <caption class="vu-table-caption">Promoted skills</caption>
                             <colgroup>
                                 <col style="width:160px"><!-- Process -->
                                 <col style="width:140px"><!-- Classification -->
@@ -1097,7 +1113,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Classification</th>
                                     <th>Theory</th>
                                     <th>OJT</th>
@@ -1147,8 +1163,9 @@
             <div class="tab-content" id="resigned">
                 @if (Model.ResignedSkills != null && Model.ResignedSkills.Count > 0)
                 {
-                    <div class="table-container vu-skill-scroll" role="region" aria-label="Resigned employee skills and certificate downloads" tabindex="0">
+                    <div class="table-container vu-skill-scroll skill-table-fit" role="region" aria-label="Resigned employee skills and certificate downloads" tabindex="0">
                         <table class="table" id="resignedTable" style="table-layout:fixed; width:100%; min-width:880px;">
+                            <caption class="vu-table-caption">Resigned skills</caption>
                             <colgroup>
                                 <col style="width:160px"><!-- Process -->
                                 <col style="width:140px"><!-- Classification -->
@@ -1165,7 +1182,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Process</th>
+                                    <th data-column-key="process">Process</th>
                                     <th>Classification</th>
                                     <th>Theory</th>
                                     <th>OJT</th>
@@ -1599,7 +1616,7 @@ else
     #promotedTable :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(9), :nth-child(10)),
     #resignedTable :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(9), :nth-child(10)) {
         min-width: 90px;
-        white-space: nowrap !important;
+        white-space: nowrap;
     }
     .table-container:not(.vu-skill-scroll) {
         padding: 0 !important;
@@ -2107,6 +2124,7 @@ else
     }
     #disqualified .table tr { color: var(--danger) !important; }
 </style>
+<link rel="stylesheet" href="~/css/employee-tables.css" asp-append-version="true" />
 }
 
 @section Scripts {
@@ -2199,30 +2217,6 @@ else
                 }
             });
         });
-
-        // Fit-mode toggle: compress skill tab tables to fit viewport without scrolling
-        (function(){
-            const fitBtn = document.getElementById('skillFitBtn');
-            if (!fitBtn) return;
-            let fitOn = false;
-            fitBtn.addEventListener('click', function(){
-                fitOn = !fitOn;
-                document.querySelectorAll('.vu-skill-scroll')
-                    .forEach(function(tc){ tc.classList.toggle('skill-table-fit', fitOn); });
-                fitBtn.classList.toggle('fit-active', fitOn);
-                const icon = fitBtn.querySelector('i');
-                const label = fitBtn.querySelector('span');
-                if (fitOn) {
-                    if (icon) { icon.className = 'bi bi-arrows-angle-expand'; icon.style.fontSize = '1rem'; }
-                    if (label) label.textContent = 'Unfit';
-                    fitBtn.title = 'Restore scrollable table view';
-                } else {
-                    if (icon) { icon.className = 'bi bi-arrows-angle-contract'; icon.style.fontSize = '1rem'; }
-                    if (label) label.textContent = 'Fit';
-                    fitBtn.title = 'Fit all columns to screen without scrolling';
-                }
-            });
-        })();
 
         // Checkbox handling
         const selectAll = document.getElementById('selectAllSkills');
@@ -2586,8 +2580,8 @@ else
         {
             <text>
         (function () {
-            var msg = '@Html.Raw(Model.Message.Replace("'", "\\'"))';
-            var type = '@Model.MessageType';
+            var msg = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Message));
+            var type = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MessageType));
             if (msg && window.Toast) {
                 if (type === 'success') window.Toast.success('Success', msg);
                 else window.Toast.error('Error', msg);

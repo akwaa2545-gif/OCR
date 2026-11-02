@@ -1,7 +1,7 @@
 @page
 @model OperatorCertificationRecord.Web.Pages.AdminToolsModel
 @{
-    ViewData["Title"] = "Admin Tools";
+    ViewData["Title"] = Model.IsCatalogTool ? "Workshops & Processes" : "Admin Tools";
     ViewData["ActivePage"] = "AdminTools";
 }
 
@@ -19,11 +19,6 @@
         }
         else
         {
-            <header class="admin-tools-heading">
-                <span class="admin-tools-eyebrow">Administration</span>
-                <h1>Admin Tools</h1>
-                <p>Your workspace for keeping training records organized.</p>
-            </header>
             <section class="admin-tools-features" aria-label="Available admin tools">
                 <a asp-page="/AdminTools" asp-route-tool="workshops" class="admin-tool-card">
                     <span class="admin-tool-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
@@ -40,7 +35,7 @@
                     </div>
                 </a>
                 <a asp-page="/AdminTools/MissingFiles" class="admin-tool-card">
-                    <span class="admin-tool-icon"><i class="bi bi-file-earmark-search" aria-hidden="true"></i></span>
+                    <span class="admin-tool-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span>
                     <div class="admin-tool-description">
                         <h2>Missing Files Center</h2>
                         <span class="admin-tool-open">Open tool <i class="bi bi-arrow-right" aria-hidden="true"></i></span>

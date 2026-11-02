@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 
 namespace OperatorCertificationRecord.Web.Services;
@@ -30,29 +31,45 @@ internal static class RoleActivityFileStore
             using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
             if (input.Length > maxBytes) throw new IOException("The role store exceeds its storage limit.");
             using var document = JsonDocument.Parse(input);
-            RoleActivityEnvelope envelope;
-            if (document.RootElement.ValueKind == JsonValueKind.Array)
-            {
-                var members = document.RootElement.Deserialize<string[]>(Json) ?? throw new JsonException();
-                envelope = new(0, 0, members, []);
-            }
-            else
-            {
-                envelope = document.RootElement.Deserialize<RoleActivityEnvelope>(Json) ?? throw new JsonException();
-                if (envelope.SchemaVersion != 1 || envelope.MembershipRevision < 0)
-                    throw new JsonException("The role envelope version is invalid.");
-            }
-            if (envelope.Members == null || envelope.PendingAuditEvents == null || envelope.Members.Any(code => !ValidCode(code)) ||
-                envelope.PendingAuditEvents.Length > maxPending || envelope.PendingAuditEvents.Any(record => !ValidRecord(record)) ||
-                envelope.PendingAuditEvents.Select(record => record.EventUid).Distinct().Count() != envelope.PendingAuditEvents.Length)
-                throw new JsonException("The role envelope contains invalid membership or events.");
-            var receipts = envelope.ConsumedCommands ?? [];
-            if (receipts.Length > MaxReceipts || receipts.Any(receipt => !ValidReceipt(receipt)) ||
-                receipts.Select(receipt => receipt.CommandId).Distinct().Count() != receipts.Length)
-                throw new JsonException("The role envelope contains invalid command receipts.");
-            return envelope with { Members = envelope.Members.Select(code => code.Trim()).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(), ConsumedCommands = receipts };
+            return ParseDocument(document, maxPending);
         }
         catch (JsonException error) { throw new IOException("The role store is invalid.", error); }
+    }
+
+    internal static RoleActivityEnvelope Parse(string json, int maxBytes = MaxBytes, int maxPending = MaxPending)
+    {
+        if (Encoding.UTF8.GetByteCount(json) > maxBytes) throw new IOException("The role store exceeds its storage limit.");
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return ParseDocument(document, maxPending);
+        }
+        catch (JsonException error) { throw new IOException("The role store is invalid.", error); }
+    }
+
+    private static RoleActivityEnvelope ParseDocument(JsonDocument document, int maxPending)
+    {
+        RoleActivityEnvelope envelope;
+        if (document.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            var members = document.RootElement.Deserialize<string[]>(Json) ?? throw new JsonException();
+            envelope = new(0, 0, members, []);
+        }
+        else
+        {
+            envelope = document.RootElement.Deserialize<RoleActivityEnvelope>(Json) ?? throw new JsonException();
+            if (envelope.SchemaVersion != 1 || envelope.MembershipRevision < 0)
+                throw new JsonException("The role envelope version is invalid.");
+        }
+        if (envelope.Members == null || envelope.PendingAuditEvents == null || envelope.Members.Any(code => !ValidCode(code)) ||
+            envelope.PendingAuditEvents.Length > maxPending || envelope.PendingAuditEvents.Any(record => !ValidRecord(record)) ||
+            envelope.PendingAuditEvents.Select(record => record.EventUid).Distinct().Count() != envelope.PendingAuditEvents.Length)
+            throw new JsonException("The role envelope contains invalid membership or events.");
+        var receipts = envelope.ConsumedCommands ?? [];
+        if (receipts.Length > MaxReceipts || receipts.Any(receipt => !ValidReceipt(receipt)) ||
+            receipts.Select(receipt => receipt.CommandId).Distinct().Count() != receipts.Length)
+            throw new JsonException("The role envelope contains invalid command receipts.");
+        return envelope with { Members = envelope.Members.Select(code => code.Trim()).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(), ConsumedCommands = receipts };
     }
 
     private static bool ValidReceipt(RoleCommandReceipt? receipt) => receipt != null &&
@@ -86,10 +103,7 @@ internal static class RoleActivityFileStore
     internal static void Write(string path, RoleActivityEnvelope envelope, int maxBytes = MaxBytes,
         Action<string, string>? publish = null)
     {
-        if (envelope.PendingAuditEvents.Length > MaxPending || envelope.ConsumedCommands?.Length > MaxReceipts)
-            throw new IOException("The role audit queue is full.");
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, Json);
-        if (bytes.Length > maxBytes) throw new IOException("The role audit queue is full.");
+        var bytes = Serialize(envelope, maxBytes);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
@@ -104,6 +118,14 @@ internal static class RoleActivityFileStore
             (publish ?? Publish)(temporary, path);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    internal static byte[] Serialize(RoleActivityEnvelope envelope, int maxBytes = MaxBytes)
+    {
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, Json);
+        if (bytes.Length > maxBytes) throw new IOException("The role audit queue is full.");
+        Parse(Encoding.UTF8.GetString(bytes), maxBytes);
+        return bytes;
     }
 
     private static void Publish(string temporary, string path)

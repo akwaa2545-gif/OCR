@@ -3,4 +3,12 @@
   <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1"/><PackageReference Include="xunit" Version="2.6.2"/><PackageReference Include="xunit.runner.visualstudio" Version="2.8.0"/><PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all"/></ItemGroup>
   <ItemGroup><Reference Include="System.Drawing"/><Reference Include="System.Windows.Forms"/><Reference Include="System.Configuration"/><ProjectReference Include="../../OperatorCertificationRecord.FileStorage/OperatorCertificationRecord.FileStorage.csproj"/><ProjectReference Include="../../OperatorCertificationRecord.PhotoCompatibility/OperatorCertificationRecord.PhotoCompatibility.csproj"/><Compile Include="../../OperatorCertificationRecord/DesktopFileService.cs" Link="DesktopFileService.cs"/><Compile Include="../../OperatorCertificationRecord/DesktopSkillMutation.cs" Link="DesktopSkillMutation.cs"/></ItemGroup>
   <ItemGroup><Compile Include="../../OperatorCertificationRecord/DesktopEmployeeCommand.cs" Link="DesktopEmployeeCommand.cs" /><Compile Include="../../OperatorCertificationRecord/DesktopPhotoCommand.cs" Link="DesktopPhotoCommand.cs" /><PackageReference Include="coverlet.collector" Version="6.0.2" PrivateAssets="all" /></ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Data" /><Reference Include="System.Xml.Linq" /><Reference Include="System.Web.Extensions" />
+    <Compile Include="../../OperatorCertificationRecord/DesktopReportQuery.cs" Link="DesktopReportQuery.cs" />
+    <Compile Include="../../OperatorCertificationRecord/DesktopDeveloperRoles.cs" Link="DesktopDeveloperRoles.cs" />
+    <Compile Include="../../OperatorCertificationRecord/DesktopSqlDeveloperRoles.cs" Link="DesktopSqlDeveloperRoles.cs" />
+    <Compile Include="../../OperatorCertificationRecord/DesktopReportService.cs" Link="DesktopReportService.cs" />
+    <Compile Include="../../OperatorCertificationRecord/DesktopReportRangeDialog.cs" Link="DesktopReportRangeDialog.cs" />
+  </ItemGroup>
 </Project>

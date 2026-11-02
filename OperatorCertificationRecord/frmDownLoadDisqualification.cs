@@ -18,6 +18,7 @@ namespace OperatorTrainingRecord
         public frmDownLoadDisqualification()
         {
             InitializeComponent();
+            DesktopReportUi.SetThisYear(dateStartDate, dateEndDate);
         }
 
         StringBuilder sb = new StringBuilder();
@@ -29,15 +30,12 @@ namespace OperatorTrainingRecord
 
         private void btnDownloadDisqualificationDate_Click(object sender, EventArgs e)
         {
-
-            DataSet ds = new DataSet(); // สร้าง ds
-
-            string strSql;
-
-            strSql = "SELECT q.EmpCode,convert(varchar,q.JoinDate,106) as JoinDate,q.HEng,q.PersonFNameEng,q.PersonLNameEng,q.HThai,q.PersonFNameThai,q.PersonLNameThai,q.DeptName,q.SectName,q.JobGrade,q.WorkshopName,q.Shift,q.ProcessName,q.OperatorTraining,convert(varchar,q.TheoryTraining,106) as TheoryTraining,convert(varchar,q.OJTTraining,106) as OJTTraining,q.FullScore,q.ActualScore,q.TestResult,q.JudgmentTheory,q.KnowledgeScore,q.KnowledgeLevel,q.SkillScore,q.SkillLevel,q.JudgmentPractice,convert(varchar,q.CertifiedDate,106) as CertifiedDate,convert(varchar,q.ExpiryDate,106) as ExpiryDate,CASE WHEN v.PersonFnameEng IS NOT NULL AND v.PersonFnameEng <> '' THEN (v.PersonFnameEng + ' ' + v.PersonLnameEng) ELSE q.Verifier END AS Verifier,convert(varchar,q.VerifierDate,106) as VerifierDate,convert(varchar,q.DisQualifiedDate,106) as DisQualifiedDate,q.DisQualifiedBy,q.TheReason,q.Remark FROM ViewEmpQualified_All q LEFT JOIN tblEmployee v ON v.EmpCode = q.Verifier where (q.DisQualifiedDate between '" + dateStartDate.Text + "'and'" + dateEndDate.Text + "') and q.DisQualifiedBy!= '' and q.ResignDate is null and q.ProcessName is not null";
-
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
-            da.Fill(ds, "Qualified");
+            DataSet ds;
+            if (!DesktopReportUi.TryLoad(this, DesktopReportKind.Disqualification, strConnString,
+                dateStartDate.Value.Date, dateEndDate.Value.Date, out ds))
+            {
+                return;
+            }
             if (MessageBox.Show("Download Data By DisQualified Date ? ", "", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
 
@@ -48,13 +46,14 @@ namespace OperatorTrainingRecord
                 Excel.Worksheet xlWorkSheet;
                 object misValue = System.Reflection.Missing.Value;
 
-                Int16 i, j;
+                int i, j;
 
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Add(misValue);
 
                 xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
                 xlWorkSheet.Name = "My Sheet";
+                xlWorkSheet.Cells.NumberFormat = "@";
 
                 for (i = 1; i <= ds.Tables["Qualified"].Columns.Count; i++)
                 {
@@ -65,7 +64,7 @@ namespace OperatorTrainingRecord
                 {
                     for (j = 1; j <= ds.Tables["Qualified"].Columns.Count; j++)
                     {
-                        xlWorkSheet.Cells[i + 1, j] = ds.Tables["Qualified"].Rows[i - 1][j - 1].ToString();
+                        xlWorkSheet.Cells[i + 1, j] = DesktopReportService.CellText(ds.Tables["Qualified"].Rows[i - 1][j - 1]);
                     }
                     InfoLabel.Text = "Rows " + i;
                 }
@@ -88,6 +87,8 @@ namespace OperatorTrainingRecord
                 }
                 catch
                 {
+                    MessageBox.Show(this, "The report could not be saved. Close the existing Excel file and check access to C:\\Temp, then try again.",
+                        "Download report", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }

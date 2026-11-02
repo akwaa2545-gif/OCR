@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -13,6 +13,7 @@ namespace OperatorCertificationRecord.Web.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Filters.DownloadSession(api: true)]
     public class DownloadController : ControllerBase
     {
         private readonly IConfiguration _config;
@@ -33,12 +34,13 @@ namespace OperatorCertificationRecord.Web.Controllers
         [HttpGet("disqualified")]
         public IActionResult GetDisqualified([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null, [FromQuery] string format = "xlsx")
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest("Please provide 'start' and 'end' query parameters in yyyy-MM-dd format.");
 
-            // Make end inclusive by setting to end of day
+            // Include the selected end day with an exclusive next-midnight boundary.
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
@@ -51,7 +53,7 @@ namespace OperatorCertificationRecord.Web.Controllers
     CertifiedDate,ExpiryDate,Verifier,VerifierDate,
     DisQualifiedDate,DisQualifiedBy,TheReason,Remark
 FROM ViewEmpQualified_All
-WHERE DisQualifiedDate BETWEEN @start AND @end
+WHERE DisQualifiedDate >= @start AND DisQualifiedDate < @end
   /* DeveloperEmployeeExclusion */
   AND ISNULL(DisQualifiedBy,'') <> ''
   AND ResignDate IS NULL
@@ -82,7 +84,7 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
             }
 
             var rows = dt.Rows.Count;
-            var fileBase = $"Operator training DisQualified {startDate:yyyy-MM-dd} - {endDate:yyyy-MM-dd}";
+            var fileBase = $"Operator training DisQualified {startDate:yyyy-MM-dd} - {end.Value:yyyy-MM-dd}";
 
             if (format?.ToLower() == "csv")
             {
@@ -143,18 +145,19 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
         [HttpGet("disqualified/count")]
         public IActionResult GetDisqualifiedCount([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest(new { error = "Please provide 'start' and 'end' query parameters in yyyy-MM-dd format." });
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
                 return StatusCode(500, new { error = "Database connection string is not configured." });
 
             var sql = @"SELECT COUNT(1) FROM ViewEmpQualified_All
-WHERE DisQualifiedDate BETWEEN @start AND @end
+WHERE DisQualifiedDate >= @start AND DisQualifiedDate < @end
   /* DeveloperEmployeeExclusion */
   AND ISNULL(DisQualifiedBy,'') <> ''
   AND ResignDate IS NULL
@@ -188,18 +191,19 @@ WHERE DisQualifiedDate BETWEEN @start AND @end
         [HttpGet("resign/count")]
         public IActionResult GetResignCount([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest(new { error = "Please provide 'start' and 'end' query parameters in yyyy-MM-dd format." });
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
                 return StatusCode(500, new { error = "Database connection string is not configured." });
 
             var sql = @"SELECT COUNT(1) FROM ViewEmpQualified_All
-WHERE ResignDate BETWEEN @start AND @end
+WHERE ResignDate >= @start AND ResignDate < @end
   /* DeveloperEmployeeExclusion */
   AND ResignDate IS NOT NULL
   AND ProcessName IS NOT NULL
@@ -229,11 +233,12 @@ WHERE ResignDate BETWEEN @start AND @end
         [HttpGet("resign")]
         public IActionResult GetResign([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null, [FromQuery] string format = "xlsx")
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest("Please provide 'start' and 'end' query parameters in yyyy-MM-dd format.");
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
@@ -246,7 +251,7 @@ WHERE ResignDate BETWEEN @start AND @end
     CertifiedDate,ExpiryDate,Verifier,VerifierDate,
     ResignDate, ResignBy, Remark
 FROM ViewEmpQualified_All
-WHERE ResignDate BETWEEN @start AND @end
+WHERE ResignDate >= @start AND ResignDate < @end
   /* DeveloperEmployeeExclusion */
   AND ResignDate IS NOT NULL
   AND ProcessName IS NOT NULL
@@ -272,7 +277,7 @@ WHERE ResignDate BETWEEN @start AND @end
                 return StatusCode(500, "Error querying database: " + ex.Message);
             }
 
-            var fileBase = $"Operator training Resign {startDate:yyyy-MM-dd} - {endDate:yyyy-MM-dd}";
+            var fileBase = $"Operator training Resign {startDate:yyyy-MM-dd} - {end.Value:yyyy-MM-dd}";
 
             if (format?.ToLower() == "csv")
             {
@@ -317,18 +322,19 @@ WHERE ResignDate BETWEEN @start AND @end
         [HttpGet("expiry/count")]
         public IActionResult GetExpiryCount([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest(new { error = "Please provide 'start' and 'end' query parameters in yyyy-MM-dd format." });
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
                 return StatusCode(500, new { error = "Database connection string is not configured." });
 
             var sql = @"SELECT COUNT(1) FROM ViewEmpQualified_All
-WHERE ExpiryDate BETWEEN @start AND @end
+WHERE ExpiryDate >= @start AND ExpiryDate < @end
   /* DeveloperEmployeeExclusion */
   AND (ISNULL(DisQualifiedBy,'') = '')
   AND ResignDate IS NULL
@@ -411,11 +417,12 @@ WHERE ExpiryDate BETWEEN @start AND @end
         [HttpGet("expiry")]
         public IActionResult GetExpiry([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null, [FromQuery] string format = "xlsx")
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest("Please provide 'start' and 'end' query parameters in yyyy-MM-dd format.");
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
@@ -428,7 +435,7 @@ WHERE ExpiryDate BETWEEN @start AND @end
     CertifiedDate,ExpiryDate,Verifier,VerifierDate,
     Remark
 FROM ViewEmpQualified_All
-WHERE ExpiryDate BETWEEN @start AND @end
+WHERE ExpiryDate >= @start AND ExpiryDate < @end
   /* DeveloperEmployeeExclusion */
   AND (ISNULL(DisQualifiedBy,'') = '')
   AND ResignDate IS NULL  AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%'))  AND ProcessName IS NOT NULL
@@ -456,7 +463,7 @@ WHERE ExpiryDate BETWEEN @start AND @end
                 return StatusCode(500, "Error querying database: " + ex.Message);
             }
 
-            var fileBase = $"Operator training Expiry {startDate:yyyy-MM-dd} - {endDate:yyyy-MM-dd}";
+            var fileBase = $"Operator training Expiry {startDate:yyyy-MM-dd} - {end.Value:yyyy-MM-dd}";
 
             if (format?.ToLower() == "csv")
             {
@@ -500,11 +507,12 @@ WHERE ExpiryDate BETWEEN @start AND @end
         [HttpGet("obsoleted/count")]
         public IActionResult GetObsoletedCount([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest(new { error = "Please provide 'start' and 'end' query parameters in yyyy-MM-dd format." });
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
@@ -514,7 +522,7 @@ WHERE ExpiryDate BETWEEN @start AND @end
 LEFT JOIN tblEmployee e ON e.EmpCode = q.EmpCode
 LEFT JOIN tblDepartment d ON d.DeptID = e.DeptID
 LEFT JOIN tblSection s ON s.SectID = e.SectID
-WHERE q.CertifiedDate BETWEEN @start AND @end
+WHERE q.CertifiedDate >= @start AND q.CertifiedDate < @end
   /* DeveloperEmployeeExclusion */
     AND e.ResignDate IS NULL
     AND (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')
@@ -546,11 +554,12 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
         [HttpGet("obsoleted")]
         public IActionResult GetObsoleted([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null, [FromQuery] string format = "xlsx")
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, true, out var dateError)) return BadRequest(dateError);
             if (start == null || end == null)
                 return BadRequest("Please provide 'start' and 'end' query parameters in yyyy-MM-dd format.");
 
             var startDate = start.Value.Date;
-            var endDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            var endDate = end.Value.Date.AddDays(1);
 
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
@@ -569,7 +578,7 @@ LEFT JOIN tblEmployee e ON e.EmpCode = q.EmpCode
 LEFT JOIN tblDepartment d ON d.DeptID = e.DeptID
 LEFT JOIN tblSection s ON s.SectID = e.SectID
 LEFT JOIN tblWorkshop w ON w.WorkshopID = e.WorkshopID
-WHERE q.CertifiedDate BETWEEN @start AND @end
+WHERE q.CertifiedDate >= @start AND q.CertifiedDate < @end
   /* DeveloperEmployeeExclusion */
     AND e.ResignDate IS NULL
     AND (q.DisQualifiedBy IS NULL OR LTRIM(RTRIM(q.DisQualifiedBy)) = '')
@@ -598,7 +607,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
                 return StatusCode(500, "Error querying database: " + ex.Message);
             }
 
-            var fileBase = $"Operator training Obsoleted {startDate:yyyy-MM-dd} - {endDate:yyyy-MM-dd}";
+            var fileBase = $"Operator training Obsoleted {startDate:yyyy-MM-dd} - {end.Value:yyyy-MM-dd}";
 
             if (format?.ToLower() == "csv")
             {
@@ -640,6 +649,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
         [HttpGet("section/count")]
         public IActionResult GetSectionCount([FromQuery] string? section, [FromQuery] string? department, [FromQuery] DateTime? start, [FromQuery] DateTime? end)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
             if (string.IsNullOrWhiteSpace(section) && string.IsNullOrWhiteSpace(department))
                 return BadRequest(new { error = "Please provide either 'section' or 'department' query parameter." });
 
@@ -668,7 +678,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
             // if start/end supplied, add filter on CertifiedDate
             if (start.HasValue && end.HasValue)
             {
-                sql.AppendLine(" AND q.CertifiedDate BETWEEN @start AND @end");
+                sql.AppendLine(" AND q.CertifiedDate >= @start AND q.CertifiedDate < @end");
             }
 
             try
@@ -687,7 +697,7 @@ WHERE q.CertifiedDate BETWEEN @start AND @end
                 if (start.HasValue && end.HasValue)
                 {
                     var s = start.Value.Date;
-                    var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                    var e = end.Value.Date.AddDays(1);
                     cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = s;
                     cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = e;
                 }
@@ -816,6 +826,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
         [HttpGet("skillinventory/count")]
         public IActionResult GetSkillInventoryCount([FromQuery] string? section, [FromQuery] string? department, [FromQuery] DateTime? start, [FromQuery] DateTime? end)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
                 return StatusCode(500, new { error = "Database connection string is not configured." });
@@ -831,7 +842,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
 
             if (!string.IsNullOrWhiteSpace(department)) sb.AppendLine("  AND q.DeptName = @DeptName");
             if (!string.IsNullOrWhiteSpace(section)) sb.AppendLine("  AND q.SectName = @SectName");
-            if (start.HasValue && end.HasValue) sb.AppendLine("  AND q.CertifiedDate BETWEEN @start AND @end");
+            if (start.HasValue && end.HasValue) sb.AppendLine("  AND q.CertifiedDate >= @start AND q.CertifiedDate < @end");
 
             try
             {
@@ -843,7 +854,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
                 if (start.HasValue && end.HasValue)
                 {
                     var s = start.Value.Date;
-                    var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                    var e = end.Value.Date.AddDays(1);
                     cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = s;
                     cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = e;
                 }
@@ -861,12 +872,13 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
         [HttpGet("operator-noskill/count")]
         public IActionResult GetOperatorNoSkillCount([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null)
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
                 return StatusCode(500, new { error = "Database connection string is not configured." });
 
                         var sql = @"SELECT COUNT(1) FROM (
-    SELECT DISTINCT q.EmpCode FROM ViewEmpQualified_All q
+    SELECT DISTINCT q.EmpCode,q.JoinDate,q.HEng,q.PersonFNameEng,q.PersonLNameEng,q.HThai,q.PersonFNameThai,q.PersonLNameThai,q.DeptName,q.SectName,q.JobGrade,q.WorkshopName,q.Shift,q.Notice FROM ViewEmpQualified_All q
     WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
     /* DeveloperEmployeeExclusion */
         AND q.ResignDate IS NULL
@@ -875,7 +887,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
         AND q.JobGrade IN ('51T','52T')
         AND (@dept IS NULL OR q.DeptName = @dept)
         AND (@sect IS NULL OR q.SectName = @sect)
-        AND (@start IS NULL OR q.JoinDate BETWEEN @start AND @end)
+        AND (@start IS NULL OR (q.JoinDate >= @start AND q.JoinDate < @end))
 ) AS sub";
 
             try
@@ -888,7 +900,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
                 if (start.HasValue && end.HasValue)
                 {
                     var s = start.Value.Date;
-                    var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                    var e = end.Value.Date.AddDays(1);
                     cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = s;
                     cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = e;
                 }
@@ -911,6 +923,7 @@ WHERE EmpCode IN ({string.Join(",", parameterNames)})";
         [HttpGet("operator-noskill")]
         public IActionResult GetOperatorNoSkill([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] string? dept = null, [FromQuery] string? sect = null, [FromQuery] string format = "xlsx")
         {
+            if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
             var connStr = _config.GetConnectionString("DefaultConnection") ?? _config["ConnectionStrings:DefaultConnection"];
             if (string.IsNullOrWhiteSpace(connStr))
                 return StatusCode(500, "Database connection string is not configured.");
@@ -928,7 +941,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
     AND (@sect IS NULL OR q.SectName = @sect)";
 
                         // append optional join-date filter
-                        sql += "\n  AND (@start IS NULL OR q.JoinDate BETWEEN @start AND @end)";
+                        sql += "\n  AND (@start IS NULL OR (q.JoinDate >= @start AND q.JoinDate < @end))";
             var dt = new DataTable();
             try
             {
@@ -940,7 +953,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
                 if (start.HasValue && end.HasValue)
                 {
                     var s = start.Value.Date;
-                    var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                    var e = end.Value.Date.AddDays(1);
                     cmd.Parameters.Add("@start", SqlDbType.DateTime).Value = s;
                     cmd.Parameters.Add("@end", SqlDbType.DateTime).Value = e;
                 }
@@ -1021,7 +1034,6 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
 
             /// Group data by year and month for sorting
             var groups = dt.AsEnumerable()
-                .Where(row => row[dateColumnName] != DBNull.Value)
                 .GroupBy(row => 
                 {
                     DateTime date;
@@ -1043,7 +1055,7 @@ WHERE (q.ProcessName IS NULL OR LTRIM(RTRIM(q.ProcessName)) = '' OR q.DisQF = 0)
 
             foreach (var yearMonthGroup in groups)
             {
-                if (yearMonthGroup.Key.Year == 0) continue; // Skip invalid dates
+                // Undated rows sort last and remain available in the export.
 
                 // Add data rows for this group
                 foreach (var dataRow in yearMonthGroup)

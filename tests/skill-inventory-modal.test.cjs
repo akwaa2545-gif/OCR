@@ -35,6 +35,7 @@ function fixture(response) {
     };
     context.window = context;
     vm.createContext(context);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../OperatorCertificationRecord.Web/wwwroot/js/download-preview.js'), 'utf8'), context);
     vm.runInContext(script, context, { filename: '_SkillInventoryDownloadModal.cshtml' });
     const trigger = async (id, event) => {
         const element = node(id);
@@ -56,6 +57,7 @@ test('All Departments previews count and allows an Excel download', async () => 
     page.node('skInvSectionModal').value = 'Old section';
     await page.trigger('skInvAllDeptModal', 'change');
 
+    await new Promise(resolve => setTimeout(resolve, 350));
     assert.deepEqual(page.requests, ['/api/download/skillinventory/count']);
     assert.equal(page.node('skInvCountBadge').textContent, '42');
     assert.equal(page.node('skInvDownloadBtn').classList.contains('dl-pending'), false);
@@ -73,6 +75,7 @@ test('failed preview keeps download pending and cannot navigate', async () => {
     page.node('skInvAllDeptModal').checked = true;
     await page.trigger('skInvAllDeptModal', 'change');
 
+    await new Promise(resolve => setTimeout(resolve, 350));
     assert.equal(page.node('skInvCountBadge').textContent, 'Err');
     assert.equal(page.node('skInvDownloadBtn').classList.contains('dl-pending'), true);
     assert.equal(page.node('skInvPreviewBtn').disabled, false);

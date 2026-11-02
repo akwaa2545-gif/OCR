@@ -23,7 +23,7 @@
             return el;
         },
 
-        show(type, title, message, duration = 5000, position = 'top-right') {
+        show(type, title, message, duration, position = 'top-right') {
             const container = this.getContainer(position);
 
             const icons = {
@@ -33,27 +33,46 @@
                 info: 'bi-info-circle-fill'
             };
 
+            type = Object.prototype.hasOwnProperty.call(icons, type) ? type : 'info';
+            const timeout = duration === undefined ? (type === 'danger' ? 0 : 6000) : duration;
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
-            toast.innerHTML = `
-                <i class="bi ${icons[type] || icons.info} toast-icon"></i>
-                <div class="toast-content">
-                    <div class="toast-title">${title}</div>
-                    ${message ? `<div class="toast-message">${message}</div>` : ''}
-                </div>
-                <button class="toast-close" type="button">&times;</button>
-            `;
+            toast.setAttribute('role', type === 'danger' ? 'alert' : 'status');
+            toast.setAttribute('aria-atomic', 'true');
+            const icon = document.createElement('i');
+            icon.className = `bi ${icons[type]} toast-icon`;
+            icon.setAttribute('aria-hidden', 'true');
+            const content = document.createElement('div');
+            content.className = 'toast-content';
+            const heading = document.createElement('div');
+            heading.className = 'toast-title';
+            heading.textContent = title || '';
+            content.appendChild(heading);
+            if (message) {
+                const detail = document.createElement('div');
+                detail.className = 'toast-message';
+                detail.textContent = message;
+                content.appendChild(detail);
+            }
+            const close = document.createElement('button');
+            close.className = 'toast-close';
+            close.type = 'button';
+            close.textContent = '\u00d7';
+            close.setAttribute('aria-label', 'Dismiss notification');
+            toast.appendChild(icon);
+            toast.appendChild(content);
+            toast.appendChild(close);
 
             container.appendChild(toast);
 
             // Close button handler
-            toast.querySelector('.toast-close').addEventListener('click', () => {
+            close.addEventListener('click', () => {
                 this.dismiss(toast);
             });
 
             // Auto dismiss
-            if (duration > 0) {
-                setTimeout(() => this.dismiss(toast), duration);
+            if (timeout > 0) {
+                setTimeout(() => this.dismiss(toast), timeout);
             }
 
             return toast;
@@ -272,7 +291,7 @@
         });
 
         // Form validation on submit
-        document.querySelectorAll('form[data-validate]').forEach(form => {
+        document.querySelectorAll('form[data-validate]:not([data-employee-form])').forEach(form => {
             form.addEventListener('submit', function (e) {
                 if (!FormValidator.validate(form)) {
                     e.preventDefault();
@@ -282,15 +301,16 @@
         });
 
         // Real-time validation on blur
-        document.querySelectorAll('form[data-validate] input, form[data-validate] select').forEach(input => {
+        document.querySelectorAll('form[data-validate]:not([data-employee-form]) input, form[data-validate]:not([data-employee-form]) select').forEach(input => {
             input.addEventListener('blur', function () {
                 FormValidator.validateInput(input);
             });
         });
 
         // Prevent double submit
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', function () {
+        document.querySelectorAll('form:not([data-employee-form])').forEach(form => {
+            form.addEventListener('submit', function (event) {
+                if (event.defaultPrevented) return;
                 const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn && !submitBtn.disabled) {
                     Loading.button(submitBtn, true);

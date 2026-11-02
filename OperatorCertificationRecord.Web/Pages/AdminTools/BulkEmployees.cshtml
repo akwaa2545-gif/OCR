@@ -11,7 +11,7 @@
 <div class="admin-tools-shell">
     <partial name="_AdminToolsNavigation" model='@("bulk")' />
     <div class="admin-tools-content admin-ops-page">
-        <header class="admin-ops-header"><span class="admin-tools-eyebrow">Employee administration</span><h1>Bulk employee updates</h1><p>Select current employees, choose what to change, then review every change before saving.</p></header>
+        <header class="admin-ops-header page-intro"><p>Select current employees, choose what to change, then review every change before saving.</p></header>
         @if (!string.IsNullOrEmpty(Model.StatusMessage))
         {
             <div class="admin-ops-notice @(Model.HasError ? "is-error" : "is-success")" role="@(Model.HasError ? "alert" : "status")">@Model.StatusMessage</div>

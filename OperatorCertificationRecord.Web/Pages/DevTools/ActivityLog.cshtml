@@ -4,6 +4,7 @@
 @using OperatorCertificationRecord.Web.Pages.DevTools
 @{
     ViewData["Title"] = "Activity Log";
+    ViewData["PageHeadingId"] = "activity-heading";
     ViewData["ActivePage"] = "DevTools";
 }
 @section Styles {
@@ -21,8 +22,8 @@
         </nav>
     </aside>
     <div class="admin-tools-content admin-ops-page">
-        <header class="activity-heading">
-            <div><span class="admin-ops-eyebrow">Developer workspace</span><h1 id="activity-heading" tabindex="-1">Activity Log</h1><p>Search an employee to see who changed their records and when.</p></div>
+        <header class="activity-heading page-intro">
+            <div><p>Search an employee to see who changed their records and when.</p></div>
             <span class="activity-coverage"><span aria-hidden="true"></span> Web app</span>
         </header>
         <nav class="activity-tabs" aria-label="Activity views">

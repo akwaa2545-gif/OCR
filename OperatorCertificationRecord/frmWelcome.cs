@@ -188,99 +188,7 @@ namespace OperatorTrainingRecord
 
         private void btnAllDepartment_Click(object sender, EventArgs e)
         {
-            DataTable dt = receptDataWelcome();
-            DataSet ds = new DataSet(); // สร้าง ds
-    
-            string strSql;
-
-            strSql = "SELECT EmpCode,convert(varchar,JoinDate,106) as JoinDate,JobGrade,HEng,PersonFNameEng,PersonLNameEng,HThai,PersonFNameThai,PersonLNameThai,DeptName,SectName,WorkshopName,Shift,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as TheoryTraining,convert(varchar,OJTTraining,106) as OJTTraining,convert(varchar,CertifiedDate,106) as CertifiedDate,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,convert(varchar,ExpiryDate,106) as ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,convert(varchar,DisQualifiedDate,106) as DisQualifiedDate,DisQualifiedBy,TheReason,Remark FROM ViewEmpQualified_All where (DisQualifiedBy= ''or DisQualifiedBy is Null) ";
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
-            da.Fill(ds, "Qualified");
-            if (MessageBox.Show("Download Data All Dept ? ", "", MessageBoxButtons.YesNo) == DialogResult.Yes)
-            {
-
-                MessageBox.Show("Total = " + ds.Tables["Qualified"].Rows.Count + " Rows");
-
-                Excel.Application xlApp;
-                Excel.Workbook xlWorkBook;
-                Excel.Worksheet xlWorkSheet;
-                object misValue = System.Reflection.Missing.Value;
-
-                Int16 i, j;
-
-                xlApp = new Excel.Application();
-                xlWorkBook = xlApp.Workbooks.Add(misValue);
-
-                xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
-                xlWorkSheet.Name = "My Sheet";
-
-                /* ******* Download file Colums&Rows form DataSet by P'Sungsan *****
-            
-                  i = 0;
-
-                  foreach (DataColumn col in ds.Tables["Qualified"].Columns)
-                  {
-                      i++;
-
-                      xlWorkSheet.Cells[1, i] = col.ColumnName;
-
-                  }
-
-                  j = 0;
-
-                  foreach (DataRow row in ds.Tables["Qualified"].Rows)
-                  {
-                      j++;
-                      Application.DoEvents();
-                      i = 0;
-                      foreach (DataColumn col in ds.Tables["Qualified"].Columns)
-                      {
-                          i++;
-                          xlWorkSheet.Cells[j + 1, i] = row[col.ColumnName].ToString();
-                      }
-
-                      InfoLabel.Text = "Row " + j;
-
-                  }
-                */
-
-
-                for (i = 1; i <= ds.Tables["Qualified"].Columns.Count; i++)
-                {
-                    xlWorkSheet.Cells[1, i] = ds.Tables["Qualified"].Columns[i - 1].ToString();
-                }
-
-                for (i = 1; i <= ds.Tables["Qualified"].Rows.Count; i++)
-                {
-                    for (j = 1; j <= ds.Tables["Qualified"].Columns.Count; j++)
-                    {
-                        xlWorkSheet.Cells[i + 1, j] = ds.Tables["Qualified"].Rows[i - 1][j - 1].ToString();
-                    }
-                    InfoLabel.Text = "Rows download all =" + i;
-                }
-
-                try
-                {
-
-                    xlWorkBook.SaveAs(@"c:\Temp\Operator training All Dept" + DateTime.Now.ToString("yyyMMdd") + ".xls", Excel.XlFileFormat.xlWorkbookNormal, misValue, misValue, misValue, misValue, Excel.XlSaveAsAccessMode.xlExclusive, misValue, misValue, misValue, misValue, misValue);
-                   // xlApp.Workbooks.Close();
-
-                    xlWorkBook.Close(true, misValue, misValue);
-                    xlApp.Quit();
-
-                    releaseObject(xlWorkSheet);
-                    releaseObject(xlWorkBook);
-                    releaseObject(xlApp);
-
-                    
-                    MessageBox.Show("Download Data Successfully");
-                    InfoLabel.Text = "";
-                }
-                catch
-                {
-                    return;
-                }
-            }
+            picDownLoadAllDept_Click(sender, e);
         }
 
         private void releaseObject(object obj)
@@ -303,14 +211,12 @@ namespace OperatorTrainingRecord
 
         private void picDownLoadAllDept_Click(object sender, EventArgs e)
         {
-            DataTable dt = receptDataWelcome();
-            DataSet ds = new DataSet(); // สร้าง ds
-
-            string strSql;
-
-            strSql = "SELECT EmpCode,convert(varchar,JoinDate,106) as JoinDate,HEng,PersonFNameEng,PersonLNameEng,HThai,PersonFNameThai,PersonLNameThai,DeptName,SectName,WorkshopName,JobGrade,Shift,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as TheoryTraining,convert(varchar,OJTTraining,106) as OJTTraining,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,convert(varchar,CertifiedDate,106) as CertifiedDate,convert(varchar,ExpiryDate,106) as ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,Remark FROM ViewEmpQualified_ALL where (DisQualifiedBy= ''or DisQualifiedBy is Null) and ResignDate is null and ProcessName is not null";
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
-            da.Fill(ds, "Qualified");
+            DataSet ds;
+            if (!DesktopReportUi.TryLoad(this, DesktopReportKind.Inventory, strConnString,
+                null, null, out ds))
+            {
+                return;
+            }
             if (MessageBox.Show("Download Data All Dept ? ", "", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
 
@@ -321,13 +227,14 @@ namespace OperatorTrainingRecord
                 Excel.Worksheet xlWorkSheet;
                 object misValue = System.Reflection.Missing.Value;
 
-                Int16 i, j;
+                int i, j;
 
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Add(misValue);
 
                 xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
                 xlWorkSheet.Name = "My Sheet";
+                xlWorkSheet.Cells.NumberFormat = "@";
 
                 /* ******* Download file Colums&Rows form DataSet by P'Sungsan *****
             
@@ -369,7 +276,7 @@ namespace OperatorTrainingRecord
                 {
                     for (j = 1; j <= ds.Tables["Qualified"].Columns.Count; j++)
                     {
-                        xlWorkSheet.Cells[i + 1, j] = ds.Tables["Qualified"].Rows[i - 1][j - 1].ToString();
+                        xlWorkSheet.Cells[i + 1, j] = DesktopReportService.CellText(ds.Tables["Qualified"].Rows[i - 1][j - 1]);
                     }
                     InfoLabel.Text = "Rows " + i;
                 }
@@ -392,6 +299,8 @@ namespace OperatorTrainingRecord
                 }
                 catch
                 {
+                    MessageBox.Show(this, "The report could not be saved. Close the existing Excel file and check access to C:\\Temp, then try again.",
+                        "Download report", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }
@@ -428,14 +337,19 @@ namespace OperatorTrainingRecord
 
         private void picObsoleted_Click(object sender, EventArgs e)
         {
-            DataTable dt = receptDataWelcome();
-            DataSet ds = new DataSet(); // สร้าง ds
-
-            string strSql;
-
-            strSql = "SELECT EmpCode,convert(varchar,JoinDate,106) as JoinDate,JobGrade,HEng,PersonFNameEng,PersonLNameEng,HThai,PersonFNameThai,PersonLNameThai,DeptName,SectName,WorkshopName,Shift,ProcessName,OperatorTraining,convert(varchar,TheoryTraining,106) as TheoryTraining,convert(varchar,OJTTraining,106) as OJTTraining,FullScore,ActualScore,TestResult,JudgmentTheory,KnowledgeScore,KnowledgeLevel,SkillScore,SkillLevel,JudgmentPractice,convert(varchar,CertifiedDate,106) as CertifiedDate,convert(varchar,ExpiryDate,106) as ExpiryDate,Verifier,convert(varchar,VerifierDate,106) as VerifierDate,convert(varchar,DisQualifiedDate,106) as DisQualifiedDate,DisQualifiedBy,TheReason,Remark FROM ViewEmpQualified_All_Obsoleted where (DisQualifiedBy= ''or DisQualifiedBy is Null) and ResignDate is null ";
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
-            da.Fill(ds, "Qualified");
+            DataSet ds;
+            using (var range = new DesktopReportRangeDialog("Obsolete skills", DesktopReportKind.Obsoleted))
+            {
+                if (range.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+                if (!DesktopReportUi.TryLoad(this, DesktopReportKind.Obsoleted, strConnString,
+                    range.StartDate, range.EndDate, out ds))
+                {
+                    return;
+                }
+            }
             if (MessageBox.Show("Download Obsoleted ? ", "", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
 
@@ -446,13 +360,14 @@ namespace OperatorTrainingRecord
                 Excel.Worksheet xlWorkSheet;
                 object misValue = System.Reflection.Missing.Value;
 
-                Int16 i, j;
+                int i, j;
 
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Add(misValue);
 
                 xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
                 xlWorkSheet.Name = "My Sheet";
+                xlWorkSheet.Cells.NumberFormat = "@";
 
                 
                 for (i = 1; i <= ds.Tables["Qualified"].Columns.Count; i++)
@@ -464,7 +379,7 @@ namespace OperatorTrainingRecord
                 {
                     for (j = 1; j <= ds.Tables["Qualified"].Columns.Count; j++)
                     {
-                        xlWorkSheet.Cells[i + 1, j] = ds.Tables["Qualified"].Rows[i - 1][j - 1].ToString();
+                        xlWorkSheet.Cells[i + 1, j] = DesktopReportService.CellText(ds.Tables["Qualified"].Rows[i - 1][j - 1]);
                     }
                     InfoLabel.Text = "Rows Obsoleted =" + i;
                 }
@@ -488,6 +403,8 @@ namespace OperatorTrainingRecord
                 }
                 catch
                 {
+                    MessageBox.Show(this, "The report could not be saved. Close the existing Excel file and check access to C:\\Temp, then try again.",
+                        "Download report", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }
@@ -495,16 +412,19 @@ namespace OperatorTrainingRecord
         }
         private void PicNoSkill_Click(object sender, EventArgs e)
         {
-            DataTable dt = receptDataWelcome();
-            DataSet ds = new DataSet(); // สร้าง ds
-
-            string strSql;
-
-            // รายงาน No Skill แสดงเฉพาะ Operator ระดับ 51T และ 52T
-            strSql = "SELECT DISTINCT EmpCode,convert(varchar,JoinDate,106) as JoinDate,HEng,PersonFNameEng,PersonLNameEng,HThai,PersonFNameThai,PersonLNameThai,DeptName,SectName,WorkshopName,JobGrade,Shift,Notice FROM ViewEmpQualified_All where (ProcessName is null or DisQF = 0) and ResignBy is Null and Shift != 'DAY' and JobGrade in ('51T','52T')";
-            SqlDataAdapter da = new SqlDataAdapter(strSql, strConnString);
-            da.Fill(ds, "Qualified");
-            ExcludePromotedEmployees(ds.Tables["Qualified"]);
+            DataSet ds;
+            using (var range = new DesktopReportRangeDialog("Employees without skills", DesktopReportKind.NoSkill))
+            {
+                if (range.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+                if (!DesktopReportUi.TryLoad(this, DesktopReportKind.NoSkill, strConnString,
+                    range.StartDate, range.EndDate, out ds))
+                {
+                    return;
+                }
+            }
             if (ds.Tables["Qualified"].Rows.Count == 0)
             {
                 MessageBox.Show("No Operator No Skill records found.", "Operator No Skill", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -520,13 +440,14 @@ namespace OperatorTrainingRecord
                 Excel.Worksheet xlWorkSheet;
                 object misValue = System.Reflection.Missing.Value;
 
-                Int16 i, j;
+                int i, j;
 
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Add(misValue);
 
                 xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
                 xlWorkSheet.Name = "My Sheet";
+                xlWorkSheet.Cells.NumberFormat = "@";
 
 
                 for (i = 1; i <= ds.Tables["Qualified"].Columns.Count; i++)
@@ -538,7 +459,7 @@ namespace OperatorTrainingRecord
                 {
                     for (j = 1; j <= ds.Tables["Qualified"].Columns.Count; j++)
                     {
-                        xlWorkSheet.Cells[i + 1, j] = ds.Tables["Qualified"].Rows[i - 1][j - 1].ToString();
+                        xlWorkSheet.Cells[i + 1, j] = DesktopReportService.CellText(ds.Tables["Qualified"].Rows[i - 1][j - 1]);
                     }
                     InfoLabel.Text = "Employee no skill = " + i;
                 }
@@ -562,84 +483,12 @@ namespace OperatorTrainingRecord
                 }
                 catch
                 {
+                    MessageBox.Show(this, "The report could not be saved. Close the existing Excel file and check access to C:\\Temp, then try again.",
+                        "Download report", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }
 
-        }
-
-        private void ExcludePromotedEmployees(DataTable employees)
-        {
-            var employeeCodes = new List<string>();
-            var uniqueCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (DataRow row in employees.Rows)
-            {
-                var code = Convert.ToString(row["EmpCode"]);
-                if (!string.IsNullOrWhiteSpace(code) && uniqueCodes.Add(code))
-                {
-                    employeeCodes.Add(code);
-                }
-            }
-
-            if (employeeCodes.Count == 0)
-            {
-                return;
-            }
-
-            var promotedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            using (var connection = new SqlConnection(strConnString))
-            {
-                connection.Open();
-                for (var offset = 0; offset < employeeCodes.Count; offset += 200)
-                {
-                    using (var command = connection.CreateCommand())
-                    {
-                        var parameters = new List<string>();
-                        for (var index = offset; index < Math.Min(offset + 200, employeeCodes.Count); index++)
-                        {
-                            var name = "@Emp" + (index - offset);
-                            parameters.Add(name);
-                            command.Parameters.Add(name, SqlDbType.NVarChar, 10).Value = employeeCodes[index];
-                        }
-
-                        var codes = string.Join(",", parameters);
-                        // รองรับทั้งข้อความจากโปรแกรมเก่าและเครื่องหมายจากเว็บใหม่
-                        var promotionFilter = "(Remark LIKE '%PROMOTED%' OR LTRIM(RTRIM(Remark)) = 'PROMOTE TO BE OL1')";
-                        command.CommandText = "SELECT EmpCode FROM tblQualified WHERE EmpCode IN (" + codes + ") AND " + promotionFilter + " " +
-                            "UNION ALL SELECT EmpCode FROM tblQualified_Obsoleted WHERE EmpCode IN (" + codes + ") AND " + promotionFilter;
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                promotedCodes.Add(reader.GetString(0));
-                            }
-                        }
-                    }
-                }
-            }
-
-            RemoveExcludedNoSkillRows(employees, promotedCodes);
-        }
-
-        private static void RemoveExcludedNoSkillRows(DataTable employees, HashSet<string> promotedCodes)
-        {
-            var hasJobGrade = employees.Columns.Contains("JobGrade");
-            for (var index = employees.Rows.Count - 1; index >= 0; index--)
-            {
-                var row = employees.Rows[index];
-                var isPromoted = promotedCodes.Contains(Convert.ToString(row["EmpCode"]));
-                var isExcludedGrade = hasJobGrade && !IsNoSkillJobGrade(Convert.ToString(row["JobGrade"]));
-                if (isPromoted || isExcludedGrade)
-                {
-                    employees.Rows.RemoveAt(index);
-                }
-            }
-        }
-
-        private static bool IsNoSkillJobGrade(string jobGrade)
-        {
-            return string.Equals(jobGrade, "51T", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(jobGrade, "52T", StringComparison.OrdinalIgnoreCase);
         }
 
         private void btnAddEmp_Click(object sender, EventArgs e)

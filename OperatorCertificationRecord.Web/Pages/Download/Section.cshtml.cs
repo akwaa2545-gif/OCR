@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Text;
 using System.Data.SqlClient;
 
 namespace OperatorCertificationRecord.Web.Pages.Download;
 
+[Filters.DownloadSession]
 public class SectionModel : PageModel
 {
     private readonly IConfiguration _configuration;
@@ -21,8 +22,10 @@ public class SectionModel : PageModel
 
     public List<Models.Section>? Sections { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(string section, string? department, DateTime? start, DateTime? end, string format = "xlsx")
+    public async Task<IActionResult> OnGetAsync(string? section, string? department, DateTime? start, DateTime? end, string format = "xlsx")
     {
+        if (!ModelState.IsValid) return BadRequest("Please provide valid report dates in yyyy-MM-dd format.");
+        if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
         // If section parameter provided, download the Excel file
         if (!string.IsNullOrWhiteSpace(section) || !string.IsNullOrWhiteSpace(department))
         {
@@ -34,7 +37,7 @@ public class SectionModel : PageModel
         return Page();
     }
 
-        private async Task<IActionResult> GenerateExcelAsync(string section, string? department, DateTime? start, DateTime? end, string format)
+        private async Task<IActionResult> GenerateExcelAsync(string? section, string? department, DateTime? start, DateTime? end, string format)
     {
             if (string.IsNullOrWhiteSpace(section) && string.IsNullOrWhiteSpace(department))
                 return BadRequest("Missing section or department");
@@ -63,7 +66,7 @@ public class SectionModel : PageModel
 
             if (start.HasValue && end.HasValue)
             {
-                sb.AppendLine(" AND q.CertifiedDate BETWEEN @start AND @end");
+                sb.AppendLine(" AND q.CertifiedDate >= @start AND q.CertifiedDate < @end");
             }
 
             using (var cmd = new SqlCommand(sb.ToString(), conn))
@@ -80,7 +83,7 @@ public class SectionModel : PageModel
                 if (start.HasValue && end.HasValue)
                 {
                     var s = start.Value.Date;
-                    var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                    var e = end.Value.Date.AddDays(1);
                     cmd.Parameters.Add("@start", System.Data.SqlDbType.DateTime).Value = s;
                     cmd.Parameters.Add("@end", System.Data.SqlDbType.DateTime).Value = e;
                 }

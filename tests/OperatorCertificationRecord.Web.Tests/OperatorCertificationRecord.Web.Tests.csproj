@@ -11,6 +11,7 @@
     <PackageReference Include="coverlet.collector" Version="6.0.2" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\OperatorCertificationRecord\DesktopReportQuery.cs" Link="DesktopReportQuery.cs" />
     <ProjectReference Include="..\..\OperatorCertificationRecord.Web\OperatorCertificationRecord.Web.csproj" />
     <ProjectReference Include="..\..\OperatorCertificationRecord.PhotoCompatibility\OperatorCertificationRecord.PhotoCompatibility.csproj" />
   </ItemGroup>

@@ -186,7 +186,7 @@ public partial class EmployeeService
                 SELECT EmpCode, PersonFNameEng, PersonLNameEng, ProcessName, ExpiryDate,
                        ISNULL(DeptName,'') as DeptName, ISNULL(SectName,'') as SectName
                 FROM ViewEmpQualified_All
-                WHERE ExpiryDate BETWEEN @start AND @end
+                WHERE ExpiryDate >= @start AND ExpiryDate < @end
                   AND (ISNULL(DisQualifiedBy,'') = '')
                   AND ResignDate IS NULL
                   AND (Remark IS NULL OR (Remark NOT LIKE '%PROMOTED%' AND Remark NOT LIKE '%RESIGNED%' AND Remark NOT LIKE '%PROMOTE%' AND Remark NOT LIKE '%RESIGN%'))
@@ -200,7 +200,7 @@ public partial class EmployeeService
             {
                 cmd.CommandTimeout = 300;
                 cmd.Parameters.AddWithValue("@start", startDate.Date);
-                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1));
                 cmd.Parameters.AddWithValue("@dept", (object)dept ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sect", (object)sect ?? DBNull.Value);
 
@@ -238,7 +238,7 @@ public partial class EmployeeService
                        ISNULL(ProcessName,'') AS ProcessName, ResignDate,
                        ISNULL(ResignBy,'') AS ResignBy, ISNULL(Remark,'') AS Remark
                 FROM ViewEmpQualified_All
-                WHERE ResignDate BETWEEN @start AND @end
+                WHERE ResignDate >= @start AND ResignDate < @end
                   AND ResignDate IS NOT NULL
                   AND ProcessName IS NOT NULL
                   AND (@dept IS NULL OR DeptName = @dept)
@@ -249,7 +249,7 @@ public partial class EmployeeService
             {
                 cmd.CommandTimeout = 300;
                 cmd.Parameters.AddWithValue("@start", startDate.Date);
-                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", endDate.Date.AddDays(1));
                 cmd.Parameters.AddWithValue("@dept", (object)dept ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@sect", (object)sect ?? DBNull.Value);
                 using (var reader = await cmd.ExecuteReaderAsync())
@@ -944,11 +944,11 @@ public partial class EmployeeService
         using (var connection = new SqlConnection(_connectionString))
         {
             await connection.OpenAsync();
-            var sql = @"SELECT COUNT(1) FROM tblEmployee WHERE ResignDate BETWEEN @start AND @end";
+            var sql = @"SELECT COUNT(1) FROM tblEmployee WHERE ResignDate >= @start AND ResignDate < @end";
             using (var cmd = new SqlCommand(sql, connection))
             {
                 cmd.Parameters.AddWithValue("@start", start.Date);
-                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1));
                 count = (int)await cmd.ExecuteScalarAsync();
             }
         }
@@ -968,13 +968,13 @@ public partial class EmployeeService
             var sql = @"
                 SELECT YEAR(ResignDate) AS Yr, MONTH(ResignDate) AS Mo, COUNT(1) AS C
                 FROM tblEmployee
-                WHERE ResignDate >= @start AND ResignDate <= @end
+                WHERE ResignDate >= @start AND ResignDate < @end
                 GROUP BY YEAR(ResignDate), MONTH(ResignDate)
             ";
             using (var cmd = new SqlCommand(sql, connection))
             {
                 cmd.Parameters.AddWithValue("@start", start.Date);
-                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1).AddTicks(-1));
+                cmd.Parameters.AddWithValue("@end", end.Date.AddDays(1));
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     var map = new Dictionary<(int Year,int Month), int>();

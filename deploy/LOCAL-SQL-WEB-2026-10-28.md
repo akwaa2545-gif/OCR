@@ -698,8 +698,183 @@ publish passed; the local DLL/PDB were updated through the existing launcher.
 Live HTTP verification confirms preview 4,663 and actual CSV download 4,663.
 Refresh and run Preview again.
 
-Separate existing issue observed during testing: the inventory date endpoints
-both use an inclusive SQL datetime end built with AddTicks(-1), which can round
-to next-day midnight. It is outside this preview-only correction; date behavior
-was deliberately left unchanged. The parity fixture uses a July 2 date so it
-does not turn this scope into a separate date-boundary behavior change.
+The inventory investigation also identified an end-date rounding issue. It was
+left outside the preview-only correction and subsequently fixed in the report
+date work described below.
+
+### Professional UI and report dates — 30 October 2026
+
+The shared theme now uses navy text, orange primary actions, neutral surfaces
+and consistent control sizes. Employee/skill editors share compact sections,
+inline field errors and a sticky action bar. Their shared submit guard preserves
+the selected action, prevents repeated saves, and allows correction after failed
+validation. Dirty-form warnings include dates, file changes and restored pages;
+confirmed employment transitions retain their existing validation exceptions.
+
+Skill tables retain their existing column resizing and Fit controls. Process
+and selection columns are frozen, a synchronized horizontal scrollbar is
+available above the rows, and Comfortable/Compact spacing is a local display
+preference. Save feedback identifies the employee/skill and remains available
+inline on the employee page. Notifications render names and messages as text;
+error notifications require dismissal. Bulk/recovery actions keep their
+existing signed preview and explicit review-before-apply protections.
+
+Report date ranges now use `>= selected start` and `< midnight after selected
+end`, across preview counts, downloads, custom reports and the corresponding
+employee lists. This avoids SQL datetime rounding into the next day. Nine actual
+SQL regressions reproduced the old failure and verify start/end inclusion and
+next-day exclusion. Report population filters and filename dates are unchanged.
+The complete web suite passed: 817 tests, 13 unrelated fixture skips.
+
+Use `bin\Release-SqlStorage\Start-LocalSqlStorageWeb.cmd` under the original
+web project and browse to `http://localhost:5000`. Opening the launcher while
+OTD already responds now reports that it is running. A startup failure keeps
+the console open with its error instead of closing immediately. The previous
+`Release-SqlStorage-Laptop` launcher delegates to the current build; its template
+is `deploy/Start-LocalSqlStorageWeb-Laptop.cmd`. Both shortcuts now select the
+same version. Local runtime state, SQL credentials, roles and Data Protection keys
+remain in their existing locations.
+
+Final validation: 151 JavaScript tests and 14 isolated Chromium checks passed,
+with no browser script errors. Checks cover all four forms, invalid-field retry,
+single HTTP submission/action preservation, PDF-only changes, dirty navigation,
+confirmed employment actions, all skill tabs, frozen headers/columns, synchronized
+scrollbars, resizing, Fit, spacing preference, and laptop/mobile reflow. Long
+lists keep a 280px workspace (bounded on small screens) so the initial layout
+cannot trap the user in a single-row table. The top scrollbar stays accessible.
+
+Published and refreshed the local `Release-SqlStorage` runtime only. Its DLL
+matches the verified publish output; local appsettings files were preserved.
+Login and the new CSS/JS endpoints return HTTP 200 on port 5000. The previous
+Laptop launcher correctly reports/delegates to that same running application.
+Refresh the browser after the update. Docker and mapped-drive deployments were
+not changed, and browser tests did not modify production business records.
+
+### Compact tables and one page title — follow-up
+
+The user's preferred default is now **Compact + Fit**, including previously
+hidden skill tabs and browsers with an older Comfortable preference. Percentage
+column widths keep all columns and the PDF action visible; dates, names and
+remarks wrap instead of being cut off. Expand opts into larger scrollable,
+resizable columns. Actual Razor verification found no horizontal table overflow
+at 1366, 1280 and 853 CSS pixels.
+
+Repeated content page titles are removed throughout the shared-layout pages.
+The top bar remains the primary heading, with useful section headings, employee
+identities and controls retained. Activity Log focus still targets its heading
+in the top bar. Update Skill shows the employee portrait again, with the same
+existing photo URL and a placeholder when unavailable.
+
+154 JavaScript tests and seven focused browser checks passed. The current local
+runtime was rebuilt and refreshed; `/Logout` returns the updated single primary
+heading and the new table CSS/JS is served successfully. For this ReadyToRun
+project, use a full `dotnet publish -c Release --no-restore` after rebuilding;
+`--no-build` can reuse an older native publish assembly despite newer build
+output. Verify the rendered view as well as the copied publish hash.
+
+New employees created through Add Employee require exactly seven ASCII digits
+in Employee No. The text input preserves leading zeros, filters non-digits and
+limits input to seven characters. Server property validation applies the same
+rule before employee lookup/storage, including for manually posted values.
+Existing employee IDs and other forms are unchanged. Fourteen validation cases
+and four input-handler cases cover the rule and zero-prefixed IDs.
+
+### Download modal automatic previews — 30 October
+
+Download modals now request their record count on opening and refresh after date,
+preset, department or section changes. Inventory starts with All Departments;
+the separate Section report waits for its required department/section choice.
+Both the dashboard partials and the Download Reports page's separate Inventory
+and No-skill controllers are covered. Manual Preview remains available. Automatic
+successes update the inline count without a toast or starting a download.
+
+`download-preview.js` invalidates old counts immediately, debounces changes and
+ignores responses for older filters or closed/reopened modals. Failed requests
+keep downloads pending. Existing report population rules and URLs are unchanged.
+
+Validation: 187 JavaScript tests passed; 21 isolated browser scenarios passed
+without script exceptions or unintended downloads. Browser routes supplied
+synthetic metadata/counts; no business database was accessed by those checks.
+Release publish succeeded. Artifacts are in the ignored task folders
+`download-auto-preview-publish` and `download-auto-preview-browser` under
+`.superpowers/sdd/CURRENT-EMPLOYEE-SQL-STORAGE-PLAN-2026-10-27`.
+
+**Runtime status:** replacing/restarting the running original
+`Web/bin/Release-SqlStorage` was rejected by automatic approval review with
+"blocked by policy" and no further explanation. The command did not execute.
+The running port-5000 app therefore still uses the earlier build. The tested
+publish is ready, but this feature has not been applied to that running copy.
+Docker and mapped-drive deployments are unchanged.
+
+### DownloadSection bug fixes — 30 October
+
+The subsequent bug audit fixed these paths:
+
+- No-skill's 80 ms visibility check could open a second fallback while Bootstrap
+  was still animating. Bootstrap now completes its own lifecycle. The fallback
+  registers Close, Escape and outside-click handlers immediately, restores focus
+  and scrolling, and emits hide/hidden events to cancel pending counts.
+- Shared modal date inputs called a validator defined only on DownloadSection.
+  The validator now loads with `download-preview.js`, rejects one-sided dates,
+  preserves pending Download state, and clears old errors after preset changes.
+  Current successful previews call `complete(ticket)` to re-enable Download;
+  stale responses cannot change button state.
+- Anonymous report APIs/export pages now require a signed-in session, without
+  adding an Admin restriction. APIs return 401; export pages redirect to Login.
+  DownloadSection's login redirect returns before dropdown database reads.
+- Count and export handlers reject partial, reversed, malformed or unsupported
+  SQL datetime ranges before query execution or end-day overflow. Razor exports
+  check binding ModelState; Section's optional parameter remains nullable so
+  department-only requests are supported.
+- No-skill previews count the same full DISTINCT projection as exports,
+  including Notice. Excel preserves employees with no joining date instead of
+  dropping their rows. The header now accurately lists six reports and Excel/CSV.
+
+Validation: **198 JavaScript tests**, **65 focused backend/isolated SQL tests**
+and **11 browser client regressions** passed. The broader web suite passed 805
+tests with 62 optional fixture cases skipped, before the final two ModelState
+regressions were added and included in the focused run. C#, security and general
+reviews found no remaining blockers. Release publish succeeded into the same
+ignored `download-auto-preview-publish` folder used by the manual update script.
+
+Browser checks used latest client scripts through isolated response overrides
+on the existing synthetic fixture. Starting a newly built fixture was rejected
+by automatic approval review with "blocked by policy". New backend HTTP pipeline
+checks were therefore not run in the browser fixture; backend validation used
+the focused tests and framework/filter review. No business database records or
+schema were changed.
+
+The original port-5000 runtime was not replaced. The already reviewed manual
+`Apply-LocalDownloadPreview.ps1` in the ignored task folder now applies this
+latest tested publish, preserving local configurations and data directories.
+
+### Popup opening jump — follow-up
+
+The user subsequently applied the prior build locally: the runtime DLL matched
+that publish, port 5000 was owned by the newly started process, and an anonymous
+report count returned 401. The reported "loads twice" behavior was reproduced
+as a visual layout problem with one show/shown event and one count request.
+
+DownloadSection moved its already visible modal from a transformed main-content
+container to the body after opening. This shifted it roughly 32px horizontally
+and 34–44px vertically and restarted its content fade. The loading indicator
+then added 9.13px of height and caused another recentering movement.
+
+`modal-layer.js` now establishes the final body parent before opening. Duplicate
+page CSS, late positioning handlers and style observers were removed from
+DownloadSection and Dashboard. A shared CSS rule centers the popup throughout
+opening and closing, while hidden dialogs remain hidden. Count/loading elements
+have stable dimensions. Tall download cards use the outer popup's scrolling
+area so Close/Cancel remain reachable on small screens.
+
+Validation: 201 JavaScript tests and six desktop/mobile visual cases passed.
+Each visual case had one opening and one count request, no visible fade reset,
+and zero loading/closing position or height change. At 390×680, long content
+remains scrollable and Cancel is reachable. The visual checks used current
+client scripts/styles injected into the existing isolated fixture; no running
+application processes or business database records were changed by those tests.
+
+Release publish succeeded and refreshed `download-auto-preview-publish`, the
+source for the existing manual local update script. This latest popup fix has
+not yet been copied into the running port-5000 runtime. Run that script again
+to install it; the earlier automatic restart rejection remains in effect.

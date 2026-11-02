@@ -11,7 +11,7 @@
     function currentYear(now = new Date()) {
         return { start: now.getFullYear() + '-01-01', end: formatLocal(now) };
     }
-    function apply(start, end, preset, now = new Date()) {
+    function apply(start, end, preset, now = new Date(), notify = true) {
         if (!start || !end) return;
         let range;
         if (preset === 'year') range = currentYear(now);
@@ -23,12 +23,15 @@
         }
         start.value = range.start;
         end.value = range.end;
+        if (notify) [start, end].forEach(field => {
+            if (typeof field.dispatchEvent === 'function') field.dispatchEvent(new Event('change', { bubbles: true }));
+        });
         return range;
     }
     function initialize(start, end, owner) {
         if (!start || !end || initialized.has(start)) return;
         initialized.add(start);
-        apply(start, end, 'year');
+        apply(start, end, 'year', new Date(), false);
         if (owner) owner.querySelectorAll('button[data-days]').forEach(button => {
             button.classList.toggle('active', button.getAttribute('data-days') === 'year');
         });

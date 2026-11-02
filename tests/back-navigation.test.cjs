@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const layout = fs.readFileSync(path.join(__dirname, '../OperatorCertificationRecord.Web/Pages/Shared/_Layout.cshtml'), 'utf8');
 const start = layout.indexOf('    /* ===== Animation system ===== */');
-const end = layout.indexOf('        /* globally keep modals on top and in body */', start);
+const end = layout.indexOf('        /* Popup placement is established before opening by modal-layer.js. */', start);
 assert.ok(start >= 0 && end > start, 'Navigation animation script must be present');
 const animation = layout.slice(start, end) + '\n})();';
 

@@ -196,6 +196,15 @@ test('invalid manual dates never submit a previous value and remain invalid afte
     assert.equal(original.value, '2024-02-29'); assert.equal(alt.validationMessage, '');
 });
 
+test('explicit confirmed employee transitions bypass unrelated date edits while normal saves still validate', () => {
+    const { original, alt, form, doc } = setup();
+    alt.value = '31 Feb 2026'; alt.emit('input'); alt.emit('blur');
+    assert.equal(original.value, '');
+    assert.equal(doc.emit('submit', { target: form, submitter: { formNoValidate: false } }).defaultPrevented, true);
+    assert.equal(doc.emit('submit', { target: form, submitter: { formNoValidate: true } }).defaultPrevented, false);
+    assert.equal(alt.value, '31 Feb 2026', 'The confirmed transition must not rewrite an unrelated edit');
+});
+
 test('outside-click auto-parsing cannot clear invalid text or silently swallow a typed change', () => {
     const { original, alt, fp } = setup(); let changes = 0;
     original.addEventListener('change', () => changes++);

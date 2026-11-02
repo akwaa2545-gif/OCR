@@ -196,6 +196,7 @@ public class UpdateSkillModel : PageModel
         
         if (string.IsNullOrWhiteSpace(EmpCode) || string.IsNullOrWhiteSpace(processName))
         {
+            ModelState.AddModelError(nameof(Skill_ProcessName), "Select an employee and process.");
             Message = "Missing employee or process information.";
             MessageType = "error";
             return await RedirectToGetAsync();
@@ -222,6 +223,7 @@ public class UpdateSkillModel : PageModel
         {
             if (Skill_CertifiedDate.HasValue && Skill_ExpiryDate.HasValue && Skill_ExpiryDate.Value.Date < Skill_CertifiedDate.Value.Date)
             {
+                ModelState.AddModelError(nameof(Skill_ExpiryDate), "Expiry date must be on or after certified date.");
                 Message = "Expiry Date must be on or after Certified Date.";
                 MessageType = "error";
                 return await RedirectToGetAsync();
@@ -229,6 +231,7 @@ public class UpdateSkillModel : PageModel
 
             if (SkillFile == null || SkillFile.Length == 0)
             {
+                ModelState.AddModelError(nameof(SkillFile), "Upload a PDF certificate.");
                 Message = "A PDF certificate is required to update this skill.";
                 MessageType = "error";
                 return await RedirectToGetAsync();
@@ -311,7 +314,7 @@ public class UpdateSkillModel : PageModel
                     input, SkillFile, HttpContext.Session.GetString("UserCode") ?? "", HttpContext.RequestAborted);
             if (success)
             {
-                TempData["Message"] = "Skill updated successfully.";
+                TempData["Message"] = $"Skill {processName} updated for employee {EmpCode}.";
                 TempData["MessageType"] = "success";
                 return RedirectToPage("/ViewUser", new { empCode = EmpCode });
             }

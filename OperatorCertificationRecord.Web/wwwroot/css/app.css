@@ -1719,13 +1719,27 @@ a:hover {
     display: none;
     position: fixed;
     inset: 0;
-    align-items: center;
+    align-items: safe center;
     justify-content: center;
+    overflow-y: auto;
+    padding: 1rem;
+    box-sizing: border-box;
     z-index: 10050 !important;
 }
-.modal.show {
-    display: flex;
+.modal.show,
+.modal[aria-modal="true"] {
+    display: flex !important;
 }
+.modal-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    margin: auto;
+    flex-shrink: 0;
+}
+.modal-dialog.modal-sm { max-width: 300px; }
+.modal-dialog.modal-lg { max-width: 800px; }
+.modal-dialog.modal-xl { max-width: 1140px; }
 .modal-backdrop {
     position: fixed;
     inset: 0;

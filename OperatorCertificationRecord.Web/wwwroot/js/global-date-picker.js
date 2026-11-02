@@ -364,6 +364,7 @@
                 for (const state of states.values()) if (state.el.form === event.target) syncValue(state, state.resetValue);
             }, 0));
             doc.addEventListener('submit', event => {
+                if (event.submitter?.formNoValidate) return;
                 for (const state of states.values()) {
                     if (state.el.form !== event.target || state.el.disabled) continue;
                     if (!commit(state, true) || !state.fp.altInput.checkValidity()) {

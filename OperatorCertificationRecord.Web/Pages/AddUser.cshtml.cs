@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using OperatorCertificationRecord.Web.Services;
 using OperatorCertificationRecord.Web.Filters;
+using System.ComponentModel.DataAnnotations;
 
 namespace OperatorCertificationRecord.Web.Pages;
 
 [AdminOnly]
 public class AddUserModel : PageModel
 {
+    private const string EmployeeNumberError = "Employee No. must contain exactly 7 digits.";
     private readonly EmployeeService _employeeService;
     private readonly DepartmentService _departmentService;
     private readonly SectionService _sectionService;
@@ -17,6 +19,8 @@ public class AddUserModel : PageModel
     private readonly ILogger<AddUserModel> _logger;
 
     [BindProperty]
+    [Required(ErrorMessage = EmployeeNumberError)]
+    [RegularExpression("[0-9]{7}", ErrorMessage = EmployeeNumberError)]
     public string? EmpCode { get; set; }
 
     [BindProperty]
@@ -98,9 +102,12 @@ public class AddUserModel : PageModel
             return RedirectToPage("/Login");
         }
 
-        if (string.IsNullOrWhiteSpace(EmpCode))
+        if (!Validator.TryValidateProperty(EmpCode,
+            new ValidationContext(this) { MemberName = nameof(EmpCode) }, null))
         {
-            Message = "Please enter Employee ID";
+            if (!ModelState.TryGetValue(nameof(EmpCode), out var state) || state.Errors.Count == 0)
+                ModelState.AddModelError(nameof(EmpCode), EmployeeNumberError);
+            Message = EmployeeNumberError;
             MessageType = "error";
             await LoadDropdowns();
             return Page();
@@ -110,6 +117,7 @@ public class AddUserModel : PageModel
         var existing = await _employeeService.GetEmployeeByCodeAsync(EmpCode);
         if (existing != null)
         {
+            ModelState.AddModelError(nameof(EmpCode), "This employee ID already exists.");
             Message = "Employee already exists";
             MessageType = "error";
             await LoadDropdowns();
@@ -151,7 +159,7 @@ public class AddUserModel : PageModel
             if (success)
             {
                 // Use Post-Redirect-Get to avoid duplicate inserts on refresh
-                TempData["Message"] = "Employee added successfully";
+                TempData["Message"] = $"Employee {EmpCode} added.";
                 TempData["MessageType"] = "success";
                 return RedirectToPage("/AddUser");
             }
@@ -165,6 +173,7 @@ public class AddUserModel : PageModel
         }
         catch (PhotoUploadValidationException ex)
         {
+            ModelState.AddModelError(nameof(PhotoFile), ex.Message);
             Message = ex.Message;
             MessageType = "error";
             await LoadDropdowns();
@@ -186,6 +195,7 @@ public class AddUserModel : PageModel
         }
         catch (InvalidOperationException ex) when (ex.Message == "DUPLICATE_EMP_CODE")
         {
+            ModelState.AddModelError(nameof(EmpCode), "This employee ID already exists.");
             Message = "Employee already exists";
             MessageType = "error";
             await LoadDropdowns();

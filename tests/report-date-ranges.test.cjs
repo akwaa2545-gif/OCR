@@ -5,6 +5,16 @@ const vm = require('node:vm');
 const path = require('node:path');
 const ranges = require('../OperatorCertificationRecord.Web/wwwroot/js/report-date-ranges.js');
 
+test('preset changes notify date validators so an old error can clear', () => {
+    const events = [];
+    const start = { value: '', dispatchEvent(event) { events.push(['start', event.type]); } };
+    const end = { value: '', dispatchEvent(event) { events.push(['end', event.type]); } };
+    ranges.initialize(start, end);
+    assert.equal(events.length, 0, 'initialization must not notify unfinished controllers');
+    ranges.apply(start, end, 'year');
+    assert.deepEqual(events, [['start', 'change'], ['end', 'change']]);
+});
+
 test('current year range uses local calendar dates including New Year and leap days', () => {
     assert.deepEqual(ranges.currentYear(new Date(2026, 0, 1, 0, 5)), { start: '2026-01-01', end: '2026-01-01' });
     assert.deepEqual(ranges.currentYear(new Date(2024, 1, 29, 0, 5)), { start: '2024-01-01', end: '2024-02-29' });
@@ -32,6 +42,7 @@ function runModals(names) {
     const context = { document, ReportDateRanges: ranges, console, setTimeout() { return 1; }, clearTimeout() {}, URLSearchParams,
         fetch() { throw new Error('No network expected while initializing report defaults'); } };
     context.window = context; vm.createContext(context);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../OperatorCertificationRecord.Web/wwwroot/js/download-preview.js'), 'utf8'), context);
     for (const name of names) {
         const source = fs.readFileSync(path.join(__dirname, '../OperatorCertificationRecord.Web/Pages/Shared/', name), 'utf8');
         const id = /class="modal[^\n]*?id="([^"]+)"/.exec(source)[1];
@@ -70,11 +81,11 @@ test('DownloadSection initialization and reopening keep an explicitly chosen ran
     const endAt = source.indexOf('// relocate modals', startAt);
     const nodes = new Map();
     const node = id => {
-        if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', listeners: {}, querySelectorAll: () => [],
+        if (!nodes.has(id)) nodes.set(id, { dispatchEvent() {}, value: '', textContent: '', listeners: {}, querySelectorAll: () => [],
             addEventListener(name, fn) { this.listeners[name] = fn; }, classList: { add() {} } });
         return nodes.get(id);
     };
-    const context = { document: { getElementById: node }, ReportDateRanges: ranges };
+    const context = { document: { getElementById: node }, ReportDateRanges: ranges, Event: class Event {} };
     vm.createContext(context); vm.runInContext(source.slice(startAt, endAt), context);
     assert.equal(node('onsStart').value, ranges.currentYear().start);
     node('onsStart').value = '2023-05-01'; node('onsEnd').value = '2023-06-01';

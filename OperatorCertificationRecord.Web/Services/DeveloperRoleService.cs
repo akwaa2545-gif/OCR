@@ -8,12 +8,13 @@ public sealed class DeveloperRoleService
     private readonly object _gate;
     private readonly ILogger<DeveloperRoleService> _logger;
     private readonly RoleActivityJournal? _activity;
+    private readonly RoleActivityStorage _storage;
 
     public DeveloperRoleService(IConfiguration configuration, ILogger<DeveloperRoleService> logger, RoleActivityJournal? activity = null)
     {
-        _storePath = Path.GetFullPath(configuration["DeveloperRoles:StorePath"] ??
-            Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "developers.json"));
-        _gate = RoleActivityFileGate.SyncRoot(_storePath);
+        _storage = new RoleActivityStorage(configuration);
+        _storePath = _storage.Resolve("Developer");
+        _gate = _storage.SyncRoot(_storePath);
         _logger = logger;
         _activity = activity;
     }
@@ -66,7 +67,7 @@ public sealed class DeveloperRoleService
         {
             HashSet<string> roles;
             IDisposable? fileGate = null;
-            try { fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath); roles = ReadRoles(requireStore: true); }
+            try { fileGate = _activity == null ? null : _storage.Enter(_storePath); roles = ReadRoles(requireStore: true); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 fileGate?.Dispose();
@@ -83,7 +84,7 @@ public sealed class DeveloperRoleService
         if (!TryNormalize(actorCode, out var actor)) return RoleChangeResult.Forbidden;
         lock (_gate)
         {
-            using var fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath);
+            using var fileGate = _activity == null ? null : _storage.Enter(_storePath);
             if (!ReadRolesForMutation().Contains(actor)) return RoleChangeResult.Forbidden;
             return mutation();
         }
@@ -94,7 +95,7 @@ public sealed class DeveloperRoleService
         if (!TryNormalize(actorCode, out var actor)) return RoleChangeResult.Forbidden;
         lock (_gate)
         {
-            using var fileGate = _activity == null ? null : RoleActivityFileGate.Enter(_storePath);
+            using var fileGate = _activity == null ? null : _storage.Enter(_storePath);
             var roles = ReadRolesForMutation();
             if (!TryNormalize(targetEmpCode, out var target))
                 throw new ArgumentException("Invalid employee code.", nameof(targetEmpCode));
@@ -137,13 +138,13 @@ public sealed class DeveloperRoleService
     private HashSet<string> ReadRoles(bool requireStore = false)
     {
         // Privileged membership is provisioned explicitly; a missing file never seeds access.
-        if (!File.Exists(_storePath))
+        if (!_storage.Exists(_storePath))
         {
             if (requireStore) throw new IOException("The developer role store is unavailable.");
             _logger.LogWarning("Developer role store is missing; developer access is denied");
             return new HashSet<string>(StringComparer.Ordinal);
         }
-        var stored = RoleActivityFileStore.Read(_storePath).Members;
+        var stored = _storage.Read(_storePath).Members;
         var roles = new HashSet<string>(StringComparer.Ordinal);
         foreach (var value in stored)
         {
@@ -155,7 +156,7 @@ public sealed class DeveloperRoleService
 
     private void Persist(HashSet<string> roles)
     {
-        if (RoleActivityFileStore.Read(_storePath).SchemaVersion != 0)
+        if (_storage.Read(_storePath).SchemaVersion != 0)
             throw new IOException("Audited access changes require the activity journal.");
         var temporaryPath = _storePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try

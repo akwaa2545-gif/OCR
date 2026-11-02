@@ -1,0 +1,13 @@
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <IncludeTestAssembly>true</IncludeTestAssembly>
+          <Include>[OperatorCertificationRecord.Desktop.Tests]OperatorTrainingRecord.DesktopReport*,[OperatorCertificationRecord.Desktop.Tests]OperatorTrainingRecord.DesktopDeveloperRoles*</Include>
+          <Format>cobertura</Format>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

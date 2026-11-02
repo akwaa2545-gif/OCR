@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Data.SqlClient;
 using System.IO;
 
 namespace OperatorCertificationRecord.Web.Pages.Download;
 
+[Filters.DownloadSession]
 public class SkillInventoryModel : PageModel
 {
     private readonly IConfiguration _configuration;
@@ -20,6 +21,8 @@ public class SkillInventoryModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(string? section, string? department, DateTime? start, DateTime? end, string format = "xlsx")
     {
+        if (!ModelState.IsValid) return BadRequest("Please provide valid report dates in yyyy-MM-dd format.");
+        if (!Services.DownloadDateRange.TryValidate(start, end, false, out var dateError)) return BadRequest(dateError);
         // Generate and return the Excel file directly, optionally filtered by section/department and date
         var connStr = _configuration.GetConnectionString("DefaultConnection") ?? "";
         if (string.IsNullOrWhiteSpace(connStr)) return StatusCode(500, "Database connection string not configured.");
@@ -40,7 +43,7 @@ public class SkillInventoryModel : PageModel
         sb.AppendLine("  AND q.ProcessName IS NOT NULL");
         if (!string.IsNullOrWhiteSpace(department)) sb.AppendLine("  AND q.DeptName = @DeptName");
         if (!string.IsNullOrWhiteSpace(section)) sb.AppendLine("  AND q.SectName = @SectName");
-        if (start.HasValue && end.HasValue) sb.AppendLine("  AND q.CertifiedDate BETWEEN @start AND @end");
+        if (start.HasValue && end.HasValue) sb.AppendLine("  AND q.CertifiedDate >= @start AND q.CertifiedDate < @end");
 
         var dt = new System.Data.DataTable();
         try
@@ -52,7 +55,7 @@ public class SkillInventoryModel : PageModel
             if (start.HasValue && end.HasValue)
             {
                 var s = start.Value.Date;
-                var e = end.Value.Date.AddDays(1).AddTicks(-1);
+                var e = end.Value.Date.AddDays(1);
                 cmd.Parameters.Add("@start", System.Data.SqlDbType.DateTime).Value = s;
                 cmd.Parameters.Add("@end", System.Data.SqlDbType.DateTime).Value = e;
             }
