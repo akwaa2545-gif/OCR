@@ -36,7 +36,7 @@ public sealed class RememberedLoginService
         {
             ct.ThrowIfCancellationRequested();
             WebActivityContextFactory.ValidateActor(account.EmployeeCode);
-            if (remember && !TransportAllowed(http))
+            if (remember && !CanRememberSignIn(http))
                 throw new InvalidOperationException("Remembered sign-in requires a secure connection.");
             foreach (var previousHash in PreviousHashes(http))
                 await _store.RevokeAsync(previousHash, ct);
@@ -76,7 +76,7 @@ public sealed class RememberedLoginService
             await RejectAsync(http, null, false, deleteCookie: false);
             return false;
         }
-        if (!TransportAllowed(http) || !TryReadTokenHash(http, out var hash))
+        if (!CanRememberSignIn(http) || !TryReadTokenHash(http, out var hash))
         {
             await RejectAsync(http, null, false);
             return false;
@@ -192,7 +192,7 @@ public sealed class RememberedLoginService
         if (!string.IsNullOrWhiteSpace(http.Session.GetString(SessionTokenKey))) http.Session.Clear();
     }
 
-    private bool TransportAllowed(HttpContext http) => _environment.IsDevelopment() || http.Request.IsHttps;
+    public bool CanRememberSignIn(HttpContext http) => _environment.IsDevelopment() || http.Request.IsHttps;
 
     private CookieOptions CookieOptions(HttpContext http, DateTimeOffset? expires = null, TimeSpan? maxAge = null) => new()
     {

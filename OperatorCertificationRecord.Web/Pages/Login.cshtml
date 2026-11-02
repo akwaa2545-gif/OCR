@@ -196,10 +196,17 @@
                 </div>
             </div>
 
-            <label class="login-remember" for="remember-me">
-                <input asp-for="RememberMe" id="remember-me" type="checkbox">
-                <span>Keep me signed in for 30 days</span>
-            </label>
+            @if (Model.CanRememberSignIn)
+            {
+                <label class="login-remember" for="remember-me">
+                    <input asp-for="RememberMe" id="remember-me" type="checkbox">
+                    <span>Keep me signed in for 30 days</span>
+                </label>
+            }
+            else
+            {
+                <p class="login-remember">Remembered sign-in requires HTTPS.</p>
+            }
 
             <button type="submit" class="btn btn-primary login-btn">
                 <i class="bi bi-box-arrow-in-right"></i>

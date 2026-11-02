@@ -200,6 +200,9 @@ function Read-OcrConfiguration {
             throw "$Name configuration is missing $field."
         }
     }
+    if ($config.PSObject.Properties['AllowHttpSession']) {
+        if ($config.AllowHttpSession -isnot [bool]) { throw "$Name AllowHttpSession must be a JSON boolean." }
+    } else { $config | Add-Member AllowHttpSession $false }
     if ($config.ContainerName -notmatch '^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}$') { throw "$Name container name is invalid." }
     $portNumber = 0
     if (-not [int]::TryParse([string]$config.Port, [ref]$portNumber) -or $portNumber -lt 1 -or $portNumber -gt 65535) { throw "$Name port is invalid." }
@@ -300,6 +303,9 @@ function New-OcrContainer {
         '--env', 'PhotoStorage__UploadRoot=/app/photo-source', '--env', 'PhotoStorage__LegacyMirrorRoot=/app/legacy-photos',
         '--env', 'PhotoStorage__DatabasePathPrefix=/app/photos', '--env', 'PhotoPath=/app/legacy-photos',
         '--env', 'CertificatePath=/app/wwwroot/certs')
+    if ($Config.PSObject.Properties['AllowHttpSession'] -and $Config.AllowHttpSession -is [bool] -and $Config.AllowHttpSession) {
+        $arguments += @('--env', 'Authentication__AllowHttpSession=true')
+    }
     if ($EnableSqlStorage) {
         $arguments += @('--env', 'FileStorage__ReadSqlEnabled=true', '--env', 'FileStorage__WriteSqlEnabled=true',
             '--env', 'AccessRoles__Storage=Sql')
