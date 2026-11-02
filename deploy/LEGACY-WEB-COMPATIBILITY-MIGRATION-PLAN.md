@@ -192,78 +192,21 @@ still writes through the retired Windows feature. Contract schema cleanup is a s
 reviewed change after this evidence exists. Do not rerun the completed attachment import
 as a substitute for client rollout or bulk-import unrelated legacy history into web audit.
 
-## Feature branches and merge graph
+## Old program and web app compatibility
 
-### Published baseline
+The two main lines represent the **Old program** and the **Web app**. Each green
+connection shows a shared feature whose data and behavior must agree in both apps.
 
-This graph records the published commit ancestry at the start of this continuation.
-`main` has not been merged with `SQL-storage` by this documentation task.
+![Old program and web app connected through shared employee information, photos and PDFs, skills and certificates, report rules and exclusions, and workshops and processes.](diagrams/legacy-web-feature-compatibility.svg)
 
-```mermaid
-gitGraph
-    commit id: "eb6c174 main baseline"
-    branch SQL-storage
-    commit id: "76807be shared SQL files"
-    commit id: "11d3a1e web tools and audit"
-    commit id: "6005e9e SQL roles reports UI"
-```
+- **Old program:** retain compatible employee, skill, file and report workflows during migration.
+- **Web app:** use the same shared records while adding web-specific tools.
+- **Connecting feature:** changes made through either supported app must remain readable and valid in the other.
+- **Web-only tools:** Admin tools, Skill recovery, Activity log and browser sign-in do not require matching Windows screens.
 
-### Future feature integration
-
-This is a **proposed integration topology**, not actual repository history. Use short-lived
-feature branches in the existing repository, rather than maintaining divergent old-app and
-new-app product branches. A shared feature merges after its contract and both adapters pass.
-A merge integrates code; it does not deploy clients, apply schema or transfer data ownership.
-
-```mermaid
-gitGraph
-    commit id: "Compatible baseline"
-    branch web_ui
-    commit id: "W01 laptop UI"
-    checkout main
-    branch compat_core
-    commit id: "F01 F02 F03 shared contracts"
-    commit id: "Windows and web adapters"
-    commit id: "F07 cross-app checks"
-    checkout main
-    merge compat_core id: "Core compatibility gate"
-    merge web_ui id: "Independent UI merge"
-    branch shared_roles_reports
-    commit id: "F04 SQL roles"
-    commit id: "F05 both report adapters"
-    checkout main
-    merge shared_roles_reports id: "Role and export gate"
-    branch shared_catalog
-    commit id: "F06 catalog contract and readers"
-    checkout main
-    merge shared_catalog id: "Catalog gate"
-    branch web_tools
-    commit id: "W02 W03 W04 web tools"
-    checkout main
-    merge web_tools id: "Web tools acceptance"
-    commit id: "Release candidate for selected features"
-```
-
-The graph shows feature dependencies, not instructions to create or merge these branches now.
-Existing compatible implementations can satisfy a gate; they do not need to be rewritten.
-
-```mermaid
-flowchart LR
-    F01["F01 Employee identity"] --> F03["F03 Skill lifecycle"]
-    F02["F02 SQL files"] --> F03
-    F04["F04 SQL roles"] --> F05["F05 Report exclusions"]
-    F06["F06 Workshop / Process"] --> F03
-    F03 --> PAIR["Windows + web adapter acceptance"]
-    F05 --> PAIR
-    F07["F07 Stale-write protection"] --> PAIR
-    PAIR --> RELEASE["Compatible release candidate"]
-    UI["W01 Web UI"] --> RELEASE
-    F03 --> REC["W03 Web recovery"]
-    F04 --> TOOLS["W02 Admin Tools / W04 web activity"]
-    REC --> RELEASE
-    TOOLS --> RELEASE
-    RELEASE --> HANDOVER["Separate deployment and feature handover"]
-```
+This is a compatibility map, not a progress timeline. A connection defines the required
+agreement; it does not claim every installed copy has been updated. Use the delivery
+snapshot and acceptance checks to record which features are ready.
 
 ## Acceptance and recovery gates
 

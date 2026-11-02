@@ -1,7 +1,7 @@
 # OCR deployment
 
 Planning: [legacy Windows / web compatibility and feature handover](LEGACY-WEB-COMPATIBILITY-MIGRATION-PLAN.md),
-including the `SQL-storage` baseline, implementation checklist and Git-style feature diagrams.
+including the `SQL-storage` baseline, implementation checklist and app compatibility diagram.
 
 The workflow builds on GitHub-hosted Ubuntu, tests deployment scripts on GitHub-hosted Windows PowerShell 5.1, publishes a Linux/amd64 image to GHCR, and deploys its immutable digest on the Windows host. The legacy .NET Framework desktop application is not part of this web deployment.
 
