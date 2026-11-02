@@ -194,26 +194,54 @@ as a substitute for client rollout or bulk-import unrelated legacy history into 
 
 ## Old program and web app compatibility
 
-The two main lines represent the **Old program** and the **Web app**. Each green
-connection shows a shared feature whose data and behavior must agree in both apps.
+This restores the original **Git-style layout** in one combined feature graph.
+The two main lines are **Old program** and **Web app**. Shared features merge into
+both lines; known compatibility gaps remain unmerged in the same graph.
 
-![Old program and web app connected through shared employee information, photos and PDFs, skills and certificates, report rules and exclusions, and workshops and processes.](diagrams/legacy-web-feature-compatibility.svg)
+```mermaid
+%%{init: {"theme":"base","gitGraph":{"mainBranchName":"Old program"},"themeVariables":{"git0":"#c77a16","git1":"#2867ba","git2":"#209776","git3":"#cb5147","git4":"#cb5147","git5":"#cb5147"}}}%%
+gitGraph
+    commit id: "Shared SQL database"
+    branch "Web app"
+    commit id: "Web development"
+    checkout "Old program"
+    branch "Shared features"
+    commit id: "Employee records"
+    commit id: "Photos and PDFs"
+    commit id: "Skills and certificates"
+    commit id: "Main report rules"
+    commit id: "SQL role exclusions"
+    commit id: "Workshop and process data"
+    checkout "Old program"
+    merge "Shared features" id: "Shared features in old app"
+    checkout "Web app"
+    merge "Shared features" id: "Shared features in web app"
+    commit id: "Web-only tools"
+    checkout "Web app"
+    branch "Concurrent profile edits"
+    commit id: "Stale-save gap" type: REVERSE
+    checkout "Web app"
+    branch "Role-controlled edits"
+    commit id: "Permission gap" type: REVERSE
+    checkout "Web app"
+    branch "Alternate Section report"
+    commit id: "Filter gap" type: REVERSE
+    checkout "Old program"
+    commit id: "Compatibility work continues"
+    checkout "Web app"
+    commit id: "Web development continues"
+```
 
-- **Old program:** retain compatible employee, skill, file and report workflows during migration.
-- **Web app:** use the same shared records while adding web-specific tools.
-- **Connecting feature:** changes made through either supported app must remain readable and valid in the other.
-- **Web-only tools:** Admin tools, Skill recovery, Activity log and browser sign-in do not require matching Windows screens.
+- **Green, merged into both apps:** common records, attachments, skill data,
+  main report rules, report role exclusions and catalog data.
+- **Red, unmerged:** concurrent profile saves, role-controlled edits and the
+  alternate Section report still need alignment.
+- **Web-only tools stay on the Web app line:** Admin tools, Skill recovery,
+  Activity log and browser sign-in do not require matching Windows screens.
 
-This is a compatibility map, not a progress timeline. A connection defines the required
-agreement; it does not claim every installed copy has been updated. Use the delivery
-snapshot and acceptance checks to record which features are ready.
-
-### Separate graph: compatibility gaps
-
-The original shared-feature graph above stays unchanged. This second graph shows
-known gaps, pending verification and intentionally web-only features separately.
-
-![Separate compatibility-gap graph: broken connections for concurrent profile edits, role-controlled edits and the alternate Section report; pending checks and web-only tools are shown separately.](diagrams/legacy-web-compatibility-gaps.svg)
+The graph represents feature compatibility, not actual repository history or a
+deployment timeline. Shared data does not imply identical edit permissions or
+safe concurrent edits. Installed releases and the checks below still need verification.
 
 | Feature | Current gap | Required outcome |
 | --- | --- | --- |
