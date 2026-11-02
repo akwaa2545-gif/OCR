@@ -168,14 +168,13 @@ public sealed class AccessRoleTests
     [Fact]
     public async Task PersistenceFailure_ReturnsUnavailableAndNeverReportsAGrant()
     {
-        using var fixture = new Fixture("101");
-        File.SetAttributes(fixture.DeveloperPath, FileAttributes.ReadOnly);
-        try
-        {
-            AssertStatus(503, await fixture.Post("developer", "true"));
-            Assert.False(fixture.Developers.IsDeveloper(Fixture.Target));
-        }
-        finally { File.SetAttributes(fixture.DeveloperPath, FileAttributes.Normal); }
+        // The store is readable, but its GUID-suffixed temporary filename exceeds
+        // the filesystem's component limit on both Windows and Linux.
+        using var fixture = new Fixture("101", new string('d', 250) + ".json");
+
+        AssertStatus(503, await fixture.Post("developer", "true"));
+        Assert.False(fixture.Developers.IsDeveloper(Fixture.Target));
+        Assert.Null(fixture.Page.TempData["Message"]);
     }
 
     private static void AssertStatus(int expected, IActionResult result) =>
@@ -193,11 +192,11 @@ public sealed class AccessRoleTests
         public DefaultHttpContext Http { get; } = new();
         public AccessRoleModel Page { get; }
 
-        public Fixture(string? actor)
+        public Fixture(string? actor, string developerFileName = "developers.json")
         {
             Directory.CreateDirectory(_directory);
             _adminPath = Path.Combine(_directory, "admins.json");
-            DeveloperPath = Path.Combine(_directory, "developers.json");
+            DeveloperPath = Path.Combine(_directory, developerFileName);
             WriteRoles("admin", new[] { "101", "102" });
             WriteRoles("developer", new[] { "101", "103" });
             var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

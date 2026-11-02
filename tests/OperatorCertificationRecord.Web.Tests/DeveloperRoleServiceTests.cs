@@ -17,9 +17,9 @@ public sealed class DeveloperRoleServiceTests : IDisposable
 
     public DeveloperRoleServiceTests() => Directory.CreateDirectory(_directory);
 
-    private DeveloperRoleService CreateService() => new(
+    private DeveloperRoleService CreateService(string? storePath = null) => new(
         new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        { ["DeveloperRoles:StorePath"] = StorePath }).Build(), NullLogger<DeveloperRoleService>.Instance);
+        { ["DeveloperRoles:StorePath"] = storePath ?? StorePath }).Build(), NullLogger<DeveloperRoleService>.Instance);
 
     private void Seed(string json = "[\"101\"]") => File.WriteAllText(StorePath, json);
 
@@ -183,16 +183,16 @@ public sealed class DeveloperRoleServiceTests : IDisposable
     [Fact]
     public void FailedPersistenceDoesNotGrantAccessOrLeaveTemporaryFiles()
     {
-        Seed();
-        var service = CreateService();
-        using (var heldStore = new FileStream(StorePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            var error = Record.Exception(() => service.SetDeveloper("101", "102", true));
-            Assert.True(error is IOException or UnauthorizedAccessException,
-                $"Expected a storage failure, received {error?.GetType().Name ?? "no exception"}.");
-        }
+        // A valid store filename leaves no room for the temporary-file suffix,
+        // so persistence fails independently of platform-specific rename locks.
+        var storePath = Path.Combine(_directory, new string('d', 250) + ".json");
+        File.WriteAllText(storePath, "[\"101\"]");
+        var service = CreateService(storePath);
+
+        Assert.ThrowsAny<IOException>(() => service.SetDeveloper("101", "102", true));
         Assert.False(service.IsDeveloper("102"));
         Assert.True(service.IsDeveloper("101"));
+        Assert.Equal("[\"101\"]", File.ReadAllText(storePath));
         Assert.Single(Directory.GetFiles(_directory));
     }
 
